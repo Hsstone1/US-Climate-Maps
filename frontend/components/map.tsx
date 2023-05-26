@@ -17,11 +17,17 @@ export default function Map() {
 
   const mapRef = useRef<GoogleMap>();
   const center = useMemo<LatLngLiteral>(() => ({ lat: 38.000, lng: -98.00 }),[]);
-  const [selectedMarker, setSelectedMarker] = useState(null);
+  const [selectedMarker, setSelectedMarker] = useState<MarkerType[]>([]);
+  //const [selectedMarker, setSelectedMarker] = useState<{key: String; lat: number; lng: number; data: any; }[]>([]);
+  const [infoWindow, setInfoWindow] = useState([]);
 
 
-  
-
+  type MarkerType = {
+    key: String;
+    lat: number;
+    lng: number;
+    data: any;
+  }
 
   const options = useMemo<MapOptions>(
     () => ({
@@ -51,8 +57,39 @@ export default function Map() {
     mapRef.current = map;
   
   }, []);
+  
 
+  const handleMapClick = useCallback((ev) => {
+    const latitude = ev.latLng?.lat();
+    const longitude = ev.latLng?.lng();
 
+    // Send latitude and longitude values to the backend API
+    // Get response from post request from backend
+    fetch('http://localhost:5000/climate_data', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ latitude, longitude }),
+    })
+      .then((response) => response.json())
+      .then((data) => {
+        // Handle the response from the backend API
+        const newMarker: MarkerType = {
+          key: (latitude + ',' + longitude).toString(),
+          lat: latitude,
+          lng: longitude,
+          data: data
+        }
+        setSelectedMarker((prevMarkers) => [...prevMarkers, newMarker]);
+
+        console.log(data);
+      })
+      .catch((error) => {
+        // Handle any error that occurred during the request
+        console.error(error);
+      });
+  }, []);
 
   return (
     <div className="container">
@@ -67,32 +104,28 @@ export default function Map() {
           mapContainerClassName="map-container"
           onLoad={onLoad}
           options={options}
-          onClick={ev => {
-            //Chaining opperator. Only will check if not null
-            const latitude = ev.latLng?.lat();
-            const longitude = ev.latLng?.lng();
-
-            
-            // Send latitude and longitude values to the backend API
-            fetch('http://localhost:5000/climate_data', {
-              method: 'POST',
-              headers: {
-                'Content-Type': 'application/json',
-              },
-              body: JSON.stringify({ latitude, longitude }),
-            })
-              .then(response => response.json())
-              .then(data => {
-                // Handle the response from the backend API
-                console.log(data);
-              })
-              .catch(error => {
-                // Handle any error that occurred during the request
-                console.error(error);
-              });
-            
-          }}
+          onClick={handleMapClick}
         >
+
+          {selectedMarker.map((marker) => (
+            <Marker
+              key={marker.key.toString()}
+              position={{ lat: marker.lat, lng: marker.lng }}
+              onClick={() => setSelectedMarker([marker])}
+              visible={true}
+            >
+              <InfoWindow
+                key={marker.key.toString()}
+                position={{ lat: marker.lat, lng: marker.lng }}
+                onCloseClick={() => setSelectedMarker([])}
+                >
+                <div>
+                  {/* Display the info from the marker */}
+                  {<p>ANNUAL HIGH:</p> && marker.data.annual_data.weighted_annual_high_avg}
+                </div>
+              </InfoWindow>
+            </Marker>
+          ))}
 
         </GoogleMap>
       </div>

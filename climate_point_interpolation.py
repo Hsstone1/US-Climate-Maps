@@ -44,10 +44,11 @@ def get_elevation_from_coords(lat,lon):
     
     elevations = []
     url = r'https://epqs.nationalmap.gov/v1/json?'
-    result = requests.get((url + urllib.parse.urlencode(params)))
     try:
+        result = requests.get(url + urllib.parse.urlencode(params), timeout=5.000)
+
         elevations.append(result.json()['value'])
-    except (requests.exceptions.JSONDecodeError, KeyError):
+    except (requests.exceptions.JSONDecodeError, KeyError, requests.exceptions.ReadTimeout):
         elevations.append(0)
         print("ERROR: ELEVATION NOT FOUND")
     return elevations[0]
