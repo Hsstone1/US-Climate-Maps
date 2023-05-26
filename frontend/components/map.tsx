@@ -5,6 +5,7 @@ import {
   DirectionsRenderer,
   Circle,
   MarkerClusterer,
+  InfoWindow
 } from "@react-google-maps/api";
 
 
@@ -16,6 +17,10 @@ export default function Map() {
 
   const mapRef = useRef<GoogleMap>();
   const center = useMemo<LatLngLiteral>(() => ({ lat: 38.000, lng: -98.00 }),[]);
+  const [selectedMarker, setSelectedMarker] = useState(null);
+
+
+  
 
 
   const options = useMemo<MapOptions>(
@@ -41,7 +46,14 @@ export default function Map() {
     []
   );
 
-  const onLoad = useCallback((map) => (mapRef.current = map), []);
+  //const onLoad = useCallback((map) => (mapRef.current = map), []);
+  const onLoad = useCallback((map) => {
+    mapRef.current = map;
+  
+  }, []);
+
+
+
   return (
     <div className="container">
       <div className="controls">

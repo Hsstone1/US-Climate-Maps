@@ -4,7 +4,10 @@ import os
 import glob
 import time
 import requests
+from concurrent.futures import ThreadPoolExecutor, ProcessPoolExecutor
 
+
+# Used only for gathering data initially
 def main():
     
     acronyms = get_acronyms()
@@ -19,13 +22,13 @@ def main():
 
         acronym_split = acronyms[i].split(',')
 
-        NWS_PROVIDER = "BOU"
-        CITY_CODE = "CCU"
-        #NWS_PROVIDER = acronym_split[0]
-        #CITY_CODE = acronym_split[1]
+        #NWS_PROVIDER = "BOU"
+        #CITY_CODE = "CCU"
+        NWS_PROVIDER = acronym_split[0]
+        CITY_CODE = acronym_split[1]
 
         df, num_entries = df_from_csv(NWS_PROVIDER, CITY_CODE)
-        
+        print(df)
         #lat, lon = conv_coord_to_dec(df.iloc[0]['LAT'], df.iloc[0]['LON'])
 
         #print(df)
@@ -37,12 +40,22 @@ def main():
 
     print("--- %s seconds ---" % (time.time() - start_time))
 
+def read_from_csv(file):
+    csv_file = pd.read_csv(file)
+    csv_data = (file[:-4].split('_')[2:])
+    years = [csv_data[0]] * len(csv_file)
+    months = [csv_data[1]] * len(csv_file)
+    lats = [csv_data[2]] * len(csv_file)
+    longs = [csv_data[3]] * len(csv_file)
+    
+    return csv_file, months, years, lats, longs
+
 
 
 def df_from_csv(NWS_PROVIDER, CITY_CODE):
-    
+
     path = f"{os.getcwd()}\\STATIONS\\{NWS_PROVIDER}\\{CITY_CODE}\\"
-    print(NWS_PROVIDER, CITY_CODE)
+    #print(NWS_PROVIDER, CITY_CODE)
 
     files = glob.glob(path + "*.csv")
     df = []
@@ -53,6 +66,38 @@ def df_from_csv(NWS_PROVIDER, CITY_CODE):
     longs = []
 
     
+    with ThreadPoolExecutor(4) as executor:
+        # Submit the read_csv function for each CSV file
+        futures = [executor.submit(read_from_csv, f) for f in files]
+
+        # Wait for all tasks to complete and get the results
+        for future in futures:
+            csv_file, csv_months, csv_years, csv_lats, csv_longs = future.result()
+            df.append(csv_file)
+            months.extend(csv_months)
+            years.extend(csv_years)
+            lats.extend(csv_lats)
+            longs.extend(csv_longs)
+            num_entries += 1
+
+    # Concatenate the results into a single DataFrame
+    df = pd.concat(df)
+
+    # CSV files have duplicate MAX column, and DIR header before S-S but that is unused so it is removed
+    df.columns = ['DY', 'MAX', 'MAX', 'MIN', 'AVG', 'DEP', 'HDD', 'CDD', 'WTR', 'SNW', 'DPTH', 'AVG SPD', 'MAX SPD', 'S-S', 'DR', 'WX']
+    df["MONTH"] = months
+    df["YEAR"] = years
+    df["LAT"] = lats
+    df["LON"] = longs
+
+    # This removes the one duplicate column 'MAX'
+    df = df.loc[:,~df.columns.duplicated()].copy()
+   
+
+    return df, num_entries
+
+    # Old single threaded system. Thread Pool Executor seems to be faster for data retrieval
+    '''
     #This takes all csv files in each subdirectory, and concats them into one dataframe
     for f in files:
         csv_file = pd.read_csv(f)
@@ -84,9 +129,10 @@ def df_from_csv(NWS_PROVIDER, CITY_CODE):
 
     #This removes the one duplicate column 'MAX'
     df = df.loc[:,~df.columns.duplicated()].copy()
+    
 
     return df, num_entries
-
+    '''
 
 def get_station_name(NWS_PROVIDER, CITY_CODE):
     df = pd.read_csv('cf6_acronyms_complete.csv')
@@ -103,7 +149,6 @@ def print_station_name_to_csv(df):
 
 
         for i in range(len(df)):
-        #for i in range(1):
 
             try:
                 NWS_PROVIDER = df.iloc[i]['NWS_PROVIDER']
@@ -112,7 +157,6 @@ def print_station_name_to_csv(df):
                 lon = df.iloc[i]['LON']
                 elevation = df.iloc[i]['ELEVATION']
                 name = get_station_name(NWS_PROVIDER, CITY_CODE)[0][2]
-                #print(name)
 
                 row = ([lat,lon,NWS_PROVIDER, CITY_CODE, elevation, name])
 
@@ -251,6 +295,8 @@ def rename_month_files(NWS_PROVIDER, CITY_CODE):
             new_name = new_name.replace("_" + csv_data[1]+"_", "_" + month+"_")
             os.rename(f,new_name)
             
+
+
 
 def get_acronyms():
     CF6_ACRONYMS = [
@@ -1106,6 +1152,6 @@ def get_acronyms():
     ]
     return CF6_ACRONYMS
 
-
 if __name__ == "__main__":
     main()
+    pass
