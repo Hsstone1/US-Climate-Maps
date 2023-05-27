@@ -1,12 +1,25 @@
-import { useState, useMemo, useCallback, useRef } from "react";
+import { useState, useMemo, useCallback, useRef, useEffect } from "react";
 import {
   GoogleMap,
   Marker,
-  DirectionsRenderer,
-  Circle,
-  MarkerClusterer,
   InfoWindow
 } from "@react-google-maps/api";
+import {
+  Chart as ChartJS,
+  LinearScale,
+  CategoryScale,
+  BarElement,
+  PointElement,
+  LineElement,
+  Legend,
+  Tooltip,
+  LineController,
+  BarController,
+  ChartOptions,
+} from 'chart.js';
+import { Chart } from "react-chartjs-2";
+
+
 
 
 type LatLngLiteral = google.maps.LatLngLiteral;
@@ -18,8 +31,6 @@ export default function Map() {
   const mapRef = useRef<GoogleMap>();
   const center = useMemo<LatLngLiteral>(() => ({ lat: 38.000, lng: -98.00 }),[]);
   const [selectedMarker, setSelectedMarker] = useState<MarkerType[]>([]);
-  //const [selectedMarker, setSelectedMarker] = useState<{key: String; lat: number; lng: number; data: any; }[]>([]);
-  const [infoWindow, setInfoWindow] = useState([]);
 
 
   type MarkerType = {
@@ -29,7 +40,49 @@ export default function Map() {
     data: any;
   }
 
-  const options = useMemo<MapOptions>(
+  ChartJS.register(
+    LinearScale,
+    CategoryScale,
+    BarElement,
+    PointElement,
+    LineElement,
+    Legend,
+    Tooltip,
+    LineController,
+    BarController
+  );
+
+  const chartOptions = {
+    responsive: true,
+    plugins: {
+      
+      legend: {
+        position: 'top' as const,
+        display:false
+      },
+      
+      title: {
+        display: true,
+        text: 'Yearly Climate Averages',
+      },
+    },
+    
+    scales: {
+      Temperature: {
+        type: 'linear',
+        position: 'left',
+      },
+      Precip: {
+        type: 'linear',
+        position: 'right',
+        ticks: {
+            beginAtZero: true,
+        }
+      }
+    },
+  } as ChartOptions<'bar' | 'line'>;
+
+  const mapOptions = useMemo<MapOptions>(
     () => ({
       clickableIcons: false,
       disableDoubleClickZoom: true,
@@ -91,6 +144,48 @@ export default function Map() {
       });
   }, []);
 
+
+  const labels = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+
+  const createChartData = (marker: MarkerType) => {
+    return {
+      labels,
+      datasets: [
+        {
+          type: 'line' as const,
+          label: 'Max Temperature',
+          data: marker.data.monthly_data.weighted_monthly_high_avg,
+          backgroundColor: 'rgba(243, 105, 75, 0.5)',
+          borderColor: 'rgba(243, 105, 75, 1)',
+          borderWidth: 1,
+          yAxisID: 'Temperature',
+        },
+        {
+          type: 'line' as const,
+          label: 'Min Temperature',
+          data: marker.data.monthly_data.weighted_monthly_low_avg,
+          backgroundColor: 'rgba(137, 182, 249, 0.5)',
+          borderColor: 'rgba(137, 182, 249, 1)',
+          borderWidth: 1,
+          yAxisID: 'Temperature',
+        }, 
+        {
+          type: 'bar' as const,
+          label: 'Precip Totals',
+          data: marker.data.monthly_data.weighted_monthly_precip_avg,
+          backgroundColor: 'rgba(137, 217, 249, 0.5)',
+          fill: true,
+          borderColor: 'rgba(137, 217, 249, 0.5)',
+          borderWidth: 1,
+          yAxisID: 'Precip',
+        }
+        // Add more datasets for other climate information (e.g., precipitation, humidity)
+      ],
+    };
+  };
+
+  
+
   return (
     <div className="container">
       <div className="controls">
@@ -103,7 +198,7 @@ export default function Map() {
           center={center}
           mapContainerClassName="map-container"
           onLoad={onLoad}
-          options={options}
+          options={mapOptions}
           onClick={handleMapClick}
         >
 
@@ -117,10 +212,25 @@ export default function Map() {
               <InfoWindow
                 key={marker.key.toString()}
                 position={{ lat: marker.lat, lng: marker.lng }}
+                options={{
+                  disableAutoPan: true,
+                }}
                 >
                 <div>
                   {/* Display the info from the marker */}
-                  {<p>ANNUAL HIGH:</p> && marker.data.annual_data.weighted_annual_high_avg}
+                  <div style={{ textAlign: 'center' }}>
+                    {<p>{marker.data.location_data.location.toString()}</p>}
+
+                  </div>
+                  
+                  <Chart 
+                    key={marker.key.toString()}
+                    width="250"
+                    height="200"
+                    options={chartOptions}
+                    data={createChartData(marker)}
+                    type={"bar"}
+                  />
                 </div>
               </InfoWindow>
             </Marker>

@@ -3,6 +3,9 @@ from climate_point_interpolation import get_climate_avg_at_point
 import pandas as pd
 import time
 from flask_cors import CORS
+from geopy.geocoders import Nominatim
+import random
+import string
 
 app = Flask(__name__)
 CORS(app)
@@ -72,6 +75,7 @@ def climate_data():
 
     location_data = {
         'elevation': location_data['elevation'],
+        'location': get_city_name(latitude, longitude)
     }
 
     data = {
@@ -83,6 +87,35 @@ def climate_data():
     
     # Return the response as JSON
     return jsonify(data)
+
+
+def get_city_name(latitude, longitude):
+    try:
+        generate_user_agent = lambda: ''.join(random.choices(string.ascii_letters + string.digits, k=15))
+        geolocator = Nominatim(user_agent=str(generate_user_agent))  # Initialize Nominatim geolocator
+        location = geolocator.reverse(f"{latitude}, {longitude}")  # Reverse geocode the coordinates
+
+        if location:
+            address = location.raw['address']
+            city = address.get('city')
+            state = address.get('state')
+            county = address.get('county')
+            country = address.get('country')
+            print(city, ', ', state, ', ' ', ', address)
+
+            values = {}
+            if city and state:
+                return city + ', ' + state
+            elif county and state:
+                return county + ', ' + state
+            else:
+                return country
+
+
+    except Exception as e:
+        print("Error occurred during geolocation:", str(e))
+
+    return None
 
 if __name__ == '__main__':
     app.run(debug=True)
