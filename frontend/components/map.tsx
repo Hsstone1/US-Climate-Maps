@@ -111,13 +111,12 @@ export default function Map() {
             <Marker
               key={marker.key.toString()}
               position={{ lat: marker.lat, lng: marker.lng }}
-              onClick={() => setSelectedMarker([marker])}
+              onClick={() => setSelectedMarker((prevMarkers) => [...prevMarkers, marker ])}
               visible={true}
             >
               <InfoWindow
                 key={marker.key.toString()}
                 position={{ lat: marker.lat, lng: marker.lng }}
-                onCloseClick={() => setSelectedMarker([])}
                 >
                 <div>
                   {/* Display the info from the marker */}
