@@ -51,6 +51,8 @@ def climate_data():
         'weighted_annual_wind_gust_avg': annual_data['weighted_annual_wind_gust_avg'],
         'weighted_annual_sunshine_avg': annual_data['weighted_annual_sunshine_avg'],
         'weighted_annual_wind_dir_avg': annual_data['weighted_annual_wind_dir_avg'],
+        'weighted_annual_precip_days_avg': annual_data['weighted_annual_precip_days_avg'],
+        'weighted_annual_snow_days_avg': annual_data['weighted_annual_snow_days_avg'],
     }
 
     monthly_data = {
@@ -71,6 +73,9 @@ def climate_data():
         'weighted_monthly_wind_gust_avg': monthly_data['weighted_monthly_wind_gust_avg'],
         'weighted_monthly_sunshine_avg': monthly_data['weighted_monthly_sunshine_avg'],
         'weighted_monthly_wind_dir_avg': monthly_data['weighted_monthly_wind_dir_avg'],
+        'weighted_monthly_precip_days_avg': monthly_data['weighted_monthly_precip_days_avg'],
+        'weighted_monthly_snow_days_avg': monthly_data['weighted_monthly_snow_days_avg'],
+
     }
 
     location_data = {
@@ -118,4 +123,4 @@ def get_city_name(latitude, longitude):
     return None
 
 if __name__ == '__main__':
-    app.run(debug=True)
+    app.run(debug=True) 

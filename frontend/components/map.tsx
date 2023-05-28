@@ -68,6 +68,12 @@ export default function Map() {
     },
     
     scales: {
+      x: {
+        ticks: {
+          autoSkip: false,
+          font:8
+        },
+      },
       Temperature: {
         type: 'linear',
         position: 'left',
@@ -77,7 +83,10 @@ export default function Map() {
         position: 'right',
         ticks: {
             beginAtZero: true,
-        }
+        }, 
+        grid: {
+          display: false,
+        },
       }
     },
   } as ChartOptions<'bar' | 'line'>;
@@ -155,28 +164,53 @@ export default function Map() {
           type: 'line' as const,
           label: 'Max Temperature',
           data: marker.data.monthly_data.weighted_monthly_high_avg,
-          backgroundColor: 'rgba(243, 105, 75, 0.5)',
-          borderColor: 'rgba(243, 105, 75, 1)',
-          borderWidth: 1,
+          backgroundColor: 'rgba(243, 105, 75, 0.7)',
+          borderColor: 'rgba(243, 105, 75, 0.7)',
+          borderWidth: 3,
+          pointRadius: 0,
+          pointHoverRadius: 3,
+          yAxisID: 'Temperature',
+        },
+        {
+          type: 'line' as const,
+          label: '90th % Temperature',
+          data: marker.data.monthly_data.weighted_monthly_percentile_90_max_avg,
+          backgroundColor: 'rgba(237, 68, 62, 0.3)',
+          borderColor: 'rgba(237, 68, 62, 0.3)',
+          borderWidth: 2,
+          pointRadius: 0,
+          pointHoverRadius: 3,
           yAxisID: 'Temperature',
         },
         {
           type: 'line' as const,
           label: 'Min Temperature',
           data: marker.data.monthly_data.weighted_monthly_low_avg,
-          backgroundColor: 'rgba(137, 182, 249, 0.5)',
-          borderColor: 'rgba(137, 182, 249, 1)',
-          borderWidth: 1,
+          backgroundColor: 'rgba(97, 139, 201, 0.7)',
+          borderColor: 'rgba(97, 139, 201, 0.7)',
+          borderWidth: 3,
+          pointRadius: 0,
+          pointHoverRadius: 3,
+          yAxisID: 'Temperature',
+        }, 
+        {
+          type: 'line' as const,
+          label: '10th % Temperature',
+          data: marker.data.monthly_data.weighted_monthly_percentile_10_min_avg,
+          backgroundColor: 'rgba(137, 182, 249, 0.3)',
+          borderColor: 'rgba(137, 182, 249, 0.3)',
+          borderWidth: 2,
+          pointRadius: 0,
+          pointHoverRadius: 3,
           yAxisID: 'Temperature',
         }, 
         {
           type: 'bar' as const,
           label: 'Precip Totals',
           data: marker.data.monthly_data.weighted_monthly_precip_avg,
-          backgroundColor: 'rgba(137, 217, 249, 0.5)',
-          fill: true,
-          borderColor: 'rgba(137, 217, 249, 0.5)',
-          borderWidth: 1,
+          backgroundColor: 'rgba(137, 217, 249, 0.7)',
+          //fill: true,
+          borderColor: 'rgba(137, 217, 249, 0.7)',
           yAxisID: 'Precip',
         }
         // Add more datasets for other climate information (e.g., precipitation, humidity)
