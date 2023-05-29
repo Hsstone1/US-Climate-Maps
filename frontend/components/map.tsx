@@ -4,20 +4,9 @@ import {
   Marker,
   InfoWindow
 } from "@react-google-maps/api";
-import {
-  Chart as ChartJS,
-  LinearScale,
-  CategoryScale,
-  BarElement,
-  PointElement,
-  LineElement,
-  Legend,
-  Tooltip,
-  LineController,
-  BarController,
-  ChartOptions,
-} from 'chart.js';
-import { Chart } from "react-chartjs-2";
+
+import ClimateChart from "./climatechart";
+
 
 
 
@@ -40,56 +29,7 @@ export default function Map() {
     data: any;
   }
 
-  ChartJS.register(
-    LinearScale,
-    CategoryScale,
-    BarElement,
-    PointElement,
-    LineElement,
-    Legend,
-    Tooltip,
-    LineController,
-    BarController
-  );
 
-  const chartOptions = {
-    responsive: true,
-    plugins: {
-      
-      legend: {
-        position: 'top' as const,
-        display:false
-      },
-      
-      title: {
-        display: true,
-        text: 'Yearly Climate Averages',
-      },
-    },
-    
-    scales: {
-      x: {
-        ticks: {
-          autoSkip: false,
-          font:8
-        },
-      },
-      Temperature: {
-        type: 'linear',
-        position: 'left',
-      },
-      Precip: {
-        type: 'linear',
-        position: 'right',
-        ticks: {
-            beginAtZero: true,
-        }, 
-        grid: {
-          display: false,
-        },
-      }
-    },
-  } as ChartOptions<'bar' | 'line'>;
 
   const mapOptions = useMemo<MapOptions>(
     () => ({
@@ -154,71 +94,6 @@ export default function Map() {
   }, []);
 
 
-  const labels = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-
-  const createChartData = (marker: MarkerType) => {
-    return {
-      labels,
-      datasets: [
-        {
-          type: 'line' as const,
-          label: 'Max Temperature',
-          data: marker.data.monthly_data.weighted_monthly_high_avg,
-          backgroundColor: 'rgba(243, 105, 75, 0.7)',
-          borderColor: 'rgba(243, 105, 75, 0.7)',
-          borderWidth: 3,
-          pointRadius: 0,
-          pointHoverRadius: 3,
-          yAxisID: 'Temperature',
-        },
-        {
-          type: 'line' as const,
-          label: '90th % Temperature',
-          data: marker.data.monthly_data.weighted_monthly_percentile_90_max_avg,
-          backgroundColor: 'rgba(237, 68, 62, 0.3)',
-          borderColor: 'rgba(237, 68, 62, 0.3)',
-          borderWidth: 2,
-          pointRadius: 0,
-          pointHoverRadius: 3,
-          yAxisID: 'Temperature',
-        },
-        {
-          type: 'line' as const,
-          label: 'Min Temperature',
-          data: marker.data.monthly_data.weighted_monthly_low_avg,
-          backgroundColor: 'rgba(97, 139, 201, 0.7)',
-          borderColor: 'rgba(97, 139, 201, 0.7)',
-          borderWidth: 3,
-          pointRadius: 0,
-          pointHoverRadius: 3,
-          yAxisID: 'Temperature',
-        }, 
-        {
-          type: 'line' as const,
-          label: '10th % Temperature',
-          data: marker.data.monthly_data.weighted_monthly_percentile_10_min_avg,
-          backgroundColor: 'rgba(137, 182, 249, 0.3)',
-          borderColor: 'rgba(137, 182, 249, 0.3)',
-          borderWidth: 2,
-          pointRadius: 0,
-          pointHoverRadius: 3,
-          yAxisID: 'Temperature',
-        }, 
-        {
-          type: 'bar' as const,
-          label: 'Precip Totals',
-          data: marker.data.monthly_data.weighted_monthly_precip_avg,
-          backgroundColor: 'rgba(137, 217, 249, 0.7)',
-          //fill: true,
-          borderColor: 'rgba(137, 217, 249, 0.7)',
-          yAxisID: 'Precip',
-        }
-        // Add more datasets for other climate information (e.g., precipitation, humidity)
-      ],
-    };
-  };
-
-  
 
   return (
     <div className="container">
@@ -257,14 +132,8 @@ export default function Map() {
 
                   </div>
                   
-                  <Chart 
-                    key={marker.key.toString()}
-                    width="250"
-                    height="200"
-                    options={chartOptions}
-                    data={createChartData(marker)}
-                    type={"bar"}
-                  />
+                  <ClimateChart marker={marker} />
+
                 </div>
               </InfoWindow>
             </Marker>

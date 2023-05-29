@@ -154,6 +154,9 @@ def get_climate_avg_at_point(target_lat, target_lon, df_stations):
         annual_metrics['annual_snow_depth_avg'].append(df.loc[:, 'DPTH'].mean())
         annual_metrics['annual_wind_avg'].append(df.loc[:, 'AVG SPD'].mean())
         annual_metrics['annual_wind_gust_avg'].append(df.loc[:, 'MAX SPD'].mean())
+
+        #TODO in some situations if the sun data is missing, such as in SF, readings can be way off
+        # If large majority of days missing, maybe look to other station with lower weight
         annual_metrics['annual_sunshine_avg'].append(1 - (df.loc[df['S-S'] > 0, 'S-S'].sum() / (num_entries / 12)) / 3650)
         annual_metrics['annual_wind_dir_avg'].append(df.loc[:, 'DR'].mean())
         
