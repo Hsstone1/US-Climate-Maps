@@ -5,7 +5,7 @@ import urllib
 import csv
 import json
 from math import radians, sin, cos, sqrt, atan2
-from read_from_csv_to_dataframe import df_from_csv
+from read_from_csv_to_dataframe import df_from_NWS_csv
 
 
 
@@ -48,9 +48,9 @@ def haversine_distance(lat1, lon1, lat2, lon2):
     return R * c / 1.6
 
 
-def nearest_coordinates_to_point(target_lat, target_lon, df, num_results=4):
+def nearest_coordinates_to_point_NWS(target_lat, target_lon, df, num_results=4):
     """
-    Find the closest coordinates to a target point.
+    Find the closest coordinates to a target point using NWS CF6 stations(NWS, CITY_CODE).
     """
     distances = []
 
@@ -62,14 +62,35 @@ def nearest_coordinates_to_point(target_lat, target_lon, df, num_results=4):
 
     distances.sort(key=lambda x: x[6])  # Sort by distance, which is 7th value, 6th index
     closest = distances[:num_results]
+    print("NWS: ", closest)
+
+    return closest
+
+def nearest_coordinates_to_point_NOAA(target_lat, target_lon, df, num_results=4):
+    """
+    Find the closest coordinates to a target point using NOAA stations (USCxxxxxxxxx.csv).
+    """
+    distances = []
+    
+    #["STATION", "LAT", "LON", "ELEVATION", "NAME"]
+    #USC00010160    32.935  -85.95556   660     ALEXANDER CITY, AL US
+    for index, row in df.iterrows():
+        lat = row['LAT']
+        lon = row['LON']
+        distance = haversine_distance(target_lat, target_lon, lat, lon)
+        distances.append((lat, lon, row['STATION'], row['ELEVATION'], row['NAME'], distance))
+
+    distances.sort(key=lambda x: x[5])  # Sort by distance, which is 6th value, 5th index
+    closest = distances[:num_results]
+    print("NOAA: ", closest)
 
     return closest
 
 
 def inverse_dist_weights(closest_points_list):
-    dist_values = [entry[6] for entry in closest_points_list]
+    dist_values = [entry[-1] for entry in closest_points_list]
     # Squared to give increased weight to closest
-    inverses = [(1 / value) ** 2 for value in dist_values]
+    inverses = [(1 / value) ** .75 for value in dist_values]
     sum_inverses = sum(inverses)
     weights = [inverse / sum_inverses for inverse in inverses]
     
@@ -78,20 +99,25 @@ def inverse_dist_weights(closest_points_list):
     return weights
 
 
-def get_climate_avg_at_point(target_lat, target_lon, df_stations):
+def get_climate_avg_at_point(target_lat, target_lon, df_stations_NWS, df_stations_NOAA):
     
     # Get closest points to coordinate
-    closest_points = nearest_coordinates_to_point(target_lat, target_lon, df_stations)
+    closest_points_NWS = nearest_coordinates_to_point_NWS(target_lat, target_lon, df_stations_NWS)
+    closest_points_NOAA = nearest_coordinates_to_point_NOAA(target_lat, target_lon, df_stations_NOAA)
+
     #print(closest_points)
 
     
     # Compute inverse weighted average so closest distance has most weight
-    weights = inverse_dist_weights(closest_points)
-    print(weights)
+    weights_NWS = inverse_dist_weights(closest_points_NWS)
+    weights_NOAA = inverse_dist_weights(closest_points_NOAA)
+
+    print("NWS WEIGHTS: ", weights_NWS)
+    print("NOAA WEIGHTS: ", weights_NOAA)
 
 
     # Get the annual weather for each location
-    station_identifiers = [(entry[2],entry[3]) for entry in closest_points]
+    station_identifiers = [(entry[2],entry[3]) for entry in closest_points_NWS]
 
     annual_metrics = {
         'annual_high_avg': [],
@@ -138,7 +164,7 @@ def get_climate_avg_at_point(target_lat, target_lon, df_stations):
     }
 
     for NWS_PROVIDER, CITY_CODE in station_identifiers:
-        df, num_entries = df_from_csv(NWS_PROVIDER, CITY_CODE)
+        df, num_entries = df_from_NWS_csv(NWS_PROVIDER, CITY_CODE)
         annual_metrics['annual_high_avg'].append(df.loc[df['MAX'] > -99, 'MAX'].mean())
         annual_metrics['annual_low_avg'].append(df.loc[df['MIN'] > -99, 'MIN'].mean())
         annual_metrics['annual_mean_avg'].append(df.loc[:, 'AVG'].mean())
@@ -160,8 +186,8 @@ def get_climate_avg_at_point(target_lat, target_lon, df_stations):
         annual_metrics['annual_sunshine_avg'].append(1 - (df.loc[df['S-S'] > 0, 'S-S'].sum() / (num_entries / 12)) / 3650)
         annual_metrics['annual_wind_dir_avg'].append(df.loc[:, 'DR'].mean())
         
-        annual_metrics['annual_precip_days_avg'].append(df.loc[df['WTR'] > 0, 'WTR'].count() / (num_entries / 12))
-        annual_metrics['annual_snow_days_avg'].append(df.loc[df['SNW'] > 0, 'WTR'].count() / (num_entries / 12))
+        annual_metrics['annual_precip_days_avg'].append(df.loc[df['WTR'] > 0.01, 'WTR'].count() / (num_entries / 12))
+        annual_metrics['annual_snow_days_avg'].append(df.loc[df['SNW'] > 0.01, 'WTR'].count() / (num_entries / 12))
 
 
         months_arr = {
@@ -240,13 +266,13 @@ def get_climate_avg_at_point(target_lat, target_lon, df_stations):
     Generating a weighted averaged value of the cooresponding stations, weighted by distance.
     '''
     for key in annual_metrics:
-        annual_weighted_metrics[key] = sum(value * weight for value, weight in zip(annual_metrics[key], weights))
+        annual_weighted_metrics[key] = sum(value * weight for value, weight in zip(annual_metrics[key], weights_NWS))
 
-#TODO only 4 nearby stations are hardcoded in here. Make for loop which adds N amount of nearby stations
+    #TODO only 4 nearby stations are hardcoded in here. Make for loop which adds N amount of nearby stations
     for key in monthly_metrics:
         weighted_list = []
         for month_num in range(12):
-            weighted_list.append(monthly_metrics[key][0][month_num] * weights[0] + monthly_metrics[key][1][month_num]* weights[1] + monthly_metrics[key][2][month_num]* weights[2] + monthly_metrics[key][3][month_num]* weights[3]) 
+            weighted_list.append(monthly_metrics[key][0][month_num] * weights_NWS[0] + monthly_metrics[key][1][month_num]* weights_NWS[1] + monthly_metrics[key][2][month_num]* weights_NWS[2] + monthly_metrics[key][3][month_num]* weights_NWS[3]) 
         monthly_weighted_metrics[key] = weighted_list
         
 
@@ -257,8 +283,8 @@ def get_climate_avg_at_point(target_lat, target_lon, df_stations):
 
     
     # Compute difference between average weighted elevation
-    elev_values = [entry[4] for entry in closest_points]
-    average_weighted_elev = sum(elevation * weight for elevation, weight in zip(elev_values, weights))
+    elev_values = [entry[4] for entry in closest_points_NWS]
+    average_weighted_elev = sum(elevation * weight for elevation, weight in zip(elev_values, weights_NWS))
     target_dif_elev = target_elev - average_weighted_elev
 
     #print("AVERAGE ELEV: ",average_weighted_elev)
@@ -337,14 +363,7 @@ def get_climate_avg_at_point(target_lat, target_lon, df_stations):
     monthly_values['weighted_monthly_precip_days_avg'] = monthly_weighted_metrics['monthly_precip_days_avg']
     monthly_values['weighted_monthly_snow_days_avg'] = monthly_weighted_metrics['monthly_snow_days_avg']
 
-    
     location_values['elevation'] = target_elev
-
-
-    #monthly_values['weighted_monthly_high_avg'] = monthl
-
-    #print(monthly_metrics)
-    
 
     return annual_values, monthly_values, location_values
 
@@ -357,7 +376,6 @@ def main():
     target_coordinates = (37.938259402679584, -107.11396906315399)
     print(get_climate_avg_at_point(target_coordinates[0], target_coordinates[1], df_stations))
     
-    #map_folium(df_stations).save('folium-map.html')
 
     
 

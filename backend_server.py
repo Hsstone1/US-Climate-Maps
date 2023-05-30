@@ -1,5 +1,6 @@
 from flask import Flask, request, jsonify
 from climate_point_interpolation import get_climate_avg_at_point
+from read_from_csv_to_dataframe import put_NOAA_csvs_name_into_df
 import pandas as pd
 import time
 from flask_cors import CORS
@@ -7,10 +8,11 @@ from geopy.geocoders import Nominatim
 import random
 import string
 
-app = Flask(__name__)
+app = Flask(__name__) 
 CORS(app)
 
-df_stations = pd.read_csv('lat_lon_identifier_elev_name.csv')
+df_stations_NWS = pd.read_csv('lat_lon_identifier_elev_name.csv')
+df_stations_NOAA = put_NOAA_csvs_name_into_df()
 
 @app.route('/climate_data', methods=["POST"])
 def climate_data():
@@ -19,18 +21,14 @@ def climate_data():
         latitude = data['latitude']
         longitude = data['longitude']
     
-    #target_coordinates = (37.938259402679584, -107.11396906315399)
-
-    #print("LAT, LON: ", latitude, ", ", longitude)
 
     # Process the latitude and longitude values and retrieve the necessary data
     start_time = time.time()  # Start timer
 
-    annual_data, monthly_data, location_data = get_climate_avg_at_point(latitude, longitude, df_stations)
+    annual_data, monthly_data, location_data = get_climate_avg_at_point(latitude, longitude, df_stations_NWS, df_stations_NOAA)
     end_time = time.time()  # Stop timer
     elapsed_time = end_time - start_time
     print("Elapsed Time:", elapsed_time, "seconds")
-    #annual_data = get_annual_avg_at_point(target_coordinates[0], target_coordinates[1], df_stations)
     
     # Create a response containing the data to be sent back to the JavaScript code
     annual_data = {
