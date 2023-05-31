@@ -31,7 +31,9 @@ def main():
     print("--- %s seconds ---" % (time.time() - start_time))
 
 def read_from_csv(file):
-    csv_file = pd.read_csv(file)
+    #TODO usecols here to reduce load time since NOAA dataset covers everything else
+    desired_cols = ['S-S', 'AVG SPD', 'MAX SPD', 'DR']
+    csv_file = pd.read_csv(file, usecols=desired_cols)
     csv_data = (file[:-4].split('_')[2:])
     years = [csv_data[0]] * len(csv_file)
     months = [csv_data[1]] * len(csv_file)
@@ -74,7 +76,7 @@ def df_from_NWS_csv(NWS_PROVIDER, CITY_CODE):
     df = pd.concat(df)
 
     # CSV files have duplicate MAX column, and DIR header before S-S but that is unused so it is removed
-    df.columns = ['DY', 'MAX', 'MAX', 'MIN', 'AVG', 'DEP', 'HDD', 'CDD', 'WTR', 'SNW', 'DPTH', 'AVG SPD', 'MAX SPD', 'S-S', 'DR', 'WX']
+    df.columns = ['AVG SPD', 'MAX SPD', 'S-S', 'DR']
     df["MONTH"] = months
     df["YEAR"] = years
     df["LAT"] = lats
@@ -111,73 +113,36 @@ def put_NOAA_csvs_name_into_df():
             data[column_name].append(value)
         
     df = pd.DataFrame(data)
-    columns_to_convert = ["LAT", "LON", "ELEVATION"]
-    df[columns_to_convert] = df[columns_to_convert].astype(float)
+    df["LAT"] = df["LAT"].astype(float)
+    df["LON"] = df["LON"].astype(float)
+    df["ELEVATION"] = df["ELEVATION"].astype(int)
+
 
     return df
 
-    # Step 5: Optional - Display the DataFrame
-    print(df)
-    highest_value = df["ELEVATION"].quantile(1)
-    print(highest_value)
-    print(df.loc[df["ELEVATION"] == highest_value])
 
-
-def get_NOAA_csv_content():
-    path = f"{os.getcwd()}\\STATIONS\\_NOAA_STATIONS\\"
-    files = glob.glob(path + "*.csv")
+def get_NOAA_csv_content(file, start_date='2000-01-01', end_date='2019-04-01'):
+    path = f"{os.getcwd()}\\STATIONS\\NOAA-STATIONS\\"
+    #files = glob.glob(path + "*.csv")
     desired_cols = ['DATE', 'PRCP', 'PRCP_ATTRIBUTES', 'SNOW', 'TMAX', 'TMIN']
 
     
-    for f in files[223:230]:
-        df = pd.read_csv(f, usecols=desired_cols)
+    #for f in files[223:230]:
+    df = pd.read_csv(path + file, usecols=desired_cols)
 
-        df['DATE'] = pd.to_datetime(df['DATE'])
+    df['DATE'] = pd.to_datetime(df['DATE'])
 
-        # Filter the DataFrame based on the condition where the date is more recent than 2000-01-01
-        filtered_df = df[df['DATE'] > '2000-01-01']
-        filtered_df = filtered_df[filtered_df["DATE"] < '2019-04-01']
+    # Filter the DataFrame based on the condition where the date is more recent than 2000-01-01
+    # All csv files have data after 2000-01-01. Any time before is not guarenteed
+    filtered_df = df[df['DATE'] > start_date]
+    filtered_df = filtered_df[filtered_df["DATE"] < end_date]
 
-        filtered_df.loc[df['PRCP_ATTRIBUTES'].str.contains('T') & (filtered_df['PRCP'] == 0), 'PRCP'] = 1
-        filtered_df['TAVG'] = (filtered_df["TMAX"] + filtered_df["TMIN"]) / 2
-        filtered_df['CDD'] = (((filtered_df['TAVG']* 9/50) + 32) - 65).clip(lower=0)
-        filtered_df['HDD'] = (65 - ((filtered_df['TAVG']* 9/50) + 32)).clip(lower=0)
+    filtered_df.loc[df['PRCP_ATTRIBUTES'].str.contains('T') & (filtered_df['PRCP'] == 0), 'PRCP'] = 1
+    filtered_df['TAVG'] = (filtered_df["TMAX"] + filtered_df["TMIN"]) / 2
+    filtered_df['CDD'] = (((filtered_df['TAVG']* 9/50) + 32) - 65).clip(lower=0)
+    filtered_df['HDD'] = (65 - ((filtered_df['TAVG']* 9/50) + 32)).clip(lower=0)
 
-        days = calculate_days_from_reference('2019-04-01', '2000-01-01')
-
-
-        #Units are in tenths of degrees C, so divide by 9/50 instead of 9/5
-        print("\n-----------------\n",f)
-        print("100%", round((filtered_df["TMAX"].quantile(1) * 9/50) + 32), "°F")
-        print("99% ", round((filtered_df["TMAX"].quantile(.99) * 9/50) + 32), "°F")
-        print("TMAX", round((filtered_df["TMAX"].mean() * 9/50) + 32), "°F")
-        print("TAVG", round((filtered_df["TAVG"].mean() * 9/50) + 32), "°F")
-        print("TMIN", round((filtered_df["TMIN"].mean() * 9/50) + 32), "°F")
-        print("1%  ", round((filtered_df["TMIN"].quantile(.01) * 9/50) + 32), "°F")
-        print("0%  ", round((filtered_df["TMIN"].quantile(0) * 9/50) + 32), "°F")
-        print("CDD ", round((filtered_df["CDD"].sum() /(days / 365.25))), "°F")
-        print("HDD ", round((filtered_df["HDD"].sum() /(days / 365.25))), "°F")
-        print("PRCP", round((filtered_df["PRCP"].mean() / 254 * 365.25), 1), "in")
-        print("SNOW", round((filtered_df["SNOW"].mean() / 25.4 * 365.25), 1), "in")
-        print("PDAY", round((filtered_df.loc[filtered_df['PRCP'] > 0.01, 'PRCP'].count() /(days / 365.25))), "days")
-        print("SDAY", round((filtered_df.loc[filtered_df['SNOW'] > 0.01, 'SNOW'].count() /(days / 365.25))), "days")
-        
-
-
-
-
-def calculate_days_from_reference(date_str, ref_date_str):
-
-    # Convert the date strings to datetime objects
-    date = datetime.strptime(date_str, '%Y-%m-%d')
-    reference_date = datetime.strptime(ref_date_str, '%Y-%m-%d')
-
-    # Calculate the difference in days
-    days_difference = (date - reference_date).days
-
-    return days_difference
-
-
+    return filtered_df
 
 
 # Converts coordinates from csv file name to a usable decimal pair

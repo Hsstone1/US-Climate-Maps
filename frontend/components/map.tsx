@@ -6,6 +6,7 @@ import {
 } from "@react-google-maps/api";
 
 import ClimateChart from "./climatechart";
+import { FaCloudRain, FaSnowflake, FaSun } from 'react-icons/fa';
 
 
 
@@ -118,9 +119,10 @@ export default function Map() {
               onClick={() => setSelectedMarker((prevMarkers) => [...prevMarkers, marker ])}
               visible={true}
             >
-              <InfoWindow
+              <InfoWindow 
                 key={marker.key.toString()}
                 position={{ lat: marker.lat, lng: marker.lng }}
+                
                 options={{
                   disableAutoPan: true,
                 }}
@@ -128,7 +130,16 @@ export default function Map() {
                 <div>
                   {/* Display the info from the marker */}
                   <div style={{ textAlign: 'center' }}>
-                    {<p>{marker.data.location_data.location.toString()}</p>}
+                    <p>{marker.data.location_data.location.toString()}{marker.data.location_data.elevation > 1000 ? ` (${Math.round(marker.data.location_data.elevation).toLocaleString()} ft)` : ''}</p>
+
+                  </div>
+
+                  <div style={{ fontSize: '10px', textAlign: 'center' }}>
+                    <div>
+                      <FaCloudRain style={{ color: '#7e878c' }} /> {`${marker.data.annual_data.weighted_annual_precip_days_avg.toFixed(0)} days (${marker.data.annual_data.weighted_annual_precip_avg.toFixed(0)} in)`} &emsp;
+                      <FaSnowflake style={{ color: '#b0b0b0' }}/> {`${marker.data.annual_data.weighted_annual_snow_days_avg.toFixed(0)} days (${marker.data.annual_data.weighted_annual_snow_avg.toFixed(0)} in)`} &emsp;
+                      <FaSun style={{ color: '#f7db25' }}/> {`${(marker.data.annual_data.weighted_annual_sunshine_avg * 365.25).toFixed(0)} days (${(marker.data.annual_data.weighted_annual_sunshine_avg * 100).toFixed(0)}%)`}
+                    </div>
 
                   </div>
                   

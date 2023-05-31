@@ -26,53 +26,49 @@ def climate_data():
     start_time = time.time()  # Start timer
 
     annual_data, monthly_data, location_data = get_climate_avg_at_point(latitude, longitude, df_stations_NWS, df_stations_NOAA)
-    end_time = time.time()  # Stop timer
-    elapsed_time = end_time - start_time
-    print("Elapsed Time:", elapsed_time, "seconds")
+    print("Backend Server Elapsed Time:", time.time() - start_time, "seconds")
     
     # Create a response containing the data to be sent back to the JavaScript code
     annual_data = {
         'weighted_annual_high_avg': annual_data['weighted_annual_high_avg'],
         'weighted_annual_low_avg': annual_data['weighted_annual_low_avg'],
         'weighted_annual_mean_avg': annual_data['weighted_annual_mean_avg'],
-        'weighted_annual_percentile_90_max_avg': annual_data['weighted_annual_percentile_90_max_avg'],
-        'weighted_annual_percentile_100_max_avg': annual_data['weighted_annual_percentile_100_max_avg'],
-        'weighted_annual_percentile_10_min_avg': annual_data['weighted_annual_percentile_10_min_avg'],
-        'weighted_annual_percentile_00_min_avg': annual_data['weighted_annual_percentile_00_min_avg'],
-        'weighted_annual_DEP_avg': annual_data['weighted_annual_DEP_avg'],
+        'weighted_annual_mean_maximum': annual_data['weighted_annual_mean_maximum'],
+        'weighted_annual_record_high': annual_data['weighted_annual_record_high'],
+        'weighted_annual_mean_minimum': annual_data['weighted_annual_mean_minimum'],
+        'weighted_annual_record_low': annual_data['weighted_annual_record_low'],
         'weighted_annual_HDD_avg': annual_data['weighted_annual_HDD_avg'],
         'weighted_annual_CDD_avg': annual_data['weighted_annual_CDD_avg'],
         'weighted_annual_precip_avg': annual_data['weighted_annual_precip_avg'],
         'weighted_annual_snow_avg': annual_data['weighted_annual_snow_avg'],
-        'weighted_annual_snow_depth_avg': annual_data['weighted_annual_snow_depth_avg'],
+        'weighted_annual_precip_days_avg': annual_data['weighted_annual_precip_days_avg'],
+        'weighted_annual_snow_days_avg': annual_data['weighted_annual_snow_days_avg'],
+
         'weighted_annual_wind_avg': annual_data['weighted_annual_wind_avg'],
         'weighted_annual_wind_gust_avg': annual_data['weighted_annual_wind_gust_avg'],
         'weighted_annual_sunshine_avg': annual_data['weighted_annual_sunshine_avg'],
         'weighted_annual_wind_dir_avg': annual_data['weighted_annual_wind_dir_avg'],
-        'weighted_annual_precip_days_avg': annual_data['weighted_annual_precip_days_avg'],
-        'weighted_annual_snow_days_avg': annual_data['weighted_annual_snow_days_avg'],
     }
 
     monthly_data = {
         'weighted_monthly_high_avg': monthly_data['weighted_monthly_high_avg'],
         'weighted_monthly_low_avg': monthly_data['weighted_monthly_low_avg'],
         'weighted_monthly_mean_avg': monthly_data['weighted_monthly_mean_avg'],
-        'weighted_monthly_percentile_90_max_avg': monthly_data['weighted_monthly_percentile_90_max_avg'],
-        'weighted_monthly_percentile_100_max_avg': monthly_data['weighted_monthly_percentile_100_max_avg'],
-        'weighted_monthly_percentile_10_min_avg': monthly_data['weighted_monthly_percentile_10_min_avg'],
-        'weighted_monthly_percentile_00_min_avg': monthly_data['weighted_monthly_percentile_00_min_avg'],
-        'weighted_monthly_DEP_avg': monthly_data['weighted_monthly_DEP_avg'],
+        'weighted_monthly_mean_maximum': monthly_data['weighted_monthly_mean_maximum'],
+        'weighted_monthly_record_high': monthly_data['weighted_monthly_record_high'],
+        'weighted_monthly_mean_minimum': monthly_data['weighted_monthly_mean_minimum'],
+        'weighted_monthly_record_low': monthly_data['weighted_monthly_record_low'],
         'weighted_monthly_HDD_avg': monthly_data['weighted_monthly_HDD_avg'],
         'weighted_monthly_CDD_avg': monthly_data['weighted_monthly_CDD_avg'],
         'weighted_monthly_precip_avg': monthly_data['weighted_monthly_precip_avg'],
-        'weighted_monthly_snow_avg': monthly_data['weighted_monthly_snow_avg'],
-        'weighted_monthly_snow_depth_avg': monthly_data['weighted_monthly_snow_depth_avg'],
+        'weighted_monthly_snow_avg': monthly_data['weighted_monthly_snow_avg'],    
+        'weighted_monthly_precip_days_avg': monthly_data['weighted_monthly_precip_days_avg'],
+        'weighted_monthly_snow_days_avg': monthly_data['weighted_monthly_snow_days_avg'],
+
         'weighted_monthly_wind_avg': monthly_data['weighted_monthly_wind_avg'],
         'weighted_monthly_wind_gust_avg': monthly_data['weighted_monthly_wind_gust_avg'],
         'weighted_monthly_sunshine_avg': monthly_data['weighted_monthly_sunshine_avg'],
         'weighted_monthly_wind_dir_avg': monthly_data['weighted_monthly_wind_dir_avg'],
-        'weighted_monthly_precip_days_avg': monthly_data['weighted_monthly_precip_days_avg'],
-        'weighted_monthly_snow_days_avg': monthly_data['weighted_monthly_snow_days_avg'],
 
     }
 
@@ -89,6 +85,7 @@ def climate_data():
 
     
     # Return the response as JSON
+    print(data)
     return jsonify(data)
 
 
@@ -104,15 +101,21 @@ def get_city_name(latitude, longitude):
             state = address.get('state')
             county = address.get('county')
             country = address.get('country')
-            print(city, ', ', state, ', ' ', ', address)
+            print("ADDRESS: ", address)
 
-            values = {}
+            
             if city and state:
                 return city + ', ' + state
             elif county and state:
                 return county + ', ' + state
-            else:
+            elif state and country:
+                return state + ', ' + country
+            elif country:
                 return country
+            else:
+                return f"{latitude}, {longitude}"
+        else:
+            return f"{latitude}, {longitude}"
 
 
     except Exception as e:
