@@ -1,12 +1,9 @@
 import pandas as pd
-import folium
 import requests
 import urllib
-import csv
 from datetime import datetime
-import json
 from math import radians, sin, cos, sqrt, atan2
-from read_from_csv_to_dataframe import df_from_NWS_csv, get_NOAA_csv_content
+from read_from_csv_to_dataframe import df_from_NWS_csv, get_NOAA_csv_content, humidity_regr_from_temp_max_min
 import time
 
 
@@ -21,6 +18,25 @@ def calculate_days_from_reference(date_str, ref_date_str):
     days_difference = (date - reference_date).days
 
     return days_difference
+
+def calculate_humidity_percentage(dew_points_F, temperatures_F):
+    humidity_percentages = []
+    for dew_point, temperature in zip(dew_points_F, temperatures_F):
+        # Convert Fahrenheit to Celsius
+        dew_point_C = (dew_point - 32) * 5/9
+        temperature_C = (temperature - 32) * 5/9
+
+        # Calculate actual vapor pressure
+        vapor_pressure = 6.112 * 10 ** (7.5 * dew_point_C / (237.7 + dew_point_C))
+
+        # Calculate saturation vapor pressure
+        saturation_vapor_pressure = 6.112 * 10 ** (7.5 * temperature_C / (237.7 + temperature_C))
+
+        # Calculate humidity percentage
+        humidity_percentage = (vapor_pressure / saturation_vapor_pressure) * 100
+        humidity_percentages.append(humidity_percentage)
+
+    return humidity_percentages
 
 def get_elevation_from_coords(lat,lon):
     '''
@@ -39,7 +55,7 @@ def get_elevation_from_coords(lat,lon):
         result = requests.get(url + urllib.parse.urlencode(params), timeout=5.000)
 
         elevations.append(result.json()['value'])
-        print("ELEVATIONS: ", elevations)
+        #print("ELEVATIONS: ", elevations)
     except (requests.exceptions.JSONDecodeError, KeyError, requests.exceptions.ReadTimeout):
         elevations.append(0)
         print("ERROR: ELEVATION NOT FOUND")
@@ -159,7 +175,9 @@ def get_climate_avg_at_point(target_lat, target_lon, df_stations_NWS, df_station
         'annual_snow_avg': [],
         'annual_snow_depth_avg': [],
         'annual_precip_days_avg': [],
-        'annual_snow_days_avg': []
+        'annual_snow_days_avg': [],
+        'annual_dewpoint_avg': [],
+        'annual_humidity_avg': [],
     }
 
     nws_monthly_metrics = {
@@ -183,7 +201,10 @@ def get_climate_avg_at_point(target_lat, target_lon, df_stations_NWS, df_station
         'monthly_precip_avg': [],
         'monthly_snow_avg': [],
         'monthly_precip_days_avg': [],
-        'monthly_snow_days_avg': []
+        'monthly_snow_days_avg': [],
+        'monthly_dewpoint_avg':[],
+        'monthly_humidity_avg':[],
+
     }
 
     # Get the annual weather for each location
@@ -246,7 +267,10 @@ def get_climate_avg_at_point(target_lat, target_lon, df_stations_NWS, df_station
         noaa_annual_metrics['annual_snow_avg'].append((df["SNOW"].mean() / 25.4 * 365.25))
         noaa_annual_metrics['annual_precip_days_avg'].append(round((df.loc[df['PRCP'] > 0.01, 'PRCP'].count() /(days / 365.25))))
         noaa_annual_metrics['annual_snow_days_avg'].append(round((df.loc[df['SNOW'] > 0.01, 'SNOW'].count() /(days / 365.25))))
-
+        
+        dewpoint = humidity_regr_from_temp_max_min([((df["TMAX"].mean() * 9/50) + 32)], [((df["TMIN"].mean() * 9/50) + 32)])
+        noaa_annual_metrics['annual_dewpoint_avg'].append(round(dewpoint[0]))
+        noaa_annual_metrics['annual_humidity_avg'].append(round(calculate_humidity_percentage(dewpoint, [((df["TAVG"].mean() * 9/50) + 32)] )[0]))
 
         months_arr = {
             'high_avg': [],
@@ -285,6 +309,9 @@ def get_climate_avg_at_point(target_lat, target_lon, df_stations_NWS, df_station
             months_arr['snow_avg'].append((month_df["SNOW"].mean() / 25.4 * num_days) if not pd.isna(month_df["SNOW"].mean()) else 0)
             months_arr['precip_days_avg'].append(round((month_df.loc[month_df['PRCP'] > 0.01, 'PRCP'].count() / num_days),0))
             months_arr['snow_days_avg'].append(round((month_df.loc[month_df['SNOW'] > 0.01, 'SNOW'].count() / num_days),0))
+
+        
+
     
         noaa_monthly_metrics['monthly_record_high'] .append(months_arr['record_high'])
         noaa_monthly_metrics['monthly_mean_maximum'] .append(months_arr['mean_maximum'])
@@ -299,7 +326,10 @@ def get_climate_avg_at_point(target_lat, target_lon, df_stations_NWS, df_station
         noaa_monthly_metrics['monthly_snow_avg'] .append(months_arr['snow_avg'])
         noaa_monthly_metrics['monthly_precip_days_avg'] .append(months_arr['precip_days_avg'])
         noaa_monthly_metrics['monthly_snow_days_avg'] .append(months_arr['snow_days_avg'])
-
+        
+        dewpoints = humidity_regr_from_temp_max_min(months_arr['high_avg'], months_arr['low_avg'])
+        noaa_monthly_metrics['monthly_dewpoint_avg'].append(dewpoints)
+        noaa_monthly_metrics['monthly_humidity_avg'].append(calculate_humidity_percentage(dewpoints, months_arr['mean_avg']))
 
     print("NOAA Elapsed Time:", time.time() - start_time, "seconds")
 
@@ -380,6 +410,8 @@ def get_climate_avg_at_point(target_lat, target_lon, df_stations_NWS, df_station
     annual_values['weighted_annual_snow_depth_avg'] = noaa_annual_weighted_metrics['annual_snow_depth_avg']
     annual_values['weighted_annual_precip_days_avg'] = noaa_annual_weighted_metrics['annual_precip_days_avg']
     annual_values['weighted_annual_snow_days_avg'] = noaa_annual_weighted_metrics['annual_snow_days_avg']
+    annual_values['weighted_annual_dewpoint_avg'] = noaa_annual_weighted_metrics['annual_dewpoint_avg']
+    annual_values['weighted_annual_humidity_avg'] = noaa_annual_weighted_metrics['annual_humidity_avg']
 
     annual_values['weighted_annual_wind_avg'] = nws_annual_weighted_metrics['annual_wind_avg']
     annual_values['weighted_annual_wind_gust_avg'] = nws_annual_weighted_metrics['annual_wind_gust_avg']
@@ -394,6 +426,7 @@ def get_climate_avg_at_point(target_lat, target_lon, df_stations_NWS, df_station
     'weighted_monthly_record_high': [noaa_monthly_weighted_metrics['monthly_record_high'][i] - temp_adj_monthly[i] for i in range(12)],
     'weighted_monthly_mean_minimum': [noaa_monthly_weighted_metrics['monthly_mean_minimum'][i] - temp_adj_monthly[i] for i in range(12)],
     'weighted_monthly_record_low': [noaa_monthly_weighted_metrics['monthly_record_low'][i] - temp_adj_monthly[i] for i in range(12)],
+    
     }
 
     monthly_values['weighted_monthly_HDD_avg'] = noaa_monthly_weighted_metrics['monthly_HDD_avg']
@@ -402,6 +435,8 @@ def get_climate_avg_at_point(target_lat, target_lon, df_stations_NWS, df_station
     monthly_values['weighted_monthly_snow_avg'] = noaa_monthly_weighted_metrics['monthly_snow_avg']
     monthly_values['weighted_monthly_precip_days_avg'] = noaa_monthly_weighted_metrics['monthly_precip_days_avg']
     monthly_values['weighted_monthly_snow_days_avg'] = noaa_monthly_weighted_metrics['monthly_snow_days_avg']
+    monthly_values['weighted_monthly_dewpoint_avg'] = noaa_monthly_weighted_metrics['monthly_dewpoint_avg']
+    monthly_values['weighted_monthly_humidity_avg'] = noaa_monthly_weighted_metrics['monthly_humidity_avg']
 
     monthly_values['weighted_monthly_wind_avg'] = nws_monthly_weighted_metrics['monthly_wind_avg']
     monthly_values['weighted_monthly_wind_gust_avg'] = nws_monthly_weighted_metrics['monthly_wind_gust_avg']

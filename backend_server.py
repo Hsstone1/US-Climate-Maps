@@ -43,6 +43,8 @@ def climate_data():
         'weighted_annual_snow_avg': annual_data['weighted_annual_snow_avg'],
         'weighted_annual_precip_days_avg': annual_data['weighted_annual_precip_days_avg'],
         'weighted_annual_snow_days_avg': annual_data['weighted_annual_snow_days_avg'],
+        'weighted_annual_dewpoint_avg': annual_data['weighted_annual_dewpoint_avg'],
+        'weighted_annual_humidity_avg': annual_data['weighted_annual_humidity_avg'],
 
         'weighted_annual_wind_avg': annual_data['weighted_annual_wind_avg'],
         'weighted_annual_wind_gust_avg': annual_data['weighted_annual_wind_gust_avg'],
@@ -64,6 +66,8 @@ def climate_data():
         'weighted_monthly_snow_avg': monthly_data['weighted_monthly_snow_avg'],    
         'weighted_monthly_precip_days_avg': monthly_data['weighted_monthly_precip_days_avg'],
         'weighted_monthly_snow_days_avg': monthly_data['weighted_monthly_snow_days_avg'],
+        'weighted_monthly_dewpoint_avg': monthly_data['weighted_monthly_dewpoint_avg'],
+        'weighted_monthly_humidity_avg': monthly_data['weighted_monthly_humidity_avg'],
 
         'weighted_monthly_wind_avg': monthly_data['weighted_monthly_wind_avg'],
         'weighted_monthly_wind_gust_avg': monthly_data['weighted_monthly_wind_gust_avg'],
@@ -85,7 +89,7 @@ def climate_data():
 
     
     # Return the response as JSON
-    print(data)
+    #print(data)
     return jsonify(data)
 
 

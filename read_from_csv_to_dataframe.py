@@ -6,6 +6,12 @@ import time
 import requests
 from datetime import datetime
 from concurrent.futures import ThreadPoolExecutor, ProcessPoolExecutor
+from sklearn.ensemble import RandomForestRegressor
+from sklearn.linear_model import LinearRegression
+from sklearn.model_selection import train_test_split, cross_val_score
+from sklearn.linear_model import Lasso
+from sklearn.preprocessing import StandardScaler
+
 
 
 # Used only for gathering data initially
@@ -13,9 +19,6 @@ def main():
     
     start_time = time.time()
 
-    #First full run --- 104.13217902183533 seconds ---
-    
-    
     '''
     This reads all csv files when given the appropriate acronyms
     '''
@@ -25,10 +28,90 @@ def main():
     #df, num_entries = df_from_csv(NWS_PROVIDER, CITY_CODE)
     #print(df)
 
-
+    tmax = [
+    68.5776660019055,
+    71.82819291699246,
+    79.42338174150419,
+    86.8246112378639,
+    95.59656822697791,
+    105.47471846207432,
+    107.01655205456375,
+    105.18182497644824,
+    100.78946444026492,
+    89.60151504622497,
+    77.24636453356109,
+    66.83022825052514
+]
+    
+    tmin = [
+    43.446288884864636,
+    45.454292870406206,
+    50.76581834507786,
+    56.638967773215185,
+    64.96347614548102,
+    74.12837501038435,
+    81.13156640631189,
+    79.88166437233663,
+    73.99239742798406,
+    62.25021618461693,
+    50.886958195011786,
+    42.54699663781899
+]
+    print(humidity_regr_from_temp_max_min(tmax, tmin))
 
 
     print("--- %s seconds ---" % (time.time() - start_time))
+
+'''
+Used Weather Underground monthly history for climate records containing humidity and dewpoint
+Locations: Charleston SC, Saint George UT, Bend OR, Seattle WA, Loveland CO, Boston MA, San Diego CA, Miami FL, Anchorage AK, Honolulu HI, Dallas TX, Indianapolis IN, Houston TX
+365 days from each location used. Places were chosen due to climate zone variation
+
+
+From surface level testing, the DMax result from linear reg seems to fit most cases, but DAvg in Random Forrest
+Performs better overall. The trade off is computation time. Linear takes .02 sec, RF is .58 sec
+
+'''
+def humidity_regr_from_temp_max_min(Tmax, Tmin):
+    df = pd.read_csv("temperature-humidity-data.csv")
+    df["TDiurinal"] = (df["TMax"] - df["TMin"])
+
+    X = df[['TMax',  'TMin', 'TDiurinal']]          
+    y = df[['DAvg']]
+    #y = df[['DMax', 'DAvg', 'DMin']]
+
+    
+    # Split the data into training and testing sets
+    X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.5, random_state=42)
+
+    y_train = y_train.values.ravel()
+
+
+    # Scale the features using StandardScaler
+    scaler = StandardScaler()
+    X_train_scaled = scaler.fit_transform(X_train)
+    X_test_scaled = scaler.transform(X_test)
+
+    # Initialize the Random Forest Regressor
+    #rf_model = RandomForestRegressor(random_state=42)
+    #rf_model.fit(X_train_scaled, y_train)
+
+    linear_model = LinearRegression()
+    linear_model.fit(X_train_scaled, y_train)
+
+    # Predict the target variables for new data points
+    Tdiurinal = [x - y for x, y in zip(Tmax, Tmin)]
+    new_data = pd.DataFrame({'TMax': Tmax, 'TMin': Tmin, 'TDiurinal': Tdiurinal})
+    
+    new_data_scaled = scaler.transform(new_data)
+    #rf_predicted_dewpoint = rf_model.predict(new_data_scaled)
+    linear_predicted_dewpoint = linear_model.predict(new_data_scaled)
+
+    #print(f"Random Forest Predicted Dewpoint: \n{rf_predicted_dewpoint}")
+    #print(f"Linear Predicted Dewpoint: \n{linear_predicted_dewpoint}")
+    return linear_predicted_dewpoint.tolist()
+
+
 
 def read_from_csv(file):
     #TODO usecols here to reduce load time since NOAA dataset covers everything else
