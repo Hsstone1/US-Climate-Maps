@@ -144,6 +144,7 @@ const ClimateChart: React.FC<ClimateChartProps> = ({ marker }) => {
                 pointHoverRadius: 0,
                 lineTension: 0.6,
                 fill: false,
+                visible: false,
                 yAxisID: 'Temperature',
             },
             {

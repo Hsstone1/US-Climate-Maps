@@ -4,12 +4,12 @@ import os
 import glob
 import time
 import requests
+import math
 from datetime import datetime
 from concurrent.futures import ThreadPoolExecutor, ProcessPoolExecutor
 from sklearn.ensemble import RandomForestRegressor
 from sklearn.linear_model import LinearRegression
 from sklearn.model_selection import train_test_split, cross_val_score
-from sklearn.linear_model import Lasso
 from sklearn.preprocessing import StandardScaler
 
 
@@ -72,19 +72,24 @@ From surface level testing, the DMax result from linear reg seems to fit most ca
 Performs better overall. The trade off is computation time. Linear takes .02 sec, RF is .58 sec
 
 '''
-def humidity_regr_from_temp_max_min(Tmax, Tmin):
+def humidity_regr_from_temp_max_min(Tmax, Tmin, totalPrcp):
     df = pd.read_csv("temperature-humidity-data.csv")
     df["TDiurinal"] = (df["TMax"] - df["TMin"])
 
-    X = df[['TMax',  'TMin', 'TDiurinal']]          
+    X = df[['TMax',  'TMin', 'TDiurinal', 'Total']]
+    #X = df[['TDiurinal', 'TMin']]          
+
     y = df[['DAvg']]
+    y_temp = df[['HAvg']] 
     #y = df[['DMax', 'DAvg', 'DMin']]
 
     
     # Split the data into training and testing sets
     X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.5, random_state=42)
+    H_X_train, H_X_test, H_y_train, H_y_test = train_test_split(X, y_temp, test_size=0.5, random_state=42)
 
     y_train = y_train.values.ravel()
+    H_y_train = H_y_train.values.ravel()
 
 
     # Scale the features using StandardScaler
@@ -92,26 +97,50 @@ def humidity_regr_from_temp_max_min(Tmax, Tmin):
     X_train_scaled = scaler.fit_transform(X_train)
     X_test_scaled = scaler.transform(X_test)
 
-    # Initialize the Random Forest Regressor
-    #rf_model = RandomForestRegressor(random_state=42)
-    #rf_model.fit(X_train_scaled, y_train)
+    H_X_train_scaled = scaler.fit_transform(H_X_train)
+    H_X_test_scaled = scaler.transform(H_X_test)
 
-    linear_model = LinearRegression()
-    linear_model.fit(X_train_scaled, y_train)
+
+    # Initialize the Random Forest Regressor
+    rf_model = RandomForestRegressor(n_estimators=10,random_state=42)
+    rf_model.fit(X_train_scaled, y_train)
+
+    H_rf_model = RandomForestRegressor(n_estimators=10,random_state=42)
+    H_rf_model.fit(H_X_train_scaled, H_y_train)
+
+    #linear_model = LinearRegression()
+    #linear_model.fit(X_train_scaled, y_train)
 
     # Predict the target variables for new data points
     Tdiurinal = [x - y for x, y in zip(Tmax, Tmin)]
-    new_data = pd.DataFrame({'TMax': Tmax, 'TMin': Tmin, 'TDiurinal': Tdiurinal})
-    
+    TAvg = [(x + y)/2 for x, y in zip(Tmax, Tmin)]
+
+    #new_data = pd.DataFrame({'TDiurinal': Tdiurinal, 'TM': Tmin})
+    new_data = pd.DataFrame({'TMax': Tmax, 'TMin': Tmin, 'TDiurinal': Tdiurinal, 'Total': totalPrcp})
+
     new_data_scaled = scaler.transform(new_data)
-    #rf_predicted_dewpoint = rf_model.predict(new_data_scaled)
-    linear_predicted_dewpoint = linear_model.predict(new_data_scaled)
+    H_new_data_scaled = scaler.transform(new_data)
 
-    #print(f"Random Forest Predicted Dewpoint: \n{rf_predicted_dewpoint}")
+    rf_predicted_dewpoint = rf_model.predict(new_data_scaled)
+    rf_predicted_humidity = H_rf_model.predict(H_new_data_scaled)
+
+    #linear_predicted_dewpoint = linear_model.predict(new_data_scaled)
+    dewpoint = compute_dew_point(rf_predicted_humidity, TAvg)
+
+    #print(f"Random Forest Predicted Humidity: \n{rf_predicted_humidity}")
+    #print("Prediced Dewpoint from H: ", dewpoint)
     #print(f"Linear Predicted Dewpoint: \n{linear_predicted_dewpoint}")
-    return linear_predicted_dewpoint.tolist()
+    return (dewpoint + rf_predicted_dewpoint) / 2
 
-
+def compute_dew_point(RH, T):
+    TD = []
+    for i in range(len(T)):
+        t = (T[i]-32) * 5/9
+        rh = RH[i]
+        td = 243.04 * (math.log(rh/100) + ((17.625*t) / (243.04 + t))) / (17.625 - math.log(rh/100) - ((17.625*t) / (243.04 + t)))
+        td = (td * 9/5) + 32
+        TD.append(td)
+    return TD
 
 def read_from_csv(file):
     #TODO usecols here to reduce load time since NOAA dataset covers everything else

@@ -268,7 +268,7 @@ def get_climate_avg_at_point(target_lat, target_lon, df_stations_NWS, df_station
         noaa_annual_metrics['annual_precip_days_avg'].append(round((df.loc[df['PRCP'] > 0.01, 'PRCP'].count() /(days / 365.25))))
         noaa_annual_metrics['annual_snow_days_avg'].append(round((df.loc[df['SNOW'] > 0.01, 'SNOW'].count() /(days / 365.25))))
         
-        dewpoint = humidity_regr_from_temp_max_min([((df["TMAX"].mean() * 9/50) + 32)], [((df["TMIN"].mean() * 9/50) + 32)])
+        dewpoint = humidity_regr_from_temp_max_min([((df["TMAX"].mean() * 9/50) + 32)], [((df["TMIN"].mean() * 9/50) + 32)], [((df["PRCP"].mean() / 254 * 365.25)/12)])
         noaa_annual_metrics['annual_dewpoint_avg'].append(round(dewpoint[0]))
         noaa_annual_metrics['annual_humidity_avg'].append(round(calculate_humidity_percentage(dewpoint, [((df["TAVG"].mean() * 9/50) + 32)] )[0]))
 
@@ -326,8 +326,8 @@ def get_climate_avg_at_point(target_lat, target_lon, df_stations_NWS, df_station
         noaa_monthly_metrics['monthly_snow_avg'] .append(months_arr['snow_avg'])
         noaa_monthly_metrics['monthly_precip_days_avg'] .append(months_arr['precip_days_avg'])
         noaa_monthly_metrics['monthly_snow_days_avg'] .append(months_arr['snow_days_avg'])
-        
-        dewpoints = humidity_regr_from_temp_max_min(months_arr['high_avg'], months_arr['low_avg'])
+         
+        dewpoints = humidity_regr_from_temp_max_min(months_arr['high_avg'], months_arr['low_avg'], months_arr['precip_avg'])
         noaa_monthly_metrics['monthly_dewpoint_avg'].append(dewpoints)
         noaa_monthly_metrics['monthly_humidity_avg'].append(calculate_humidity_percentage(dewpoints, months_arr['mean_avg']))
 
@@ -410,7 +410,7 @@ def get_climate_avg_at_point(target_lat, target_lon, df_stations_NWS, df_station
     annual_values['weighted_annual_snow_depth_avg'] = noaa_annual_weighted_metrics['annual_snow_depth_avg']
     annual_values['weighted_annual_precip_days_avg'] = noaa_annual_weighted_metrics['annual_precip_days_avg']
     annual_values['weighted_annual_snow_days_avg'] = noaa_annual_weighted_metrics['annual_snow_days_avg']
-    annual_values['weighted_annual_dewpoint_avg'] = noaa_annual_weighted_metrics['annual_dewpoint_avg']
+    annual_values['weighted_annual_dewpoint_avg'] = noaa_annual_weighted_metrics['annual_dewpoint_avg'] - temp_adj
     annual_values['weighted_annual_humidity_avg'] = noaa_annual_weighted_metrics['annual_humidity_avg']
 
     annual_values['weighted_annual_wind_avg'] = nws_annual_weighted_metrics['annual_wind_avg']
@@ -426,7 +426,8 @@ def get_climate_avg_at_point(target_lat, target_lon, df_stations_NWS, df_station
     'weighted_monthly_record_high': [noaa_monthly_weighted_metrics['monthly_record_high'][i] - temp_adj_monthly[i] for i in range(12)],
     'weighted_monthly_mean_minimum': [noaa_monthly_weighted_metrics['monthly_mean_minimum'][i] - temp_adj_monthly[i] for i in range(12)],
     'weighted_monthly_record_low': [noaa_monthly_weighted_metrics['monthly_record_low'][i] - temp_adj_monthly[i] for i in range(12)],
-    
+    'weighted_monthly_dewpoint_avg': [noaa_monthly_weighted_metrics['monthly_dewpoint_avg'][i] - temp_adj_monthly[i] for i in range(12)],
+
     }
 
     monthly_values['weighted_monthly_HDD_avg'] = noaa_monthly_weighted_metrics['monthly_HDD_avg']
@@ -435,9 +436,8 @@ def get_climate_avg_at_point(target_lat, target_lon, df_stations_NWS, df_station
     monthly_values['weighted_monthly_snow_avg'] = noaa_monthly_weighted_metrics['monthly_snow_avg']
     monthly_values['weighted_monthly_precip_days_avg'] = noaa_monthly_weighted_metrics['monthly_precip_days_avg']
     monthly_values['weighted_monthly_snow_days_avg'] = noaa_monthly_weighted_metrics['monthly_snow_days_avg']
-    monthly_values['weighted_monthly_dewpoint_avg'] = noaa_monthly_weighted_metrics['monthly_dewpoint_avg']
     monthly_values['weighted_monthly_humidity_avg'] = noaa_monthly_weighted_metrics['monthly_humidity_avg']
-
+ 
     monthly_values['weighted_monthly_wind_avg'] = nws_monthly_weighted_metrics['monthly_wind_avg']
     monthly_values['weighted_monthly_wind_gust_avg'] = nws_monthly_weighted_metrics['monthly_wind_gust_avg']
     monthly_values['weighted_monthly_sunshine_avg'] = nws_monthly_weighted_metrics['monthly_sunshine_avg']
