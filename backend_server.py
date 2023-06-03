@@ -43,6 +43,7 @@ def climate_data():
         'weighted_annual_snow_avg': annual_data['weighted_annual_snow_avg'],
         'weighted_annual_precip_days_avg': annual_data['weighted_annual_precip_days_avg'],
         'weighted_annual_snow_days_avg': annual_data['weighted_annual_snow_days_avg'],
+        'weighted_annual_frost_free_days_avg': annual_data['weighted_annual_frost_free_days_avg'],
         'weighted_annual_dewpoint_avg': annual_data['weighted_annual_dewpoint_avg'],
         'weighted_annual_humidity_avg': annual_data['weighted_annual_humidity_avg'],
 
@@ -66,6 +67,7 @@ def climate_data():
         'weighted_monthly_snow_avg': monthly_data['weighted_monthly_snow_avg'],    
         'weighted_monthly_precip_days_avg': monthly_data['weighted_monthly_precip_days_avg'],
         'weighted_monthly_snow_days_avg': monthly_data['weighted_monthly_snow_days_avg'],
+        'weighted_monthly_frost_free_days_avg': monthly_data['weighted_monthly_frost_free_days_avg'],
         'weighted_monthly_dewpoint_avg': monthly_data['weighted_monthly_dewpoint_avg'],
         'weighted_monthly_humidity_avg': monthly_data['weighted_monthly_humidity_avg'],
 

@@ -28,38 +28,6 @@ def main():
     #df, num_entries = df_from_csv(NWS_PROVIDER, CITY_CODE)
     #print(df)
 
-    tmax = [
-    68.5776660019055,
-    71.82819291699246,
-    79.42338174150419,
-    86.8246112378639,
-    95.59656822697791,
-    105.47471846207432,
-    107.01655205456375,
-    105.18182497644824,
-    100.78946444026492,
-    89.60151504622497,
-    77.24636453356109,
-    66.83022825052514
-]
-    
-    tmin = [
-    43.446288884864636,
-    45.454292870406206,
-    50.76581834507786,
-    56.638967773215185,
-    64.96347614548102,
-    74.12837501038435,
-    81.13156640631189,
-    79.88166437233663,
-    73.99239742798406,
-    62.25021618461693,
-    50.886958195011786,
-    42.54699663781899
-]
-    print(humidity_regr_from_temp_max_min(tmax, tmin))
-
-
     print("--- %s seconds ---" % (time.time() - start_time))
 
 '''
@@ -67,26 +35,20 @@ Used Weather Underground monthly history for climate records containing humidity
 Locations: Charleston SC, Saint George UT, Bend OR, Seattle WA, Loveland CO, Boston MA, San Diego CA, Miami FL, Anchorage AK, Honolulu HI, Dallas TX, Indianapolis IN, Houston TX
 365 days from each location used. Places were chosen due to climate zone variation
 
-
-From surface level testing, the DMax result from linear reg seems to fit most cases, but DAvg in Random Forrest
-Performs better overall. The trade off is computation time. Linear takes .02 sec, RF is .58 sec
-
 '''
 def humidity_regr_from_temp_max_min(Tmax, Tmin, totalPrcp):
     df = pd.read_csv("temperature-humidity-data.csv")
     df["TDiurinal"] = (df["TMax"] - df["TMin"])
 
     X = df[['TMax',  'TMin', 'TDiurinal', 'Total']]
-    #X = df[['TDiurinal', 'TMin']]          
 
     y = df[['DAvg']]
-    y_temp = df[['HAvg']] 
-    #y = df[['DMax', 'DAvg', 'DMin']]
+    y_H = df[['HAvg']] 
 
     
     # Split the data into training and testing sets
     X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.5, random_state=42)
-    H_X_train, H_X_test, H_y_train, H_y_test = train_test_split(X, y_temp, test_size=0.5, random_state=42)
+    H_X_train, H_X_test, H_y_train, H_y_test = train_test_split(X, y_H, test_size=0.5, random_state=42)
 
     y_train = y_train.values.ravel()
     H_y_train = H_y_train.values.ravel()
@@ -102,34 +64,24 @@ def humidity_regr_from_temp_max_min(Tmax, Tmin, totalPrcp):
 
 
     # Initialize the Random Forest Regressor
-    rf_model = RandomForestRegressor(n_estimators=10,random_state=42)
+    rf_model = RandomForestRegressor(n_estimators=5,random_state=42)
+    H_rf_model = RandomForestRegressor(n_estimators=5,random_state=42)
+
     rf_model.fit(X_train_scaled, y_train)
-
-    H_rf_model = RandomForestRegressor(n_estimators=10,random_state=42)
     H_rf_model.fit(H_X_train_scaled, H_y_train)
+    
 
-    #linear_model = LinearRegression()
-    #linear_model.fit(X_train_scaled, y_train)
-
-    # Predict the target variables for new data points
     Tdiurinal = [x - y for x, y in zip(Tmax, Tmin)]
     TAvg = [(x + y)/2 for x, y in zip(Tmax, Tmin)]
 
-    #new_data = pd.DataFrame({'TDiurinal': Tdiurinal, 'TM': Tmin})
+    #Predictor input values
     new_data = pd.DataFrame({'TMax': Tmax, 'TMin': Tmin, 'TDiurinal': Tdiurinal, 'Total': totalPrcp})
 
-    new_data_scaled = scaler.transform(new_data)
-    H_new_data_scaled = scaler.transform(new_data)
+    rf_predicted_dewpoint = rf_model.predict(scaler.transform(new_data))
+    rf_predicted_humidity = H_rf_model.predict(scaler.transform(new_data))
 
-    rf_predicted_dewpoint = rf_model.predict(new_data_scaled)
-    rf_predicted_humidity = H_rf_model.predict(H_new_data_scaled)
-
-    #linear_predicted_dewpoint = linear_model.predict(new_data_scaled)
     dewpoint = compute_dew_point(rf_predicted_humidity, TAvg)
 
-    #print(f"Random Forest Predicted Humidity: \n{rf_predicted_humidity}")
-    #print("Prediced Dewpoint from H: ", dewpoint)
-    #print(f"Linear Predicted Dewpoint: \n{linear_predicted_dewpoint}")
     return (dewpoint + rf_predicted_dewpoint) / 2
 
 def compute_dew_point(RH, T):

@@ -20,14 +20,14 @@ a {
   height: 100vh;
 }
 
-.controls {
-  width: 0%;
-  padding: 0rem;
-  background: #14161a;
+.side-pannel {
+  width: 20%;
+  padding: 1rem;
+  background: #232935;
   color: #fff;
 }
 
-.controls input {
+.side-pannel input {
   border: none;
 }
 
@@ -37,7 +37,7 @@ a {
 }
 
 .map {
-  width: 100%;
+  width: 80%;
   height: 100vh;
 }
 

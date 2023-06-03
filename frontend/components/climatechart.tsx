@@ -139,7 +139,7 @@ const ClimateChart: React.FC<ClimateChartProps> = ({ marker }) => {
                 data: marker.data.monthly_data.weighted_monthly_dewpoint_avg,
                 backgroundColor: 'rgba(15, 176, 0, 0.3)',
                 borderColor: 'rgba(15, 176, 0, 0.3)',
-                borderWidth: 3,
+                borderWidth: 0,
                 pointRadius: 0,
                 pointHoverRadius: 0,
                 lineTension: 0.6,
