@@ -12,11 +12,11 @@ import {
 } from "@reach/combobox";
 import "@reach/combobox/styles.css";
 
-type PlacesProps = {
+type SearchBarProps = {
   setMarker: (position: google.maps.LatLngLiteral) => void;
 };
 
-export default function Places({ setMarker }: PlacesProps) {
+export default function SearchBar({ setMarker }: SearchBarProps) {
   /*
     ready - is script ready to be used. Should always be yes due to checking in index.tsx
     value - value user entered in input
@@ -49,7 +49,7 @@ export default function Places({ setMarker }: PlacesProps) {
   };
 
   return (
-    <Combobox onSelect={handleSelect}>
+    <Combobox onSelect={handleSelect} className="combobox">
       <ComboboxInput
         value={value}
         onChange={(e) => setValue(e.target.value)}

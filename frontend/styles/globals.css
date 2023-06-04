@@ -15,21 +15,19 @@ a {
   box-sizing: border-box;
 }
 
+
+
 .container {
   display: flex;
   height: 100vh;
 }
 
-.side-pannel {
-  width: 20%;
-  padding: 1rem;
-  background: #232935;
-  color: #fff;
+.highlight {
+  font-size: 1.25rem;
+  font-weight: bold;
 }
 
-.side-pannel input {
-  border: none;
-}
+
 
 .map-container {
   width: 100%;
@@ -41,12 +39,53 @@ a {
   height: 100vh;
 }
 
-.highlight {
-  font-size: 1.25rem;
-  font-weight: bold;
+.iw-marker-buttons{
+  padding: 0.5rem;
+}
+
+.iw-marker-button-remove{
+  width: 50%;
+  height: 50%;
+  font-size: 12px;
+
+}
+
+.iw-marker-button-compare{
+  width: 50%;
+  height: 50%;
+  font-size: 12px;
+
+}
+
+
+
+
+
+.side-pannel {
+  width: 20%;
+  padding: 1rem;
+  background: #303030;
+  color: #ffffff;
+  justify-content: center;
+}
+
+.side-pannel-list {
+  width: 100%;
+  justify-content: center;
+}
+
+
+.combobox {
+  border: 1px solid #fff
 }
 
 .combobox-input {
   width: 100%;
-  padding: 0rem;
+  padding: .5rem;
+  border: 1px solid #fff;
+
+}
+
+.compare-button {
+  padding: 1rem;
 }
