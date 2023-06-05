@@ -1,6 +1,12 @@
 import React, { useState } from "react";
 import { makeStyles } from "@material-ui/core/styles";
-import { Card, CardContent, Typography, IconButton } from "@material-ui/core";
+import {
+  Card,
+  CardContent,
+  Typography,
+  IconButton,
+  ListItem,
+} from "@material-ui/core";
 import { MarkerType } from "./marker-type-props";
 import CloseIcon from "@material-ui/icons/Close";
 
@@ -13,12 +19,15 @@ const useStyles = makeStyles({
   root: {
     margin: "0 auto",
     //border: "1px solid #000000",
-    //height: "auto",
   },
   card: {
     display: "flex",
     justifyContent: "space-between",
     alignItems: "center",
+  },
+  scrollableList: {
+    height: "330px",
+    overflow: "auto",
   },
 });
 
@@ -39,26 +48,28 @@ export default function CompareLocationsList({
 
   return (
     <div className={classes.root}>
-      {locations.map((card) => (
-        <Card key={card.id} style={{ marginBottom: 16 }}>
-          <CardContent>
-            <Typography variant="body1">
-              {card.data.location_data.location}
-            </Typography>
-            <Typography variant="body2">
-              {`${truncDec(card.data.location_data.elevation)} ft`}
-            </Typography>
-          </CardContent>
+      <div className={classes.scrollableList}>
+        {locations.map((card) => (
+          <Card key={card.id} style={{ marginBottom: 16 }}>
+            <CardContent>
+              <Typography variant="body1">
+                {card.data.location_data.location}
+              </Typography>
+              <Typography variant="body2">
+                {`${truncDec(card.data.location_data.elevation)} ft`}
+              </Typography>
+            </CardContent>
 
-          <IconButton
-            aria-label="Remove"
-            size="small"
-            onClick={() => handleRemoveLocation(card)}
-          >
-            <CloseIcon />
-          </IconButton>
-        </Card>
-      ))}
+            <IconButton
+              aria-label="Remove"
+              size="small"
+              onClick={() => handleRemoveLocation(card)}
+            >
+              <CloseIcon />
+            </IconButton>
+          </Card>
+        ))}
+      </div>
     </div>
   );
 }

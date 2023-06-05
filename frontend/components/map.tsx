@@ -139,16 +139,7 @@ export default function Map() {
         <hr style={{ marginTop: "1rem" }} />
         <div className="side-pannel-list">
           <div>
-            <h5>
-              Compare Locations
-              {locationsCompare.length === 0 ? (
-                <>
-                  <br />
-                  <br />
-                  Click a location on the map, then add to compare
-                </>
-              ) : null}
-            </h5>
+            <h5>Compare Locations</h5>
             <CompareLocationsList
               locations={locationsCompare}
               onRemoveLocation={handleRemoveLocation}
@@ -156,7 +147,13 @@ export default function Map() {
           </div>
         </div>
 
-        <button className="compare-button">Compare</button>
+        {locationsCompare.length === 0 ? (
+          <>
+            <p>Click a location on the map, then add to compare</p>
+          </>
+        ) : (
+          <button className="compare-button">Compare</button>
+        )}
       </div>
 
       <div className="map">
