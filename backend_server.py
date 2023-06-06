@@ -17,15 +17,17 @@ df_stations_NOAA = put_NOAA_csvs_name_into_df()
 @app.route('/climate_data', methods=["POST"])
 def climate_data():
     data = request.get_json()
-    if 'latitude' in data and 'longitude' in data:
+    if 'latitude' in data and 'longitude' in data and 'elevation' in data:
         latitude = data['latitude']
         longitude = data['longitude']
+        elevation = data['elevation']
+
     
 
     # Process the latitude and longitude values and retrieve the necessary data
     start_time = time.time()  # Start timer
 
-    annual_data, monthly_data, location_data = get_climate_avg_at_point(latitude, longitude, df_stations_NWS, df_stations_NOAA)
+    annual_data, monthly_data, location_data = get_climate_avg_at_point(latitude, longitude, elevation, df_stations_NWS, df_stations_NOAA)
     print("Backend Server Elapsed Time:", time.time() - start_time, "seconds")
     
     # Create a response containing the data to be sent back to the JavaScript code
@@ -79,8 +81,8 @@ def climate_data():
     }
 
     location_data = {
-        'elevation': location_data['elevation'],
-        'location': get_city_name(latitude, longitude)
+        'elevation': elevation,
+        'location': ""      #get_city_name(latitude, longitude)
     }
 
     data = {
@@ -126,8 +128,7 @@ def get_city_name(latitude, longitude):
 
     except Exception as e:
         print("Error occurred during geolocation:", str(e))
-
-    return None
+        return f"{latitude}, {longitude}"
 
 if __name__ == '__main__':
     app.run(debug=True) 

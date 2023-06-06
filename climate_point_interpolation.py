@@ -57,7 +57,7 @@ def get_elevation_from_coords(lat,lon):
         elevations.append(result.json()['value'])
         #print("ELEVATIONS: ", elevations)
     except (requests.exceptions.JSONDecodeError, KeyError, requests.exceptions.ReadTimeout):
-        elevations.append(0)
+        elevations.append(-999)
         print("ERROR: ELEVATION NOT FOUND")
     return elevations[0]
 
@@ -135,7 +135,7 @@ There are many more NOAA stations, with a much longer history for improved accur
 The NWS stations are used largely to get sunlight data. 
 
 '''
-def get_climate_avg_at_point(target_lat, target_lon, df_stations_NWS, df_stations_NOAA):
+def get_climate_avg_at_point(target_lat, target_lon, target_elevation, df_stations_NWS, df_stations_NOAA):
     
     # Get closest points to coordinate
     closest_points_NWS = nearest_coordinates_to_point_NWS(target_lat, target_lon, df_stations_NWS)
@@ -380,16 +380,13 @@ def get_climate_avg_at_point(target_lat, target_lon, df_stations_NWS, df_station
         noaa_monthly_weighted_metrics[key] = weighted_list
         
 
-    
-    # Get elevation of point
-    target_elev = get_elevation_from_coords(target_lat, target_lon)
 
     
     # Compute difference between average weighted elevation
     # Example Index for entry: 39.4607, -105.6785, 'USC00053530', 8673.0, 'GRANT, CO US', 3.4029709128638763)
     elev_values = [entry[3] for entry in closest_points_NOAA]
     average_weighted_elev = sum(elevation * weight for elevation, weight in zip(elev_values, weights_NOAA))
-    target_dif_elev = target_elev - average_weighted_elev
+    target_dif_elev = target_elevation - average_weighted_elev
 
     
     '''
@@ -458,7 +455,7 @@ def get_climate_avg_at_point(target_lat, target_lon, df_stations_NWS, df_station
     monthly_values['weighted_monthly_sunshine_avg'] = nws_monthly_weighted_metrics['monthly_sunshine_avg']
     monthly_values['weighted_monthly_wind_dir_avg'] = nws_monthly_weighted_metrics['monthly_wind_dir_avg']
 
-    location_values['elevation'] = target_elev
+    location_values['elevation'] = target_elevation
     print("Remainder Elapsed Time:", time.time() - start_time, "seconds")
 
     return annual_values, monthly_values, location_values
@@ -470,7 +467,6 @@ def main():
 
     #Crashes when using elevaetion point in ocean
     target_coordinates = (37.938259402679584, -107.11396906315399)
-    #print(get_climate_avg_at_point(target_coordinates[0], target_coordinates[1], df_stations))
     
 
     

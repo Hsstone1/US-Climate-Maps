@@ -17,6 +17,71 @@ export default function Map() {
   const [locationsCompare, setLocationsCompare] = useState<MarkerType[]>([]);
   const [showComparePage, setShowComparePage] = useState(false); // New state variable
 
+  const geolocate = async (
+    latitude: number,
+    longitude: number
+  ): Promise<string> => {
+    const geocoder = new google.maps.Geocoder();
+    const latlng = { lat: latitude, lng: longitude };
+
+    try {
+      const response = await geocoder.geocode({ location: latlng });
+      if (response.results[0]) {
+        const components = response.results[0].address_components;
+        let locality, state, country;
+
+        for (const component of components) {
+          if (component.types.includes("locality")) {
+            locality = component.long_name;
+          } else if (component.types.includes("administrative_area_level_1")) {
+            state = component.long_name;
+          } else if (component.types.includes("country")) {
+            country = component.short_name;
+          }
+        }
+
+        const formattedAddress = [locality, state, country]
+          .filter(Boolean)
+          .join(", ");
+
+        if (formattedAddress.length === 0) {
+          return `${latitude}, ${longitude}`;
+        }
+
+        return formattedAddress;
+      } else {
+        return `${latitude}, ${longitude}`;
+      }
+    } catch (error) {
+      console.log("Geocoder failed due to: " + error);
+      throw error;
+    }
+  };
+
+  const getElevation = async (
+    latitude: number,
+    longitude: number
+  ): Promise<number> => {
+    const elevationService = new google.maps.ElevationService();
+    const latlng = new google.maps.LatLng(latitude, longitude);
+
+    return new Promise<number>((resolve, reject) => {
+      elevationService.getElevationForLocations(
+        { locations: [latlng] },
+        (results, status) => {
+          if (status === "OK" && results && results[0]) {
+            const elevationInFeet = results[0].elevation * 3.28;
+            resolve(elevationInFeet);
+          } else {
+            console.error("Elevation request failed:", status);
+            resolve(0);
+            reject(new Error("Elevation request failed"));
+          }
+        }
+      );
+    });
+  };
+
   const mapOptions = useMemo<MapOptions>(
     () => ({
       clickableIcons: false,
@@ -51,6 +116,7 @@ export default function Map() {
   const handleMapClick = useCallback((ev: google.maps.MapMouseEvent): void => {
     const latitude = ev.latLng?.lat();
     const longitude = ev.latLng?.lng();
+    console.log("CLICKED MAP");
 
     if (latitude && longitude) {
       handleBackendMarkerData({ lat: latitude, lng: longitude });
@@ -60,41 +126,66 @@ export default function Map() {
   const handleBackendMarkerData = useCallback(
     (position: LatLngLiteral): void => {
       const { lat: latitude, lng: longitude } = position;
-
       const startTime = performance.now();
 
-      // Send latitude and longitude values to the backend API
-      // Get response from post request from backend
-      fetch("http://localhost:5000/climate_data", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({ latitude, longitude }),
-      })
-        .then((response) => response.json())
-        .then((data) => {
-          // Handle the response from the backend API
-          const newMarker: MarkerType = {
-            id: `${latitude}_${longitude}`, // Generate unique key based on lat and lng
-            lat: latitude,
-            lng: longitude,
-            data: data,
-          };
+      getElevation(latitude, longitude)
+        .then((elevation) => {
+          // Send latitude, longitude, and elevationData values to the backend API
+          // Get response from the post request to the backend
+          fetch("http://localhost:5000/climate_data", {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify({
+              latitude,
+              longitude,
+              elevation, // Include elevationData in the request body
+            }),
+          })
+            .then((response) => response.json())
+            .then((data) => {
+              // Handle the response from the backend API
+              const newMarker: MarkerType = {
+                id: `${latitude}_${longitude}`, // Generate unique key based on lat and lng
+                lat: latitude,
+                lng: longitude,
+                data: data,
+              };
 
-          setSelectedMarker((prevMarkers) => [...prevMarkers, newMarker]);
-          console.log(data);
+              console.log("MARKER CREATED");
 
-          //TODO when in comparison page, the search bar should just add a location to compare
-          //if (showComparePage) {
-          //  handleCompareMarker(newMarker);
-          //}
+              geolocate(latitude, longitude)
+                .then((locationData) => {
+                  newMarker.data.location_data.location = locationData;
 
-          console.log("Time difference:", performance.now() - startTime, "ms");
+                  setSelectedMarker((prevMarkers) => [
+                    ...prevMarkers,
+                    newMarker,
+                  ]);
+                  console.log(data);
+                  console.log(
+                    "Time difference:",
+                    performance.now() - startTime,
+                    "ms"
+                  );
+
+                  // TODO: when in comparison page, the search bar should just add a location to compare
+                  // if (showComparePage) {
+                  //   handleCompareMarker(newMarker);
+                  // }
+                })
+                .catch((error) => {
+                  console.log("Error Cannot Retrieve Address: " + error);
+                });
+            })
+            .catch((error) => {
+              // Handle any error that occurred during the request
+              console.error("Error Cannot Retrieve Data: " + error);
+            });
         })
         .catch((error) => {
-          // Handle any error that occurred during the request
-          console.error(error);
+          console.log("Error Cannot Retrieve Elevation: " + error);
         });
     },
     []
@@ -204,7 +295,7 @@ export default function Map() {
                   <div>
                     <div style={{ textAlign: "center" }}>
                       <p>
-                        {marker.data.location_data.location.toString()}
+                        {marker.data.location_data.location}
                         {marker.data.location_data.elevation > 1000
                           ? ` (${Math.round(
                               marker.data.location_data.elevation

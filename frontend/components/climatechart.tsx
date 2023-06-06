@@ -122,6 +122,7 @@ export default function ClimateChart({ datasetProp }: ClimateChartProps) {
         type: "linear",
         position: "left",
         beginAtZero: false,
+        suggestedMax: 100,
         ticks: {
           callback: function (value) {
             return value + " °F"; // Append 'units' to the tick value
