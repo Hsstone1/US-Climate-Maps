@@ -52,7 +52,7 @@ def get_elevation_from_coords(lat,lon):
     elevations = []
     url = r'https://epqs.nationalmap.gov/v1/json?'
     try:
-        result = requests.get(url + urllib.parse.urlencode(params), timeout=5.000)
+        result = requests.get(url + urllib.parse.urlencode(params), timeout=2.000)
 
         elevations.append(result.json()['value'])
         #print("ELEVATIONS: ", elevations)

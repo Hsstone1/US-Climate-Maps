@@ -1,10 +1,11 @@
 import { useState, useMemo, useCallback, useRef, useEffect } from "react";
 import { GoogleMap, Marker, InfoWindow } from "@react-google-maps/api";
 import { FaCloudRain, FaSnowflake, FaSun } from "react-icons/fa";
-import ClimateChart from "./climatechart";
+import IndowWindowChart from "./infowindowchart";
 import SearchBar from "./searchbar";
 import CompareLocationsList from "./comparisonlist";
-import { MarkerType } from "./marker-type-props";
+import ComparePage from "./comparepage";
+import { MarkerType } from "./export-props";
 
 type LatLngLiteral = google.maps.LatLngLiteral;
 type MapOptions = google.maps.MapOptions;
@@ -14,6 +15,7 @@ export default function Map() {
   const center = useMemo<LatLngLiteral>(() => ({ lat: 38.0, lng: -98.0 }), []);
   const [selectedMarker, setSelectedMarker] = useState<MarkerType[]>([]);
   const [locationsCompare, setLocationsCompare] = useState<MarkerType[]>([]);
+  const [showComparePage, setShowComparePage] = useState(false); // New state variable
 
   const mapOptions = useMemo<MapOptions>(
     () => ({
@@ -83,6 +85,11 @@ export default function Map() {
           setSelectedMarker((prevMarkers) => [...prevMarkers, newMarker]);
           console.log(data);
 
+          //TODO when in comparison page, the search bar should just add a location to compare
+          //if (showComparePage) {
+          //  handleCompareMarker(newMarker);
+          //}
+
           console.log("Time difference:", performance.now() - startTime, "ms");
         })
         .catch((error) => {
@@ -118,12 +125,19 @@ export default function Map() {
 
       //If marker doesnt exist in location list, add it
       if (!isMarkerExists) {
+        console.log("ADDED MARKER");
         return [...prevLocations, marker];
       }
 
       //Else do nothing, return the list as is
+      console.log("DID NOT ADD MARKER");
+
       return prevLocations;
     });
+  }, []);
+
+  const handleCompareButtonClick = useCallback(() => {
+    setShowComparePage((prevState) => !prevState);
   }, []);
 
   return (
@@ -152,161 +166,167 @@ export default function Map() {
             <p>Click a location on the map, then add to compare</p>
           </>
         ) : (
-          <button className="compare-button">Compare</button>
+          <button className="compare-button" onClick={handleCompareButtonClick}>
+            {showComparePage ? "View Map" : "View Locations"}
+          </button>
         )}
       </div>
 
-      <div className="map">
-        <GoogleMap
-          zoom={5}
-          center={center}
-          mapContainerClassName="map-container"
-          onLoad={onLoad}
-          options={mapOptions}
-          onClick={handleMapClick}
-        >
-          {selectedMarker.map((marker) => (
-            <Marker
-              key={marker.id}
-              position={{ lat: marker.lat, lng: marker.lng }}
-              onClick={() =>
-                //TODO this is likely why console complains about two exact same keys
-                setSelectedMarker((prevMarkers) => [...prevMarkers, marker])
-              }
-              visible={true}
-            >
-              <InfoWindow
-                key={marker.id + "_infowindow"}
+      {showComparePage && locationsCompare.length > 0 ? ( // Render ComparePage if showComparePage is true, else render map
+        <ComparePage locations={locationsCompare} />
+      ) : (
+        <div className="map">
+          <GoogleMap
+            zoom={5}
+            center={center}
+            mapContainerClassName="map-container"
+            onLoad={onLoad}
+            options={mapOptions}
+            onClick={handleMapClick}
+          >
+            {selectedMarker.map((marker) => (
+              <Marker
+                key={marker.id}
                 position={{ lat: marker.lat, lng: marker.lng }}
-                options={{
-                  disableAutoPan: true,
-                  minWidth: 300,
-                }}
+                onClick={() =>
+                  setSelectedMarker((prevMarkers) => [...prevMarkers, marker])
+                }
+                visible={true}
               >
-                <div>
-                  {/* Display the info from the marker. If elevation is above 1000ft, display it */}
-                  <div style={{ textAlign: "center" }}>
-                    <p>
-                      {marker.data.location_data.location.toString()}
-                      {marker.data.location_data.elevation > 1000
-                        ? ` (${Math.round(
-                            marker.data.location_data.elevation
-                          ).toLocaleString()} ft)`
-                        : ""}
-                    </p>
-                  </div>
+                <InfoWindow
+                  key={marker.id + "_infowindow"}
+                  position={{ lat: marker.lat, lng: marker.lng }}
+                  options={{
+                    disableAutoPan: true,
+                    minWidth: 300,
+                  }}
+                >
+                  <div>
+                    <div style={{ textAlign: "center" }}>
+                      <p>
+                        {marker.data.location_data.location.toString()}
+                        {marker.data.location_data.elevation > 1000
+                          ? ` (${Math.round(
+                              marker.data.location_data.elevation
+                            ).toLocaleString()} ft)`
+                          : ""}
+                      </p>
+                    </div>
 
-                  <div style={{ fontSize: "10px", textAlign: "center" }}>
-                    <div
-                      style={{
-                        display: "flex",
-                        alignItems: "center",
-                        justifyContent: "center",
-                      }}
-                    >
+                    <div style={{ fontSize: "10px", textAlign: "center" }}>
                       <div
                         style={{
                           display: "flex",
-                          flexDirection: "column",
                           alignItems: "center",
+                          justifyContent: "center",
                         }}
                       >
-                        <FaCloudRain
-                          style={{ color: "#7e878c", fontSize: "12px" }}
-                        />
-                        <span>
-                          {`${marker.data.annual_data.weighted_annual_precip_days_avg.toFixed(
-                            0
-                          )} days `}
-                          (
-                          {`${marker.data.annual_data.weighted_annual_precip_avg.toFixed(
-                            0
-                          )} in`}
-                          )
-                        </span>
-                      </div>
-                      <div
-                        style={{
-                          borderLeft: "1px solid #808080",
-                          height: "20px",
-                          margin: "0 5px",
-                        }}
-                      ></div>
-                      <div
-                        style={{
-                          display: "flex",
-                          flexDirection: "column",
-                          alignItems: "center",
-                        }}
-                      >
-                        <FaSnowflake
-                          style={{ color: "#b0b0b0", fontSize: "12px" }}
-                        />
-                        <span>
-                          {`${marker.data.annual_data.weighted_annual_snow_days_avg.toFixed(
-                            0
-                          )} days `}
-                          (
-                          {`${marker.data.annual_data.weighted_annual_snow_avg.toFixed(
-                            0
-                          )} in`}
-                          )
-                        </span>
-                      </div>
-                      <div
-                        style={{
-                          borderLeft: "1px solid #808080",
-                          height: "20px",
-                          margin: "0 5px",
-                        }}
-                      ></div>
-                      <div
-                        style={{
-                          display: "flex",
-                          flexDirection: "column",
-                          alignItems: "center",
-                        }}
-                      >
-                        <FaSun style={{ color: "#f7db25", fontSize: "12px" }} />
-                        <span>
-                          {`${(
-                            marker.data.annual_data
-                              .weighted_annual_sunshine_avg * 365.25
-                          ).toFixed(0)} days `}
-                          (
-                          {`${(
-                            marker.data.annual_data
-                              .weighted_annual_sunshine_avg * 100
-                          ).toFixed(0)}%`}
-                          )
-                        </span>
+                        <div
+                          style={{
+                            display: "flex",
+                            flexDirection: "column",
+                            alignItems: "center",
+                          }}
+                        >
+                          <FaCloudRain
+                            style={{ color: "#7e878c", fontSize: "12px" }}
+                          />
+                          <span>
+                            {`${marker.data.annual_data.weighted_annual_precip_days_avg.toFixed(
+                              0
+                            )} days `}
+                            (
+                            {`${marker.data.annual_data.weighted_annual_precip_avg.toFixed(
+                              0
+                            )} in`}
+                            )
+                          </span>
+                        </div>
+                        <div
+                          style={{
+                            borderLeft: "1px solid #808080",
+                            height: "20px",
+                            margin: "0 5px",
+                          }}
+                        ></div>
+                        <div
+                          style={{
+                            display: "flex",
+                            flexDirection: "column",
+                            alignItems: "center",
+                          }}
+                        >
+                          <FaSnowflake
+                            style={{ color: "#b0b0b0", fontSize: "12px" }}
+                          />
+                          <span>
+                            {`${marker.data.annual_data.weighted_annual_snow_days_avg.toFixed(
+                              0
+                            )} days `}
+                            (
+                            {`${marker.data.annual_data.weighted_annual_snow_avg.toFixed(
+                              0
+                            )} in`}
+                            )
+                          </span>
+                        </div>
+                        <div
+                          style={{
+                            borderLeft: "1px solid #808080",
+                            height: "20px",
+                            margin: "0 5px",
+                          }}
+                        ></div>
+                        <div
+                          style={{
+                            display: "flex",
+                            flexDirection: "column",
+                            alignItems: "center",
+                          }}
+                        >
+                          <FaSun
+                            style={{ color: "#f7db25", fontSize: "12px" }}
+                          />
+                          <span>
+                            {`${(
+                              marker.data.annual_data
+                                .weighted_annual_sunshine_avg * 365.25
+                            ).toFixed(0)} days `}
+                            (
+                            {`${(
+                              marker.data.annual_data
+                                .weighted_annual_sunshine_avg * 100
+                            ).toFixed(0)}%`}
+                            )
+                          </span>
+                        </div>
                       </div>
                     </div>
+
+                    <IndowWindowChart marker={marker} />
+
+                    <div className="iw-marker-buttons">
+                      <button
+                        className="iw-marker-button-remove"
+                        onClick={() => handleRemoveMarker(marker)}
+                      >
+                        Remove Location
+                      </button>
+
+                      <button
+                        className="iw-marker-button-compare"
+                        onClick={() => handleCompareMarker(marker)}
+                      >
+                        Compare Location
+                      </button>
+                    </div>
                   </div>
-
-                  <ClimateChart marker={marker} />
-
-                  <div className="iw-marker-buttons">
-                    <button
-                      className="iw-marker-button-remove"
-                      onClick={() => handleRemoveMarker(marker)}
-                    >
-                      Remove Location
-                    </button>
-
-                    <button
-                      className="iw-marker-button-compare"
-                      onClick={() => handleCompareMarker(marker)}
-                    >
-                      Compare Location
-                    </button>
-                  </div>
-                </div>
-              </InfoWindow>
-            </Marker>
-          ))}
-        </GoogleMap>
-      </div>
+                </InfoWindow>
+              </Marker>
+            ))}
+          </GoogleMap>
+        </div>
+      )}
     </div>
   );
 }

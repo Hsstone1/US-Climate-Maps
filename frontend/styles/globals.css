@@ -60,7 +60,6 @@ a {
 
 
 
-
 .side-pannel {
   width: 20%;
   padding: 1rem;
@@ -89,4 +88,28 @@ a {
 .compare-button {
   padding: 1rem;
   margin: 1rem;
+  width: 50%;
 }
+
+.compare-page {
+  width: 80%;
+  height: 100vh;
+  background-color: #f4f4f4;
+}
+
+.compare-page-scroll{
+  width: 100%;
+  height: 100%;
+  align-items: center;
+  overflow: "auto";
+  padding: 1rem;
+}
+
+.compare_chart-div {
+  width: 70%;
+  height: 400px;
+  margin: 0 auto;
+  align-items: center;
+  display: block;
+}
+
