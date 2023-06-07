@@ -16,6 +16,7 @@ export default function Map() {
   const [selectedMarker, setSelectedMarker] = useState<MarkerType[]>([]);
   const [locationsCompare, setLocationsCompare] = useState<MarkerType[]>([]);
   const [showComparePage, setShowComparePage] = useState(false); // New state variable
+  const [isSearched, setIsSearched] = useState(false);
 
   const geolocate = async (
     latitude: number,
@@ -128,6 +129,19 @@ export default function Map() {
       const { lat: latitude, lng: longitude } = position;
       const startTime = performance.now();
 
+      // Generate unique key based on lat and lng
+      const markerId = `${latitude}_${longitude}`;
+
+      // Check if marker with the same ID already exists
+      const markerExists = selectedMarker.some(
+        (marker) => marker.id === markerId
+      );
+
+      if (markerExists) {
+        console.log("Marker already exists");
+        return;
+      }
+
       getElevation(latitude, longitude)
         .then((elevation) => {
           // Send latitude, longitude, and elevationData values to the backend API
@@ -147,7 +161,7 @@ export default function Map() {
             .then((data) => {
               // Handle the response from the backend API
               const newMarker: MarkerType = {
-                id: `${latitude}_${longitude}`, // Generate unique key based on lat and lng
+                id: markerId,
                 lat: latitude,
                 lng: longitude,
                 data: data,
@@ -163,17 +177,22 @@ export default function Map() {
                     ...prevMarkers,
                     newMarker,
                   ]);
+
+                  //TODO fix the boolean state variable
+
+                  setIsSearched((prevIsSearched) => {
+                    if (prevIsSearched) {
+                      handleCompareMarker(newMarker);
+                      setIsSearched(false);
+                    }
+                    return prevIsSearched;
+                  });
                   console.log(data);
                   console.log(
                     "Time difference:",
                     performance.now() - startTime,
                     "ms"
                   );
-
-                  // TODO: when in comparison page, the search bar should just add a location to compare
-                  // if (showComparePage) {
-                  //   handleCompareMarker(newMarker);
-                  // }
                 })
                 .catch((error) => {
                   console.log("Error Cannot Retrieve Address: " + error);
@@ -188,7 +207,7 @@ export default function Map() {
           console.log("Error Cannot Retrieve Elevation: " + error);
         });
     },
-    []
+    [selectedMarker]
   );
 
   //This removes the marker from the map, as well as from comparison list
@@ -216,13 +235,10 @@ export default function Map() {
 
       //If marker doesnt exist in location list, add it
       if (!isMarkerExists && prevLocations.length < 10) {
-        console.log("ADDED MARKER");
         return [...prevLocations, marker];
       }
 
       //Else do nothing, return the list as is
-      console.log("DID NOT ADD MARKER");
-
       return prevLocations;
     });
   }, []);
@@ -237,6 +253,7 @@ export default function Map() {
         <h3>US Climate Maps</h3>
         <SearchBar
           setMarker={(position) => {
+            setIsSearched(true);
             handleBackendMarkerData(position);
             mapRef.current?.panTo(position);
           }}
@@ -379,10 +396,9 @@ export default function Map() {
                             style={{ color: "#f7db25", fontSize: "12px" }}
                           />
                           <span>
-                            {`${(
-                              marker.data.annual_data
-                                .weighted_annual_sunshine_avg * 365.25
-                            ).toFixed(0)} days `}
+                            {`${marker.data.annual_data.weighted_annual_sunshine_days_avg.toFixed(
+                              0
+                            )} days `}
                             (
                             {`${(
                               marker.data.annual_data

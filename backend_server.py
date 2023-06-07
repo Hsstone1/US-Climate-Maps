@@ -31,7 +31,7 @@ def climate_data():
     print("Backend Server Elapsed Time:", time.time() - start_time, "seconds")
     
     # Create a response containing the data to be sent back to the JavaScript code
-    annual_data = {
+    annual_data_dict = {
         'weighted_annual_high_avg': annual_data['weighted_annual_high_avg'],
         'weighted_annual_low_avg': annual_data['weighted_annual_low_avg'],
         'weighted_annual_mean_avg': annual_data['weighted_annual_mean_avg'],
@@ -48,14 +48,16 @@ def climate_data():
         'weighted_annual_frost_free_days_avg': annual_data['weighted_annual_frost_free_days_avg'],
         'weighted_annual_dewpoint_avg': annual_data['weighted_annual_dewpoint_avg'],
         'weighted_annual_humidity_avg': annual_data['weighted_annual_humidity_avg'],
-
         'weighted_annual_wind_avg': annual_data['weighted_annual_wind_avg'],
         'weighted_annual_wind_gust_avg': annual_data['weighted_annual_wind_gust_avg'],
         'weighted_annual_sunshine_avg': annual_data['weighted_annual_sunshine_avg'],
+        'weighted_annual_sunshine_days_avg': annual_data['weighted_annual_sunshine_days_avg'],
         'weighted_annual_wind_dir_avg': annual_data['weighted_annual_wind_dir_avg'],
+        'weighted_annual_wind_gust_peak': annual_data['weighted_annual_wind_gust_peak'],
+
     }
 
-    monthly_data = {
+    monthly_data_dict = {
         'weighted_monthly_high_avg': monthly_data['weighted_monthly_high_avg'],
         'weighted_monthly_low_avg': monthly_data['weighted_monthly_low_avg'],
         'weighted_monthly_mean_avg': monthly_data['weighted_monthly_mean_avg'],
@@ -72,23 +74,24 @@ def climate_data():
         'weighted_monthly_frost_free_days_avg': monthly_data['weighted_monthly_frost_free_days_avg'],
         'weighted_monthly_dewpoint_avg': monthly_data['weighted_monthly_dewpoint_avg'],
         'weighted_monthly_humidity_avg': monthly_data['weighted_monthly_humidity_avg'],
-
         'weighted_monthly_wind_avg': monthly_data['weighted_monthly_wind_avg'],
         'weighted_monthly_wind_gust_avg': monthly_data['weighted_monthly_wind_gust_avg'],
         'weighted_monthly_sunshine_avg': monthly_data['weighted_monthly_sunshine_avg'],
+        'weighted_monthly_sunshine_days_avg': monthly_data['weighted_monthly_sunshine_days_avg'],
         'weighted_monthly_wind_dir_avg': monthly_data['weighted_monthly_wind_dir_avg'],
+        'weighted_monthly_wind_gust_peak': monthly_data['weighted_monthly_wind_gust_peak'],
 
     }
 
-    location_data = {
+    location_data_dict = {
         'elevation': elevation,
         'location': ""      #get_city_name(latitude, longitude)
     }
 
     data = {
-        'annual_data': annual_data,
-        'monthly_data': monthly_data,
-        'location_data': location_data,
+        'annual_data': annual_data_dict,
+        'monthly_data': monthly_data_dict,
+        'location_data': location_data_dict,
     }
 
     

@@ -15,7 +15,7 @@ import {
 import React from "react";
 import { Chart } from "react-chartjs-2";
 import ChartDataLabels from "chartjs-plugin-datalabels";
-import { ClimateChartDataset } from "./export-props";
+import { ClimateChartDataset, MonthLabels } from "./export-props";
 
 ChartJS.register(
   LinearScale,
@@ -35,25 +35,10 @@ type ClimateChartProps = {
   datasetProp: ClimateChartDataset[];
 };
 
-const labels = [
-  "Jan",
-  "Feb",
-  "Mar",
-  "Apr",
-  "May",
-  "Jun",
-  "Jul",
-  "Aug",
-  "Sep",
-  "Oct",
-  "Nov",
-  "Dec",
-];
-
 export default function ClimateChart({ datasetProp }: ClimateChartProps) {
   const createChartData = () => {
     return {
-      labels,
+      labels: MonthLabels,
       datasets: datasetProp.map((dataset) => ({
         type: dataset.type,
         label: dataset.label,
@@ -205,14 +190,14 @@ export default function ClimateChart({ datasetProp }: ClimateChartProps) {
 
       Humidity_Percentage: {
         type: "linear",
-        position: "right",
+        position: "left",
         display: "auto",
         max: 100,
         min: 0,
         ticks: {
           beginAtZero: true,
           callback: function (value: number) {
-            return (value * 100).toFixed(0) + " % "; // Multiply by 100 and append "%"
+            return value.toFixed(0) + " % "; // Multiply by 100 and append "%"
           },
           maxTicksLimit: 8,
           stepSize: 10,
