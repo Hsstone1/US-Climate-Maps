@@ -66,12 +66,43 @@ export default function ClimateChart({ datasetProp }: ClimateChartProps) {
         lineTension: dataset.lineTension,
         fill: dataset.fill,
         yAxisID: dataset.yAxisID,
+        datalabels: {
+          formatter: (value: any, context: any) => {
+            const yAxisID = context.dataset.yAxisID;
+            const skippedIndexes = [1, 2, 4, 5, 7, 8, 10];
+
+            if (skippedIndexes.includes(context.dataIndex)) {
+              return "";
+            }
+            if (yAxisID === "Temperature") {
+              return value.toFixed(0) + " °F";
+            } else if (yAxisID === "Precip") {
+              return value.toFixed(1) + " in";
+            } else if (yAxisID === "Sunshine_Percentage") {
+              return (value * 100).toFixed(0) + " %";
+            } else if (yAxisID === "Humidity_Percentage") {
+              return value.toFixed(0) + " %";
+            } else if (yAxisID === "Wind") {
+              return value.toFixed(0) + " mph";
+            } else {
+              return value.toFixed(0);
+            }
+          },
+        },
       })),
     };
   };
 
   const chartOptions = {
     responsive: true,
+    layout: {
+      padding: {
+        top: 20,
+        right: 40,
+        bottom: 10,
+        left: 40,
+      },
+    },
     plugins: {
       legend: {
         position: "top" as const,
@@ -90,12 +121,13 @@ export default function ClimateChart({ datasetProp }: ClimateChartProps) {
       },
       tooltip: {
         mode: "x", // Set the tooltips mode to 'index' to display values for all datasets at the same index
-        intersect: false, // Allow tooltips to display values even if not at the center point
+        intersect: true, // Allow tooltips to display values even if not at the center point
       },
       datalabels: {
         align: "bottom",
         anchor: "center",
         offset: -18,
+
         display: "auto",
         color: "#808080",
 
@@ -103,7 +135,6 @@ export default function ClimateChart({ datasetProp }: ClimateChartProps) {
           size: 10,
           weight: "bolder",
         },
-        formatter: (value) => Math.round(value) + " °F", // Append '°F' to the data label value
       },
     },
 
@@ -121,14 +152,14 @@ export default function ClimateChart({ datasetProp }: ClimateChartProps) {
       Temperature: {
         type: "linear",
         position: "left",
+        display: "auto",
         beginAtZero: false,
         suggestedMax: 100,
         ticks: {
           callback: function (value) {
-            return value + " °F"; // Append 'units' to the tick value
+            return value + " °F "; // Append 'units' to the tick value
           },
           maxTicksLimit: 8,
-
           stepSize: 10,
           font: {
             size: 12,
@@ -136,15 +167,14 @@ export default function ClimateChart({ datasetProp }: ClimateChartProps) {
         },
       },
 
-      /*
-      
       Precip: {
         type: "linear",
         position: "left",
+        display: "auto",
         ticks: {
           beginAtZero: true,
           callback: function (value) {
-            return value + " in"; // Append 'units' to the tick value
+            return value + " in "; // Append 'units' to the tick value
           },
           maxTicksLimit: 8,
           stepSize: 0.2,
@@ -153,13 +183,36 @@ export default function ClimateChart({ datasetProp }: ClimateChartProps) {
           },
         },
       },
-      Percentage: {
+
+      Sunshine_Percentage: {
         type: "linear",
         position: "left",
+        display: "auto",
+        max: 1.005,
+        min: 0,
         ticks: {
           beginAtZero: true,
-          callback: function (value) {
-            return value + " %"; // Append 'units' to the tick value
+          callback: function (value: number) {
+            return (value * 100).toFixed(0) + " % "; // Multiply by 100 and append "%"
+          },
+          maxTicksLimit: 8,
+          stepSize: 0.1,
+          font: {
+            size: 10,
+          },
+        },
+      },
+
+      Humidity_Percentage: {
+        type: "linear",
+        position: "right",
+        display: "auto",
+        max: 100,
+        min: 0,
+        ticks: {
+          beginAtZero: true,
+          callback: function (value: number) {
+            return (value * 100).toFixed(0) + " % "; // Multiply by 100 and append "%"
           },
           maxTicksLimit: 8,
           stepSize: 10,
@@ -168,13 +221,15 @@ export default function ClimateChart({ datasetProp }: ClimateChartProps) {
           },
         },
       },
+
       Wind: {
         type: "linear",
         position: "left",
+        display: "auto",
         ticks: {
           beginAtZero: true,
           callback: function (value) {
-            return value + " mph"; // Append 'units' to the tick value
+            return value + " mph "; // Append 'units' to the tick value
           },
           maxTicksLimit: 8,
           stepSize: 1,
@@ -183,9 +238,10 @@ export default function ClimateChart({ datasetProp }: ClimateChartProps) {
           },
         },
       },
-      */
     },
   } as ChartOptions<"bar" | "line">;
 
-  return <Chart options={chartOptions} data={createChartData()} type={"bar"} />;
+  return (
+    <Chart options={chartOptions} data={createChartData()} type={"line"} />
+  );
 }

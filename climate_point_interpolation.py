@@ -78,7 +78,7 @@ def haversine_distance(lat1, lon1, lat2, lon2):
     return R * c / 1.6
 
 
-def nearest_coordinates_to_point_NWS(target_lat, target_lon, df, num_results=3):
+def nearest_coordinates_to_point_NWS(target_lat, target_lon, df, num_results=5):
     """
     Find the closest coordinates to a target point using NWS CF6 stations(NWS, CITY_CODE).
     """
@@ -121,7 +121,7 @@ def nearest_coordinates_to_point_NOAA(target_lat, target_lon, df, num_results=3)
 def inverse_dist_weights(closest_points_list):
     dist_values = [entry[-1] for entry in closest_points_list]
     # Squared to give increased weight to closest
-    inverses = [(1 / value) ** 1 for value in dist_values]
+    inverses = [(1 / value) ** 0.5 for value in dist_values]
     sum_inverses = sum(inverses)
     weights = [inverse / sum_inverses for inverse in inverses]
     
@@ -316,7 +316,7 @@ def get_climate_avg_at_point(target_lat, target_lon, target_elevation, df_statio
             months_arr['snow_days_avg'].append(round((month_df.loc[month_df['SNOW'] > 0.01, 'SNOW'].count() / num_days),0))
             
             #TODO this might not be returning correct number of days
-            months_arr['frost_free_days_avg'].append(round((month_df.loc[month_df['TMIN'] > 0, 'TMIN'].count() /len(month_df)),0))
+            months_arr['frost_free_days_avg'].append(round((month_df.loc[month_df['TMIN'] >= -10, 'TMIN'].count() /len(month_df)),0))
 
         
 

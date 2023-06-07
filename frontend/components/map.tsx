@@ -215,7 +215,7 @@ export default function Map() {
       );
 
       //If marker doesnt exist in location list, add it
-      if (!isMarkerExists) {
+      if (!isMarkerExists && prevLocations.length < 10) {
         console.log("ADDED MARKER");
         return [...prevLocations, marker];
       }
@@ -254,7 +254,7 @@ export default function Map() {
 
         {locationsCompare.length === 0 ? (
           <>
-            <p>Click a location on the map, then add to compare</p>
+            <p>Click a location on the map, then add to compare (up to 10)</p>
           </>
         ) : (
           <button className="compare-button" onClick={handleCompareButtonClick}>

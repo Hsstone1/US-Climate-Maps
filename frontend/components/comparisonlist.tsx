@@ -7,7 +7,7 @@ import {
   IconButton,
   ListItem,
 } from "@material-ui/core";
-import { MarkerType } from "./export-props";
+import { MarkerType, Colors } from "./export-props";
 import CloseIcon from "@material-ui/icons/Close";
 
 type LocationListProps = {
@@ -50,8 +50,14 @@ export default function CompareLocationsList({
   return (
     <div className={classes.root}>
       <div className={classes.scrollableList}>
-        {locations.map((card) => (
-          <Card key={card.id} style={{ marginBottom: 8 }}>
+        {locations.map((card, index) => (
+          <Card
+            key={card.id}
+            style={{
+              marginBottom: 8,
+              border: `4px solid ${Colors(0.5)[index]}`,
+            }}
+          >
             <CardContent>
               <Typography variant="body2">
                 {card.data.location_data.location}
