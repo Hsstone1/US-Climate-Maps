@@ -193,7 +193,7 @@ export default function ComparisonPage({ locations }: ComparisonPageProps) {
         borderWidth: 3,
         pointRadius: 0,
         pointHoverRadius: 5,
-        lineTension: 0.5,
+        lineTension: 0.35,
         fill: false,
         yAxisID: "Sunshine_Percentage",
       };
