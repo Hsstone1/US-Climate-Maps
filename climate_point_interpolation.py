@@ -404,7 +404,7 @@ def get_climate_avg_at_point(target_lat, target_lon, target_elevation, df_statio
     '''
     
     ELEV_TEMP_CHANGE = 5.5
-    temp_adj = max(ELEV_TEMP_CHANGE * nws_annual_weighted_metrics['annual_sunshine_avg'],3) * (target_dif_elev / 1000)
+    #temp_adj = max(ELEV_TEMP_CHANGE * nws_annual_weighted_metrics['annual_sunshine_avg'],3) * (target_dif_elev / 1000)
     temp_adj_monthly = [max(ELEV_TEMP_CHANGE * sunshine, 3) * (target_dif_elev / 1000) for sunshine in nws_monthly_weighted_metrics['monthly_sunshine_avg']]
     annual_values = {}
     monthly_values = {}
@@ -442,31 +442,34 @@ def get_climate_avg_at_point(target_lat, target_lon, target_elevation, df_statio
 
 
 
-    annual_values['weighted_annual_high_avg'] = noaa_annual_weighted_metrics['annual_high_avg'] - temp_adj
-    annual_values['weighted_annual_low_avg'] = noaa_annual_weighted_metrics['annual_low_avg'] - temp_adj
-    annual_values['weighted_annual_mean_avg'] = noaa_annual_weighted_metrics['annual_mean_avg'] - temp_adj
-    annual_values['weighted_annual_mean_maximum'] = noaa_annual_weighted_metrics['annual_mean_maximum'] - temp_adj
-    annual_values['weighted_annual_record_high'] = noaa_annual_weighted_metrics['annual_record_high'] - temp_adj
-    annual_values['weighted_annual_mean_minimum'] = noaa_annual_weighted_metrics['annual_mean_minimum'] - temp_adj
-    annual_values['weighted_annual_record_low'] = noaa_annual_weighted_metrics['annual_record_low'] - temp_adj
-    annual_values['weighted_annual_precip_avg'] = noaa_annual_weighted_metrics['annual_precip_avg']
-    annual_values['weighted_annual_snow_avg'] = noaa_annual_weighted_metrics['annual_snow_avg']
-    annual_values['weighted_annual_snow_depth_avg'] = noaa_annual_weighted_metrics['annual_snow_depth_avg']
-    annual_values['weighted_annual_frost_free_days_avg'] = noaa_annual_weighted_metrics['annual_frost_free_days_avg']
-    annual_values['weighted_annual_dewpoint_avg'] = noaa_annual_weighted_metrics['annual_dewpoint_avg'] - temp_adj
-    annual_values['weighted_annual_humidity_avg'] = noaa_annual_weighted_metrics['annual_humidity_avg']
-    
+    annual_values['weighted_annual_high_avg'] = sum(monthly_values['weighted_monthly_high_avg'])/12
+    annual_values['weighted_annual_low_avg'] = sum(monthly_values['weighted_monthly_low_avg'])/12
+    annual_values['weighted_annual_mean_avg'] = sum(monthly_values['weighted_monthly_mean_avg'])/12
+    annual_values['weighted_annual_mean_maximum'] = max(monthly_values['weighted_monthly_mean_maximum'])
+    annual_values['weighted_annual_record_high'] = max(monthly_values['weighted_monthly_record_high'])
+    annual_values['weighted_annual_mean_minimum'] = min(monthly_values['weighted_monthly_mean_minimum'])
+    annual_values['weighted_annual_record_low'] = min(monthly_values['weighted_monthly_record_low'])
+    annual_values['weighted_annual_precip_avg'] = sum(monthly_values['weighted_monthly_precip_avg'])
+    annual_values['weighted_annual_snow_avg'] = sum(monthly_values['weighted_monthly_snow_avg'])
+    annual_values['weighted_annual_frost_free_days_avg'] = sum(monthly_values['weighted_monthly_frost_free_days_avg'])
+    annual_values['weighted_annual_dewpoint_avg'] = sum(monthly_values['weighted_monthly_dewpoint_avg'])/12
+    annual_values['weighted_annual_humidity_avg'] = sum(monthly_values['weighted_monthly_humidity_avg'])/12
     annual_values['weighted_annual_HDD_avg'] = sum(monthly_values['weighted_monthly_HDD_avg'])
     annual_values['weighted_annual_CDD_avg'] = sum(monthly_values['weighted_monthly_CDD_avg'])
-    annual_values['weighted_annual_precip_days_avg'] = sum(noaa_monthly_weighted_metrics['monthly_precip_days_avg'])
-    annual_values['weighted_annual_snow_days_avg'] = sum(noaa_monthly_weighted_metrics['monthly_snow_days_avg'])
+    annual_values['weighted_annual_precip_days_avg'] = sum(monthly_values['weighted_monthly_precip_days_avg'])
+    annual_values['weighted_annual_snow_days_avg'] = sum(monthly_values['weighted_monthly_snow_days_avg'])
 
-    annual_values['weighted_annual_wind_avg'] = nws_annual_weighted_metrics['annual_wind_avg']
-    annual_values['weighted_annual_wind_gust_avg'] = nws_annual_weighted_metrics['annual_wind_gust_avg']
-    annual_values['weighted_annual_wind_dir_avg'] = nws_annual_weighted_metrics['annual_wind_dir_avg']
-    annual_values['weighted_annual_sunshine_avg'] = sum(nws_monthly_weighted_metrics['monthly_sunshine_avg'])/12
-    annual_values['weighted_annual_sunshine_days_avg'] = sum([value * DAYS_IN_MONTH for value in nws_monthly_weighted_metrics['monthly_sunshine_avg']])
-    annual_values['weighted_annual_wind_gust_peak'] = max(nws_monthly_weighted_metrics['monthly_wind_gust_peak'])
+    annual_values['weighted_annual_wind_avg'] = sum(monthly_values['weighted_monthly_wind_avg'])/12
+    annual_values['weighted_annual_wind_gust_avg'] = sum(monthly_values['weighted_monthly_wind_gust_avg'])/12
+    annual_values['weighted_annual_wind_dir_avg'] = sum(monthly_values['weighted_monthly_wind_dir_avg'])/12
+    annual_values['weighted_annual_sunshine_avg'] = sum(monthly_values['weighted_monthly_sunshine_avg'])/12
+    annual_values['weighted_annual_sunshine_days_avg'] = sum(monthly_values['weighted_monthly_sunshine_days_avg'])
+    #annual_values['weighted_annual_sunshine_days_avg'] = sum([value * DAYS_IN_MONTH for value in nws_monthly_weighted_metrics['monthly_sunshine_avg']])
+    annual_values['weighted_annual_wind_gust_peak'] = max(monthly_values['weighted_monthly_wind_gust_peak'])
+    
+    
+    
+    
     
     
     location_values['elevation'] = target_elevation
