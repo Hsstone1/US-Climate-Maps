@@ -15,7 +15,7 @@ import {
 import React from "react";
 import { Chart } from "react-chartjs-2";
 import ChartDataLabels from "chartjs-plugin-datalabels";
-import { ClimateChartDataset, MonthLabels } from "./export-props";
+import { ClimateChartDataset, MonthLabels } from "./comparepageprops";
 
 ChartJS.register(
   LinearScale,

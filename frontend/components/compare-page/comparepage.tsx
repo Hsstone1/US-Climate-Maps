@@ -1,11 +1,9 @@
-import {
-  MarkerType,
-  ClimateChartDataset,
-  Colors,
-  MonthLabels,
-} from "./export-props";
+import { ClimateChartDataset } from "./comparepageprops";
+
+import { MarkerType, LocationColors } from "../export-props";
 import ClimateChart from "./climatechart";
 import Table from "./comparepagetable";
+import ClimateTablePaginate from "../climate-table/climatetablepaginate";
 
 type ComparisonPageProps = {
   locations: MarkerType[];
@@ -24,7 +22,7 @@ export default function ComparisonPage({ locations }: ComparisonPageProps) {
     const datasets: ClimateChartDataset[] = [];
 
     locations.forEach((location: MarkerType, index) => {
-      const color = Colors(0.7)[index];
+      const color = LocationColors(0.7)[index];
       const high_dataset: ClimateChartDataset = {
         type: "line",
         label: location.data.location_data.location,
@@ -62,7 +60,7 @@ export default function ComparisonPage({ locations }: ComparisonPageProps) {
   const precipDataset = (locations: MarkerType[]): ClimateChartDataset[] => {
     const datasets: ClimateChartDataset[] = [];
     locations.forEach((location: MarkerType, index) => {
-      const color = Colors(0.7)[index];
+      const color = LocationColors(0.7)[index];
       const precip_dataset: ClimateChartDataset = {
         type: "line",
         label: location.data.location_data.location,
@@ -86,7 +84,7 @@ export default function ComparisonPage({ locations }: ComparisonPageProps) {
   const snowDataset = (locations: MarkerType[]): ClimateChartDataset[] => {
     const datasets: ClimateChartDataset[] = [];
     locations.forEach((location: MarkerType, index) => {
-      const color = Colors(0.7)[index];
+      const color = LocationColors(0.7)[index];
       const snow_dataset: ClimateChartDataset = {
         type: "line",
         label: location.data.location_data.location,
@@ -110,7 +108,7 @@ export default function ComparisonPage({ locations }: ComparisonPageProps) {
   const sunshineDataset = (locations: MarkerType[]): ClimateChartDataset[] => {
     const datasets: ClimateChartDataset[] = [];
     locations.forEach((location: MarkerType, index) => {
-      const color = Colors(0.7)[index];
+      const color = LocationColors(0.7)[index];
       const sunshine_dataset: ClimateChartDataset = {
         type: "line",
         label: location.data.location_data.location,
@@ -134,7 +132,7 @@ export default function ComparisonPage({ locations }: ComparisonPageProps) {
   const humidityDataset = (locations: MarkerType[]): ClimateChartDataset[] => {
     const datasets: ClimateChartDataset[] = [];
     locations.forEach((location: MarkerType, index) => {
-      const color = Colors(0.7)[index];
+      const color = LocationColors(0.7)[index];
       const humidity_dataset: ClimateChartDataset = {
         type: "line",
         label: location.data.location_data.location,
@@ -158,7 +156,7 @@ export default function ComparisonPage({ locations }: ComparisonPageProps) {
   const windDataset = (locations: MarkerType[]): ClimateChartDataset[] => {
     const datasets: ClimateChartDataset[] = [];
     locations.forEach((location: MarkerType, index) => {
-      const color = Colors(0.7)[index];
+      const color = LocationColors(0.7)[index];
       const wind_dataset: ClimateChartDataset = {
         type: "line",
         label: location.data.location_data.location,
@@ -182,7 +180,7 @@ export default function ComparisonPage({ locations }: ComparisonPageProps) {
   const growingDataset = (locations: MarkerType[]): ClimateChartDataset[] => {
     const datasets: ClimateChartDataset[] = [];
     locations.forEach((location: MarkerType, index) => {
-      const color = Colors(0.7)[index];
+      const color = LocationColors(0.7)[index];
       const frostfree_dataset: ClimateChartDataset = {
         type: "line",
         label: location.data.location_data.location,
@@ -207,6 +205,8 @@ export default function ComparisonPage({ locations }: ComparisonPageProps) {
     <div className="compare-page">
       <div className="compare-page-scroll">
         <div className="compare_chart-div">
+          {/* <ClimateTablePaginate locations={locations}></ClimateTablePaginate> */}
+
           <h3 style={{ textAlign: "center" }}>
             Yearly High and Low Temperatures
           </h3>

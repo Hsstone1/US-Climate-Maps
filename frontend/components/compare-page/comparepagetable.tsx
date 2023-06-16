@@ -1,11 +1,5 @@
-import {
-  MarkerType,
-  ClimateChartDataset,
-  Colors,
-  MonthLabels,
-  MonthlyDataStr,
-  AnnualDataStr,
-} from "./export-props";
+import { MonthLabels } from "./comparepageprops";
+import { MarkerType } from "../export-props";
 
 type ComparisonPageProps = {
   locations: MarkerType[];

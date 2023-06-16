@@ -2,10 +2,12 @@ import { useState, useMemo, useCallback, useRef, useEffect } from "react";
 import { GoogleMap, Marker, InfoWindow } from "@react-google-maps/api";
 import { FaCloudRain, FaSnowflake, FaSun } from "react-icons/fa";
 import IndowWindowChart from "./infowindowchart";
-import SearchBar from "./searchbar";
-import CompareLocationsList from "./comparisonlist";
-import ComparePage from "./comparepage";
-import { MarkerType } from "./export-props";
+import SearchBar from "../compare-sidebar/searchbar";
+import CompareLocationsList from "../compare-sidebar/comparisonlist";
+import ComparePage from "../compare-page/comparepage";
+import { MarkerType } from "../export-props";
+import { getGeolocate, getElevation } from "./geolocate";
+import CustomInfoWindow from "./custominfowindow";
 
 type LatLngLiteral = google.maps.LatLngLiteral;
 type MapOptions = google.maps.MapOptions;
@@ -17,71 +19,6 @@ export default function Map() {
   const [locationsCompare, setLocationsCompare] = useState<MarkerType[]>([]);
   const [showComparePage, setShowComparePage] = useState(false); // New state variable
   const [isSearched, setIsSearched] = useState(false);
-
-  const geolocate = async (
-    latitude: number,
-    longitude: number
-  ): Promise<string> => {
-    const geocoder = new google.maps.Geocoder();
-    const latlng = { lat: latitude, lng: longitude };
-
-    try {
-      const response = await geocoder.geocode({ location: latlng });
-      if (response.results[0]) {
-        const components = response.results[0].address_components;
-        let locality, state, country;
-
-        for (const component of components) {
-          if (component.types.includes("locality")) {
-            locality = component.long_name;
-          } else if (component.types.includes("administrative_area_level_1")) {
-            state = component.long_name;
-          } else if (component.types.includes("country")) {
-            country = component.short_name;
-          }
-        }
-
-        const formattedAddress = [locality, state, country]
-          .filter(Boolean)
-          .join(", ");
-
-        if (formattedAddress.length === 0) {
-          return `${latitude}, ${longitude}`;
-        }
-
-        return formattedAddress;
-      } else {
-        return `${latitude}, ${longitude}`;
-      }
-    } catch (error) {
-      console.log("Geocoder failed due to: " + error);
-      throw error;
-    }
-  };
-
-  const getElevation = async (
-    latitude: number,
-    longitude: number
-  ): Promise<number> => {
-    const elevationService = new google.maps.ElevationService();
-    const latlng = new google.maps.LatLng(latitude, longitude);
-
-    return new Promise<number>((resolve, reject) => {
-      elevationService.getElevationForLocations(
-        { locations: [latlng] },
-        (results, status) => {
-          if (status === "OK" && results && results[0]) {
-            const elevationInFeet = results[0].elevation * 3.28;
-            resolve(elevationInFeet);
-          } else {
-            console.error("Elevation request failed:", status);
-            resolve(0);
-            reject(new Error("Elevation request failed"));
-          }
-        }
-      );
-    });
-  };
 
   const mapOptions = useMemo<MapOptions>(
     () => ({
@@ -169,7 +106,7 @@ export default function Map() {
 
               console.log("MARKER CREATED");
 
-              geolocate(latitude, longitude)
+              getGeolocate(latitude, longitude)
                 .then((locationData) => {
                   newMarker.data.location_data.location = locationData;
 
@@ -301,134 +238,11 @@ export default function Map() {
                 }
                 visible={true}
               >
-                <InfoWindow
-                  key={marker.id + "_infowindow"}
-                  position={{ lat: marker.lat, lng: marker.lng }}
-                  options={{
-                    disableAutoPan: true,
-                    minWidth: 300,
-                  }}
-                >
-                  <div>
-                    <div style={{ textAlign: "center" }}>
-                      <p>
-                        {marker.data.location_data.location}
-                        {marker.data.location_data.elevation > 1000
-                          ? ` (${Math.round(
-                              marker.data.location_data.elevation
-                            ).toLocaleString()} ft)`
-                          : ""}
-                      </p>
-                    </div>
-
-                    <div style={{ fontSize: "10px", textAlign: "center" }}>
-                      <div
-                        style={{
-                          display: "flex",
-                          alignItems: "center",
-                          justifyContent: "center",
-                        }}
-                      >
-                        <div
-                          style={{
-                            display: "flex",
-                            flexDirection: "column",
-                            alignItems: "center",
-                          }}
-                        >
-                          <FaCloudRain
-                            style={{ color: "#7e878c", fontSize: "12px" }}
-                          />
-                          <span>
-                            {`${marker.data.annual_data.weighted_annual_precip_days_avg.toFixed(
-                              0
-                            )} days `}
-                            (
-                            {`${marker.data.annual_data.weighted_annual_precip_avg.toFixed(
-                              0
-                            )} in`}
-                            )
-                          </span>
-                        </div>
-                        <div
-                          style={{
-                            borderLeft: "1px solid #808080",
-                            height: "20px",
-                            margin: "0 5px",
-                          }}
-                        ></div>
-                        <div
-                          style={{
-                            display: "flex",
-                            flexDirection: "column",
-                            alignItems: "center",
-                          }}
-                        >
-                          <FaSnowflake
-                            style={{ color: "#b0b0b0", fontSize: "12px" }}
-                          />
-                          <span>
-                            {`${marker.data.annual_data.weighted_annual_snow_days_avg.toFixed(
-                              0
-                            )} days `}
-                            (
-                            {`${marker.data.annual_data.weighted_annual_snow_avg.toFixed(
-                              0
-                            )} in`}
-                            )
-                          </span>
-                        </div>
-                        <div
-                          style={{
-                            borderLeft: "1px solid #808080",
-                            height: "20px",
-                            margin: "0 5px",
-                          }}
-                        ></div>
-                        <div
-                          style={{
-                            display: "flex",
-                            flexDirection: "column",
-                            alignItems: "center",
-                          }}
-                        >
-                          <FaSun
-                            style={{ color: "#f7db25", fontSize: "12px" }}
-                          />
-                          <span>
-                            {`${marker.data.annual_data.weighted_annual_sunshine_days_avg.toFixed(
-                              0
-                            )} days `}
-                            (
-                            {`${(
-                              marker.data.annual_data
-                                .weighted_annual_sunshine_avg * 100
-                            ).toFixed(0)}%`}
-                            )
-                          </span>
-                        </div>
-                      </div>
-                    </div>
-
-                    <IndowWindowChart marker={marker} />
-
-                    <div className="iw-marker-buttons">
-                      <button
-                        className="iw-marker-button-remove"
-                        onClick={() => handleRemoveMarker(marker)}
-                      >
-                        Remove Location
-                      </button>
-
-                      <button
-                        className="iw-marker-button-compare"
-                        onClick={() => handleCompareMarker(marker)}
-                      >
-                        Compare Location
-                      </button>
-                    </div>
-                  </div>
-                </InfoWindow>
+                <CustomInfoWindow
+                  marker={marker}
+                  handleCompareMarker={handleCompareMarker}
+                  handleRemoveMarker={handleRemoveMarker}
+                />
               </Marker>
             ))}
           </GoogleMap>

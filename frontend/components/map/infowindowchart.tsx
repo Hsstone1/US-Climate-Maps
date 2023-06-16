@@ -15,7 +15,7 @@ import {
 import React from "react";
 import ChartDataLabels from "chartjs-plugin-datalabels";
 import { Chart } from "react-chartjs-2";
-import { MarkerType } from "./export-props";
+import { MarkerType } from "../export-props";
 
 InfoWindowChartJS.register(
   LinearScale,
