@@ -84,7 +84,7 @@ export default function ClimateChart({ datasetProp }: ClimateChartProps) {
       padding: {
         top: 20,
         right: 40,
-        bottom: 10,
+        bottom: 20,
         left: 40,
       },
     },
@@ -144,7 +144,8 @@ export default function ClimateChart({ datasetProp }: ClimateChartProps) {
           callback: function (value) {
             return value + " °F "; // Append 'units' to the tick value
           },
-          maxTicksLimit: 8,
+          maxTicksLimit: 10,
+
           stepSize: 10,
           font: {
             size: 12,

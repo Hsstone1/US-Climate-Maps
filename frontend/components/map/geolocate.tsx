@@ -26,12 +26,12 @@ export const getGeolocate = async (
         .join(", ");
 
       if (formattedAddress.length === 0) {
-        return `${latitude}, ${longitude}`;
+        return `${latitude.toFixed(3)}, ${longitude.toFixed(3)}`;
       }
 
       return formattedAddress;
     } else {
-      return `${latitude}, ${longitude}`;
+      return `${latitude.toFixed(3)}, ${longitude.toFixed(3)}`;
     }
   } catch (error) {
     console.log("Geocoder failed due to: " + error);

@@ -88,7 +88,9 @@ def climate_data():
 
     location_data_dict = {
         'elevation': elevation,
-        'location': ""
+        'location': "",
+        'koppen': location_data['koppen'],
+        'plant_hardiness': location_data['plant_hardiness'],
     }
 
     data = {

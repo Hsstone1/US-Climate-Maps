@@ -11,6 +11,158 @@ import calendar
 
 DAYS_IN_MONTH = 30.417
 
+#https://en.wikipedia.org/wiki/K%C3%B6ppen_climate_classification#Overview
+def calculate_koppen_climate(temp_f, precip_in):
+    avg_month_precip_mm = [value * 25.4 for value in precip_in]
+    avg_month_temp_c = [(value-32) * (5/9) for value in temp_f]
+    annual_temp_c = sum(avg_month_temp_c) / len(avg_month_temp_c)
+    annual_precipitation_mm = sum(avg_month_precip_mm)
+    driest_month_precip_mm = min(avg_month_precip_mm)
+    #These indicies only work for the norther hemisphere, need to be reversed for southern
+    warm_month_indices = [3,4,5,6,7,8]
+    cold_month_indices = [0,1,2,9,10,11]
+    sum_precipitation_warm = sum(avg_month_precip_mm[idx] for idx in warm_month_indices)
+    sum_precipitation_cold = sum(avg_month_precip_mm[idx] for idx in cold_month_indices)
+    percent_precip_warm = sum_precipitation_warm / annual_precipitation_mm
+    percent_precip_cold = sum_precipitation_cold / annual_precipitation_mm
+    threshold_mm = annual_temp_c * 20
+    threshold_mm += 280 if percent_precip_warm > 0.7 else (140 if (0.3 < percent_precip_warm < 0.7) else 0)
+
+
+    #Koppen type A, Tropical
+    if min(avg_month_temp_c) >= 18:
+        print("TYPE A")
+        if driest_month_precip_mm >= 60:
+            return 'Af (Tropical rainforest climate)'
+        elif driest_month_precip_mm < 60 and driest_month_precip_mm >= 100 - (annual_precipitation_mm / 25):
+            return 'Am (Tropical monsoon climate)'
+        elif driest_month_precip_mm < 60 and driest_month_precip_mm < 100 - (annual_precipitation_mm / 25):
+            return 'Aw (Tropical savanna climate)'
+        
+    
+    
+    #Koppen type C, Temperate
+    elif min(avg_month_temp_c) > 0 and min(avg_month_temp_c) < 18 and max(avg_month_temp_c) > 10 and annual_precipitation_mm > .5 * threshold_mm:
+        print("TYPE C")
+        #Subtropical
+        if percent_precip_warm > .7:
+            if max(avg_month_temp_c) > 22 and max(get_highest_N_values(avg_month_temp_c, 4)) > 10:
+                return 'Cwa (Monsoon humid subtropical climate)'
+            elif max(avg_month_temp_c) < 22 and max(get_highest_N_values(avg_month_temp_c, 4)) > 10:
+                return 'Cwb (Subtropical highland climate)'
+            elif max(get_highest_N_values(avg_month_temp_c, 2)) > 10:
+                return 'Cwc (Cold subtropical highland climate)'
+        
+        #Mediterranean
+        if percent_precip_cold > .7 and driest_month_precip_mm < 40:
+            if max(avg_month_temp_c) > 22 and max(get_highest_N_values(avg_month_temp_c, 4)) > 10:
+                return 'Csa (Hot-summer Mediterranean climate)'
+            elif max(avg_month_temp_c) < 22 and max(get_highest_N_values(avg_month_temp_c, 4)) > 10:
+                return 'Csb (Warm-summer Mediterranean climate)'
+            elif max(get_highest_N_values(avg_month_temp_c, 2)) > 10:
+                return 'Csc (Cold-summer Mediterranean climate)'
+
+        #Oceanic 
+        if max(avg_month_temp_c) > 22 and min(get_highest_N_values(avg_month_temp_c, 4)) > 10:
+            return 'Cfa (Humid subtropical climate)'
+        #Maybe add elevation check to set subtropical highland climate instead of oceanic
+        elif max(avg_month_temp_c) < 22 and min(get_highest_N_values(avg_month_temp_c, 4)) > 10:
+            return 'Cfb (Temperate oceanic climate)'
+        elif min(get_highest_N_values(avg_month_temp_c, 2)) > 10:
+            return 'Cfc (Subpolar oceanic climate)'
+        
+    #Koppen type D, Continental
+    elif max(avg_month_temp_c) > 10 and min(avg_month_temp_c) < 0 and annual_precipitation_mm > .5 * threshold_mm:
+        print("TYPE D")
+        #Monsoon
+        if percent_precip_warm > .7:
+            if max(avg_month_temp_c) > 22 and min(get_highest_N_values(avg_month_temp_c, 4)) > 10:
+                return 'Dwa (Monsoon Hot-summer humid continental climate)'
+            elif max(avg_month_temp_c) < 22 and min(get_highest_N_values(avg_month_temp_c, 4)) > 10:
+                return 'Dfb (Monsoon Warm-summer humid continental climate)'
+            elif min(get_highest_N_values(avg_month_temp_c, 2)) > 10:
+                return 'Dfc (Monsoon Subarctic climate)'
+            elif min(avg_month_temp_c) < -38 and min(get_highest_N_values(avg_month_temp_c, 2)) > 10:
+                return 'Dfd (Monsoon Extremely cold subarctic climate)'
+        
+        #Mediterranean
+        if percent_precip_cold > .7 and driest_month_precip_mm < 30:
+            if max(avg_month_temp_c) > 22 and min(get_highest_N_values(avg_month_temp_c, 4)) > 10:
+                return 'Dsa (Mediterranean hot-summer humid continental climate)'
+            elif max(avg_month_temp_c) < 22 and min(get_highest_N_values(avg_month_temp_c, 4)) > 10:
+                return 'Dsb (Mediterranean warm-summer humid continental climate)'
+            elif min(get_highest_N_values(avg_month_temp_c, 2)) > 10:
+                return 'Dsc (Mediterranean Subarctic climate)'
+            elif min(avg_month_temp_c) < -38 and min(get_highest_N_values(avg_month_temp_c, 3)) > 10:
+                return 'Dsd (Mediterranean Extremely cold subarctic climate)'
+        
+        if max(avg_month_temp_c) > 22 and min(get_highest_N_values(avg_month_temp_c, 4)) > 10:
+            return 'Dfa (Hot-summer humid continental climate)'
+        elif max(avg_month_temp_c) < 22 and min(get_highest_N_values(avg_month_temp_c, 4)) > 10:
+            return 'Dfb (Warm-summer humid continental climate)'
+        elif min(get_highest_N_values(avg_month_temp_c, 2)) > 10:
+            return 'Dfc (Subarctic climate)'
+        elif min(avg_month_temp_c) < -38 and min(get_highest_N_values(avg_month_temp_c, 2)) > 10:
+            return 'Dfd (Extremely cold subarctic climate)'
+    
+    #Koppen type B, Semi-arid
+    elif max(avg_month_temp_c) > 10:
+        print("TYPE B")
+
+        if annual_precipitation_mm < .5 * threshold_mm:
+            if min(avg_month_temp_c) > 0:
+                return 'BWh (Hot desert climate)'
+            else:
+                return 'BWk (Cold desert climate)'
+        else:
+            if min(avg_month_temp_c) > 0:
+                return 'BSh (Hot semi-arid climate)'
+            else:
+                return 'BSk (Cold semi-arid climate)'
+
+
+    #Koppen type E, Tundra
+    elif max(avg_month_temp_c) < 10:
+        print("TYPE E")
+        if max(avg_month_temp_c) > 0:
+            return 'ET (Alpine tundra climate)'
+        else:
+            return 'EF (Ice cap climate)'
+        
+    else:
+        return 'Unknown climate type'
+    
+
+def calc_plant_hardiness(mean_annual_min):
+    hardiness_zones = {
+    0: [('a', float('-inf'), -65), ('b', -65, -60)],
+    1: [('a', -60, -55), ('b', -55, -50)],
+    2: [('a', -50, -45), ('b', -45, -40)],
+    3: [('a', -40, -35), ('b', -35, -30)],
+    4: [('a', -30, -25), ('b', -25, -20)],
+    5: [('a', -20, -15), ('b', -15, -10)],
+    6: [('a', -10, -5), ('b', -5, 0)],
+    7: [('a', 0, 5), ('b', 5, 10)],
+    8: [('a', 10, 15), ('b', 15, 20)],
+    9: [('a', 20, 25), ('b', 25, 30)],
+    10: [('a', 30, 35), ('b', 35, 40)],
+    11: [('a', 40, 45), ('b', 45, 50)],
+    12: [('a', 50, 55), ('b', 55, 60)],
+    13: [('a', 60, 65), ('b', 65, float('inf'))]
+    }
+
+    zone = None
+    for key, values in hardiness_zones.items():
+        for value in values:
+            if value[1] <= mean_annual_min < value[2]:
+                zone = f"{key}{value[0]}"
+                break
+    return zone
+    
+    
+def get_highest_N_values(values, numValues):
+    return sorted(values, reverse=True)[:numValues]
+        
 def calculate_daylight_length(latitude, year):
     daylight_lengths = []
 
@@ -383,12 +535,17 @@ def get_climate_avg_at_point(target_lat, target_lon, target_elevation, df_statio
     
     ELEV_TEMP_CHANGE = 5.5
     temp_adj_monthly = [max(ELEV_TEMP_CHANGE * sunshine, 3) * (target_dif_elev / 1000) for sunshine in nws_monthly_weighted_metrics['monthly_sunshine_avg']]
+    precip_adjust_elev = min((1 + (target_dif_elev / 1000) * 0.2),2)
     annual_values = {}
     monthly_values = {}
     location_values = {}
     print("ELEVATION ADJUST: ", target_dif_elev)
 
 
+
+    #This attempts to adjust for elevation differences, by using how sunny a location is
+    #Precipitation is also adjusted to increase 20% for every 1000 feet increase.
+    #Meaning a 4000 feet yields 100% increase
     monthly_values = {
     'weighted_monthly_high_avg': [noaa_monthly_weighted_metrics['monthly_high_avg'][i] - temp_adj_monthly[i] for i in range(12)],
     'weighted_monthly_low_avg': [noaa_monthly_weighted_metrics['monthly_low_avg'][i] - temp_adj_monthly[i] for i in range(12)],
@@ -400,13 +557,29 @@ def get_climate_avg_at_point(target_lat, target_lon, target_elevation, df_statio
     'weighted_monthly_dewpoint_avg': [noaa_monthly_weighted_metrics['monthly_dewpoint_avg'][i] - temp_adj_monthly[i] for i in range(12)],
     'weighted_monthly_HDD_avg': [max(noaa_monthly_weighted_metrics['monthly_HDD_avg'][i] + temp_adj_monthly[i] * DAYS_IN_MONTH, 0) for i in range(12)],
     'weighted_monthly_CDD_avg': [max(noaa_monthly_weighted_metrics['monthly_CDD_avg'][i] - temp_adj_monthly[i] * DAYS_IN_MONTH, 0) for i in range(12)],
+    'weighted_monthly_precip_avg':[noaa_monthly_weighted_metrics['monthly_precip_avg'][i] * precip_adjust_elev for i in range(12)],
+    #'weighted_monthly_snow_avg':[noaa_monthly_weighted_metrics['monthly_snow_avg'][i] * precip_adjust_elev for i in range(12)],
+    'weighted_monthly_precip_days_avg':[noaa_monthly_weighted_metrics['monthly_precip_days_avg'][i] * (1 + (target_dif_elev / 1000) * 0.05) for i in range(12)],
+    #'weighted_monthly_snow_days_avg':[noaa_monthly_weighted_metrics['monthly_snow_days_avg'][i] * (1 + (target_dif_elev / 1000) * 0.1) for i in range(12)],
 
     }
 
-    monthly_values['weighted_monthly_precip_avg'] = noaa_monthly_weighted_metrics['monthly_precip_avg']
+    
+
+    #monthly_values['weighted_monthly_precip_avg'] = noaa_monthly_weighted_metrics['monthly_precip_avg']
     monthly_values['weighted_monthly_snow_avg'] = noaa_monthly_weighted_metrics['monthly_snow_avg']
-    monthly_values['weighted_monthly_precip_days_avg'] = noaa_monthly_weighted_metrics['monthly_precip_days_avg']
+    #monthly_values['weighted_monthly_precip_days_avg'] = noaa_monthly_weighted_metrics['monthly_precip_days_avg']
     monthly_values['weighted_monthly_snow_days_avg'] = noaa_monthly_weighted_metrics['monthly_snow_days_avg']
+    #print(monthly_values['weighted_monthly_snow_days_avg'])
+    
+    #TODO fix this, values are off
+    for i in range(12):
+        if monthly_values['weighted_monthly_mean_avg'][i] <= 32:
+            monthly_values['weighted_monthly_snow_avg'][i] = monthly_values['weighted_monthly_precip_avg'][i] * 10
+            monthly_values['weighted_monthly_snow_days_avg'][i] = monthly_values['weighted_monthly_precip_days_avg'][i]
+            monthly_values['weighted_monthly_precip_days_avg'][i] = 0
+        
+        
     
     frost_free_normal =  [calculate_frost_free_chance(value) for value in monthly_values['weighted_monthly_low_avg']]
     frost_free_maxima =  [calculate_frost_free_chance(value) for value in monthly_values['weighted_monthly_mean_minimum']]
@@ -456,26 +629,7 @@ def get_climate_avg_at_point(target_lat, target_lon, target_elevation, df_statio
     
     
     
-    
-    
     location_values['elevation'] = target_elevation
-
+    location_values['koppen'] = calculate_koppen_climate(monthly_values['weighted_monthly_mean_avg'], monthly_values['weighted_monthly_precip_avg'])
+    location_values['plant_hardiness'] = calc_plant_hardiness(annual_values['weighted_annual_mean_minimum'])
     return annual_values, monthly_values, location_values
-
-
-
-def main():
-    df_stations = pd.read_csv('lat_lon_identifier_elev_name.csv')
-
-    #Crashes when using elevaetion point in ocean
-    target_coordinates = (37.938259402679584, -107.11396906315399)
-    
-
-    
-
-
-
-
-if __name__ == '__main__':
-    #main()
-    pass

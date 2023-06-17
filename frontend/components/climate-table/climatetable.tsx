@@ -23,9 +23,16 @@ export default function ClimateTable({ data }: TableProps) {
     <table style={{ borderCollapse: "collapse" }}>
       <thead>
         <tr>
-          <th colSpan={14}>{`${
-            data.location_data.location
-          } (${data.location_data.elevation.toFixed(0)} ft)`}</th>
+          <th colSpan={14}>
+            <div>
+              <p style={{ margin: 1 }}>{`${
+                data.location_data.location
+              } (${data.location_data.elevation.toFixed(0)} ft)`}</p>
+              <p
+                style={{ margin: 2 }}
+              >{`${data.location_data.koppen}, ${data.location_data.plant_hardiness}`}</p>
+            </div>
+          </th>
         </tr>
         <tr>
           <th style={{ border: "1px solid black" }}>Value</th>
@@ -85,7 +92,7 @@ export default function ClimateTable({ data }: TableProps) {
           annual_data={data.annual_data.annual_precip_avg}
           rowTitle="Rainfall (in)"
           dataType="Precip"
-          numDec={1}
+          numDec={2}
           divideAnnualBackground={12}
         ></ClimateTableRow>
         <ClimateTableRow

@@ -18,6 +18,7 @@ const getRandomColor = () => {
 };
 
 export default function ComparisonPage({ locations }: ComparisonPageProps) {
+  const CHART_BORDER_WIDTH = 2;
   const highlowDataset = (locations: MarkerType[]): ClimateChartDataset[] => {
     const datasets: ClimateChartDataset[] = [];
 
@@ -29,7 +30,7 @@ export default function ComparisonPage({ locations }: ComparisonPageProps) {
         data: location.data.monthly_data.monthly_high_avg,
         backgroundColor: color,
         borderColor: color,
-        borderWidth: 3,
+        borderWidth: CHART_BORDER_WIDTH,
         pointRadius: 0,
         pointHoverRadius: 5,
         lineTension: 0.5,
@@ -43,7 +44,7 @@ export default function ComparisonPage({ locations }: ComparisonPageProps) {
         data: location.data.monthly_data.monthly_low_avg,
         backgroundColor: color,
         borderColor: color,
-        borderWidth: 3,
+        borderWidth: CHART_BORDER_WIDTH,
         pointRadius: 0,
         pointHoverRadius: 5,
         lineTension: 0.5,
@@ -68,7 +69,7 @@ export default function ComparisonPage({ locations }: ComparisonPageProps) {
 
         backgroundColor: color,
         borderColor: color,
-        borderWidth: 3,
+        borderWidth: CHART_BORDER_WIDTH,
         pointRadius: 0,
         pointHoverRadius: 5,
         lineTension: 0.5,
@@ -92,7 +93,7 @@ export default function ComparisonPage({ locations }: ComparisonPageProps) {
 
         backgroundColor: color,
         borderColor: color,
-        borderWidth: 3,
+        borderWidth: CHART_BORDER_WIDTH,
         pointRadius: 0,
         pointHoverRadius: 5,
         lineTension: 0.5,
@@ -116,7 +117,7 @@ export default function ComparisonPage({ locations }: ComparisonPageProps) {
 
         backgroundColor: color,
         borderColor: color,
-        borderWidth: 3,
+        borderWidth: CHART_BORDER_WIDTH,
         pointRadius: 0,
         pointHoverRadius: 5,
         lineTension: 0.5,
@@ -140,7 +141,7 @@ export default function ComparisonPage({ locations }: ComparisonPageProps) {
 
         backgroundColor: color,
         borderColor: color,
-        borderWidth: 3,
+        borderWidth: CHART_BORDER_WIDTH,
         pointRadius: 0,
         pointHoverRadius: 5,
         lineTension: 0.5,
@@ -164,7 +165,7 @@ export default function ComparisonPage({ locations }: ComparisonPageProps) {
 
         backgroundColor: color,
         borderColor: color,
-        borderWidth: 3,
+        borderWidth: CHART_BORDER_WIDTH,
         pointRadius: 0,
         pointHoverRadius: 5,
         lineTension: 0.5,
@@ -188,7 +189,7 @@ export default function ComparisonPage({ locations }: ComparisonPageProps) {
 
         backgroundColor: color,
         borderColor: color,
-        borderWidth: 3,
+        borderWidth: CHART_BORDER_WIDTH,
         pointRadius: 0,
         pointHoverRadius: 5,
         lineTension: 0.35,

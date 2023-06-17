@@ -25,13 +25,16 @@ export default function CustomInfoWindow({
     >
       <div>
         <div style={{ textAlign: "center" }}>
-          <p>
+          <p style={{ margin: 0 }}>
             {marker.data.location_data.location}
             {marker.data.location_data.elevation > 1000
               ? ` (${Math.round(
                   marker.data.location_data.elevation
                 ).toLocaleString()} ft)`
               : ""}
+          </p>
+          <p style={{ margin: 5, fontSize: "10px" }}>
+            {`${marker.data.location_data.koppen}, ${marker.data.location_data.plant_hardiness}`}
           </p>
         </div>
 
