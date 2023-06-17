@@ -5,8 +5,42 @@ from datetime import datetime
 from math import radians, sin, cos, sqrt, atan2
 from read_from_csv_to_dataframe import df_from_NWS_csv, get_NOAA_csv_content, humidity_regr_from_temp_max_min
 import time
+import ephem
+from datetime import datetime
+import calendar
 
 DAYS_IN_MONTH = 30.417
+
+def calculate_daylight_length(latitude, year):
+    daylight_lengths = []
+
+    for month in range(1, 13):  # Iterate over each month
+        # Set the observer's latitude
+        observer = ephem.Observer()
+        observer.lat = str(latitude)
+
+        # Set the date to the 21st day of the month
+        date_str = f"{year}/{month}/21"
+        observer.date = ephem.Date(date_str)
+
+        # Get the sunrise and sunset times
+        sun = ephem.Sun()
+        sunrise = observer.previous_rising(sun)
+        sunset = observer.next_setting(sun)
+
+        # Calculate the daylight length
+        daylight_length = sunset - sunrise - 1
+
+        # Convert the daylight length to hours, minutes, and seconds
+        daylight_hours = daylight_length * 24
+        daylight_minutes = daylight_hours * 60
+        daylight_seconds = daylight_minutes * 60
+        monthly_hours = daylight_hours * DAYS_IN_MONTH 
+
+        daylight_lengths.append((monthly_hours))
+
+    return daylight_lengths
+
 
 def calculate_frost_free_chance(value):
     maxVal = 40
@@ -255,11 +289,11 @@ def get_climate_avg_at_point(target_lat, target_lon, target_elevation, df_statio
             month_df = df[df['DATE'].dt.month == month]
             num_days = int(pd.DatetimeIndex(month_df['DATE']).days_in_month[0])
             months_arr['record_high'].append((month_df["TMAX"].quantile(1)* 9/50) + 32)
-            months_arr['mean_maximum'].append((month_df["TMAX"].quantile(.8)* 9/50) + 32)
+            months_arr['mean_maximum'].append((month_df["TMAX"].quantile(.9)* 9/50) + 32)
             months_arr['high_avg'].append((month_df["TMAX"].mean()* 9/50) + 32)
             months_arr['mean_avg'].append((month_df["TAVG"].mean()* 9/50) + 32)
             months_arr['low_avg'].append((month_df["TMIN"].mean()* 9/50) + 32)
-            months_arr['mean_minimum'].append((month_df["TMIN"].quantile(.2)* 9/50) + 32)
+            months_arr['mean_minimum'].append((month_df["TMIN"].quantile(.1)* 9/50) + 32)
             months_arr['record_low'].append((month_df["TMIN"].quantile(0)* 9/50) + 32)
             months_arr['HDD_avg'].append((month_df["HDD"].sum() /num_days))
             months_arr['CDD_avg'].append((month_df["CDD"].sum() /num_days))
@@ -389,7 +423,9 @@ def get_climate_avg_at_point(target_lat, target_lon, target_elevation, df_statio
     monthly_values['weighted_monthly_sunshine_days_avg'] = [value * DAYS_IN_MONTH for value in nws_monthly_weighted_metrics['monthly_sunshine_avg']]
     monthly_values['weighted_monthly_wind_gust_peak'] = nws_monthly_weighted_metrics['monthly_wind_gust_peak']
     monthly_values['weighted_monthly_wind_dir_avg'] = nws_monthly_weighted_metrics['monthly_wind_dir_avg']
-
+    
+    monthly_values['monthly_daylight_hours_avg'] = calculate_daylight_length(target_lat, 2023)
+    monthly_values['monthly_sunshine_hours_avg'] = [x * y for x, y in zip(monthly_values['monthly_daylight_hours_avg'], monthly_values['weighted_monthly_sunshine_avg'])]
 
 
     annual_values['weighted_annual_high_avg'] = sum(monthly_values['weighted_monthly_high_avg'])/12
@@ -415,7 +451,8 @@ def get_climate_avg_at_point(target_lat, target_lon, target_elevation, df_statio
     annual_values['weighted_annual_sunshine_avg'] = sum(monthly_values['weighted_monthly_sunshine_avg'])/12
     annual_values['weighted_annual_sunshine_days_avg'] = sum(monthly_values['weighted_monthly_sunshine_days_avg'])
     annual_values['weighted_annual_wind_gust_peak'] = max(monthly_values['weighted_monthly_wind_gust_peak'])
-    
+    annual_values['annual_daylight_hours_avg'] = sum(monthly_values['monthly_daylight_hours_avg'])
+    annual_values['annual_sunshine_hours_avg'] = sum(monthly_values['monthly_sunshine_hours_avg'])
     
     
     

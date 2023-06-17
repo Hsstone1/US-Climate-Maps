@@ -1,7 +1,5 @@
 import { useState, useMemo, useCallback, useRef, useEffect } from "react";
 import { GoogleMap, Marker, InfoWindow } from "@react-google-maps/api";
-import { FaCloudRain, FaSnowflake, FaSun } from "react-icons/fa";
-import IndowWindowChart from "./infowindowchart";
 import SearchBar from "../compare-sidebar/searchbar";
 import CompareLocationsList from "../compare-sidebar/comparisonlist";
 import ComparePage from "../compare-page/comparepage";

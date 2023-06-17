@@ -58,7 +58,7 @@ export default function IndowWindowChart({ marker }: InfoWindowChartProps) {
         {
           type: "line" as const,
           label: "Mean Maximum",
-          data: marker.data.monthly_data.weighted_monthly_mean_maximum,
+          data: marker.data.monthly_data.monthly_mean_maximum,
           backgroundColor: "rgba(237, 68, 62, 0.2)",
           borderColor: "rgba(237, 68, 62, 0.2)",
           borderWidth: 2,
@@ -71,7 +71,7 @@ export default function IndowWindowChart({ marker }: InfoWindowChartProps) {
         {
           type: "line" as const,
           label: "Max Temperature",
-          data: marker.data.monthly_data.weighted_monthly_high_avg,
+          data: marker.data.monthly_data.monthly_high_avg,
           backgroundColor: "rgba(243, 105, 75, 0.7)",
           borderColor: "rgba(243, 105, 75, 0.7)",
           borderWidth: 2,
@@ -86,7 +86,7 @@ export default function IndowWindowChart({ marker }: InfoWindowChartProps) {
         {
           type: "line" as const,
           label: "Min Temperature",
-          data: marker.data.monthly_data.weighted_monthly_low_avg,
+          data: marker.data.monthly_data.monthly_low_avg,
           backgroundColor: "rgba(97, 139, 201, 0.7)",
           borderColor: "rgba(97, 139, 201, 0.7)",
           borderWidth: 2,
@@ -99,7 +99,7 @@ export default function IndowWindowChart({ marker }: InfoWindowChartProps) {
         {
           type: "line" as const,
           label: "Mean Minimum",
-          data: marker.data.monthly_data.weighted_monthly_mean_minimum,
+          data: marker.data.monthly_data.monthly_mean_minimum,
           backgroundColor: "rgba(137, 182, 249, 0.3)",
           borderColor: "rgba(137, 182, 249, 0.3)",
           borderWidth: 2,
@@ -113,7 +113,7 @@ export default function IndowWindowChart({ marker }: InfoWindowChartProps) {
         {
           type: "line" as const,
           label: "Dewpoint",
-          data: marker.data.monthly_data.weighted_monthly_dewpoint_avg,
+          data: marker.data.monthly_data.monthly_dewpoint_avg,
           backgroundColor: "rgba(15, 176, 0, 0.5)",
           borderColor: "rgba(15, 176, 0, 0.5)",
           borderWidth: 2,
@@ -127,7 +127,7 @@ export default function IndowWindowChart({ marker }: InfoWindowChartProps) {
         {
           type: "bar" as const,
           label: "Precip Totals",
-          data: marker.data.monthly_data.weighted_monthly_precip_avg,
+          data: marker.data.monthly_data.monthly_precip_avg,
           backgroundColor: "rgba(137, 217, 249, 0.5)",
           borderColor: "rgba(137, 217, 249, 0.5)",
           yAxisID: "Precip",

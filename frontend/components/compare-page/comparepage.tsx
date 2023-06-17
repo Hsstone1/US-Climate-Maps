@@ -26,7 +26,7 @@ export default function ComparisonPage({ locations }: ComparisonPageProps) {
       const high_dataset: ClimateChartDataset = {
         type: "line",
         label: location.data.location_data.location,
-        data: location.data.monthly_data.weighted_monthly_high_avg,
+        data: location.data.monthly_data.monthly_high_avg,
         backgroundColor: color,
         borderColor: color,
         borderWidth: 3,
@@ -40,7 +40,7 @@ export default function ComparisonPage({ locations }: ComparisonPageProps) {
       const low_dataset: ClimateChartDataset = {
         type: "line",
         label: location.data.location_data.location,
-        data: location.data.monthly_data.weighted_monthly_low_avg,
+        data: location.data.monthly_data.monthly_low_avg,
         backgroundColor: color,
         borderColor: color,
         borderWidth: 3,
@@ -64,7 +64,7 @@ export default function ComparisonPage({ locations }: ComparisonPageProps) {
       const precip_dataset: ClimateChartDataset = {
         type: "line",
         label: location.data.location_data.location,
-        data: location.data.monthly_data.weighted_monthly_precip_avg,
+        data: location.data.monthly_data.monthly_precip_avg,
 
         backgroundColor: color,
         borderColor: color,
@@ -88,7 +88,7 @@ export default function ComparisonPage({ locations }: ComparisonPageProps) {
       const snow_dataset: ClimateChartDataset = {
         type: "line",
         label: location.data.location_data.location,
-        data: location.data.monthly_data.weighted_monthly_snow_avg,
+        data: location.data.monthly_data.monthly_snow_avg,
 
         backgroundColor: color,
         borderColor: color,
@@ -112,7 +112,7 @@ export default function ComparisonPage({ locations }: ComparisonPageProps) {
       const sunshine_dataset: ClimateChartDataset = {
         type: "line",
         label: location.data.location_data.location,
-        data: location.data.monthly_data.weighted_monthly_sunshine_avg,
+        data: location.data.monthly_data.monthly_sunshine_avg,
 
         backgroundColor: color,
         borderColor: color,
@@ -136,7 +136,7 @@ export default function ComparisonPage({ locations }: ComparisonPageProps) {
       const humidity_dataset: ClimateChartDataset = {
         type: "line",
         label: location.data.location_data.location,
-        data: location.data.monthly_data.weighted_monthly_humidity_avg,
+        data: location.data.monthly_data.monthly_humidity_avg,
 
         backgroundColor: color,
         borderColor: color,
@@ -160,7 +160,7 @@ export default function ComparisonPage({ locations }: ComparisonPageProps) {
       const wind_dataset: ClimateChartDataset = {
         type: "line",
         label: location.data.location_data.location,
-        data: location.data.monthly_data.weighted_monthly_wind_gust_avg,
+        data: location.data.monthly_data.monthly_wind_gust_avg,
 
         backgroundColor: color,
         borderColor: color,
@@ -184,7 +184,7 @@ export default function ComparisonPage({ locations }: ComparisonPageProps) {
       const frostfree_dataset: ClimateChartDataset = {
         type: "line",
         label: location.data.location_data.location,
-        data: location.data.monthly_data.weighted_monthly_frost_free_days_avg,
+        data: location.data.monthly_data.monthly_frost_free_days_avg,
 
         backgroundColor: color,
         borderColor: color,
@@ -205,7 +205,7 @@ export default function ComparisonPage({ locations }: ComparisonPageProps) {
     <div className="compare-page">
       <div className="compare-page-scroll">
         <div className="compare_chart-div">
-          {/* <ClimateTablePaginate locations={locations}></ClimateTablePaginate> */}
+          {<ClimateTablePaginate locations={locations}></ClimateTablePaginate>}
 
           <h3 style={{ textAlign: "center" }}>
             Yearly High and Low Temperatures
@@ -221,8 +221,8 @@ export default function ComparisonPage({ locations }: ComparisonPageProps) {
             <Table
               locations={locations}
               heading="Mean Maximum Temperature (°F)"
-              monthlyDataStr={"weighted_monthly_mean_maximum"}
-              annualDataStr={"weighted_annual_record_high"}
+              monthlyDataStr={"monthly_mean_maximum"}
+              annualDataStr={"annual_record_high"}
               decimalTrunc={0}
               units={" °F"}
             ></Table>
@@ -232,8 +232,8 @@ export default function ComparisonPage({ locations }: ComparisonPageProps) {
             <Table
               locations={locations}
               heading="Mean Minimum Temperature (°F)"
-              monthlyDataStr={"weighted_monthly_mean_minimum"}
-              annualDataStr={"weighted_annual_record_low"}
+              monthlyDataStr={"monthly_mean_minimum"}
+              annualDataStr={"annual_record_low"}
               decimalTrunc={0}
               units={" °F"}
             ></Table>
@@ -253,8 +253,8 @@ export default function ComparisonPage({ locations }: ComparisonPageProps) {
             <Table
               locations={locations}
               heading="Total Rainy Days"
-              monthlyDataStr={"weighted_monthly_precip_days_avg"}
-              annualDataStr={"weighted_annual_precip_days_avg"}
+              monthlyDataStr={"monthly_precip_days_avg"}
+              annualDataStr={"annual_precip_days_avg"}
               decimalTrunc={0}
               units={" days"}
             ></Table>
@@ -276,8 +276,8 @@ export default function ComparisonPage({ locations }: ComparisonPageProps) {
             <Table
               locations={locations}
               heading="Total Snowy Days"
-              monthlyDataStr={"weighted_monthly_snow_days_avg"}
-              annualDataStr={"weighted_annual_snow_days_avg"}
+              monthlyDataStr={"monthly_snow_days_avg"}
+              annualDataStr={"annual_snow_days_avg"}
               decimalTrunc={0}
               units={" days"}
             ></Table>
@@ -299,8 +299,8 @@ export default function ComparisonPage({ locations }: ComparisonPageProps) {
             <Table
               locations={locations}
               heading="Total Sunny Days"
-              monthlyDataStr={"weighted_monthly_sunshine_days_avg"}
-              annualDataStr={"weighted_annual_sunshine_days_avg"}
+              monthlyDataStr={"monthly_sunshine_days_avg"}
+              annualDataStr={"annual_sunshine_days_avg"}
               decimalTrunc={0}
               units={" days"}
             ></Table>
@@ -324,8 +324,8 @@ export default function ComparisonPage({ locations }: ComparisonPageProps) {
             <Table
               locations={locations}
               heading="Average Dewpoint (°F)"
-              monthlyDataStr={"weighted_monthly_dewpoint_avg"}
-              annualDataStr={"weighted_annual_dewpoint_avg"}
+              monthlyDataStr={"monthly_dewpoint_avg"}
+              annualDataStr={"annual_dewpoint_avg"}
               decimalTrunc={0}
               units={" °F"}
             ></Table>
@@ -345,8 +345,8 @@ export default function ComparisonPage({ locations }: ComparisonPageProps) {
             <Table
               locations={locations}
               heading="Highest Expected Daily Wind Speed"
-              monthlyDataStr={"weighted_monthly_wind_gust_peak"}
-              annualDataStr={"weighted_annual_wind_gust_peak"}
+              monthlyDataStr={"monthly_wind_gust_peak"}
+              annualDataStr={"annual_wind_gust_peak"}
               decimalTrunc={0}
               units={" mph"}
             ></Table>
@@ -368,8 +368,8 @@ export default function ComparisonPage({ locations }: ComparisonPageProps) {
             <Table
               locations={locations}
               heading="Cooling Degree Days (CDD)"
-              monthlyDataStr={"weighted_monthly_CDD_avg"}
-              annualDataStr={"weighted_annual_CDD_avg"}
+              monthlyDataStr={"monthly_CDD_avg"}
+              annualDataStr={"annual_CDD_avg"}
               decimalTrunc={0}
               units={""}
             ></Table>
@@ -377,8 +377,8 @@ export default function ComparisonPage({ locations }: ComparisonPageProps) {
             <Table
               locations={locations}
               heading="Heating Degree Days (HDD)"
-              monthlyDataStr={"weighted_monthly_HDD_avg"}
-              annualDataStr={"weighted_annual_HDD_avg"}
+              monthlyDataStr={"monthly_HDD_avg"}
+              annualDataStr={"annual_HDD_avg"}
               decimalTrunc={0}
               units={""}
             ></Table>

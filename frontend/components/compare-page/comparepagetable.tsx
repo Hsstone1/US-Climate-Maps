@@ -4,8 +4,8 @@ import { MarkerType } from "../export-props";
 type ComparisonPageProps = {
   locations: MarkerType[];
   heading: string; //'Mean Maximum'
-  monthlyDataStr: string; //'weighted_monthly_mean_maximum'
-  annualDataStr: string; //'weighted_annual_record_high'
+  monthlyDataStr: string; //'monthly_mean_maximum'
+  annualDataStr: string; //'annual_record_high'
   decimalTrunc: number;
   units?: string;
 };

@@ -52,14 +52,10 @@ export default function CustomInfoWindow({
             >
               <FaCloudRain style={{ color: "#7e878c", fontSize: "12px" }} />
               <span>
-                {`${marker.data.annual_data.weighted_annual_precip_days_avg.toFixed(
+                {`${marker.data.annual_data.annual_precip_days_avg.toFixed(
                   0
                 )} days `}
-                (
-                {`${marker.data.annual_data.weighted_annual_precip_avg.toFixed(
-                  0
-                )} in`}
-                )
+                ({`${marker.data.annual_data.annual_precip_avg.toFixed(0)} in`})
               </span>
             </div>
             <div
@@ -78,14 +74,10 @@ export default function CustomInfoWindow({
             >
               <FaSnowflake style={{ color: "#b0b0b0", fontSize: "12px" }} />
               <span>
-                {`${marker.data.annual_data.weighted_annual_snow_days_avg.toFixed(
+                {`${marker.data.annual_data.annual_snow_days_avg.toFixed(
                   0
                 )} days `}
-                (
-                {`${marker.data.annual_data.weighted_annual_snow_avg.toFixed(
-                  0
-                )} in`}
-                )
+                ({`${marker.data.annual_data.annual_snow_avg.toFixed(0)} in`})
               </span>
             </div>
             <div
@@ -104,13 +96,13 @@ export default function CustomInfoWindow({
             >
               <FaSun style={{ color: "#f7db25", fontSize: "12px" }} />
               <span>
-                {`${marker.data.annual_data.weighted_annual_sunshine_days_avg.toFixed(
+                {`${marker.data.annual_data.annual_sunshine_days_avg.toFixed(
                   0
                 )} days `}
                 (
-                {`${(
-                  marker.data.annual_data.weighted_annual_sunshine_avg * 100
-                ).toFixed(0)}%`}
+                {`${(marker.data.annual_data.annual_sunshine_avg * 100).toFixed(
+                  0
+                )}%`}
                 )
               </span>
             </div>
