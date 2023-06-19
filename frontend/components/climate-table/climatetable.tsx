@@ -23,7 +23,7 @@ export default function ClimateTable({ data }: TableProps) {
     <table style={{ borderCollapse: "collapse" }}>
       <thead>
         <tr>
-          <th colSpan={14}>
+          <th colSpan={20}>
             <div>
               <p style={{ margin: 1 }}>{`${
                 data.location_data.location
@@ -107,6 +107,7 @@ export default function ClimateTable({ data }: TableProps) {
           annual_data={data.annual_data.annual_snow_avg}
           rowTitle="Snowfall (in)"
           dataType="Precip"
+          numDec={1}
           divideAnnualBackground={12}
         ></ClimateTableRow>
         <ClimateTableRow

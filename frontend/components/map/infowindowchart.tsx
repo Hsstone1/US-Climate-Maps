@@ -57,8 +57,8 @@ export default function IndowWindowChart({ marker }: InfoWindowChartProps) {
       datasets: [
         {
           type: "line" as const,
-          label: "Mean Maximum",
-          data: marker.data.monthly_data.monthly_mean_maximum,
+          label: "Apparent High",
+          data: marker.data.monthly_data.monthly_apparent_high,
           backgroundColor: "rgba(237, 68, 62, 0.2)",
           borderColor: "rgba(237, 68, 62, 0.2)",
           borderWidth: 2,
@@ -98,8 +98,8 @@ export default function IndowWindowChart({ marker }: InfoWindowChartProps) {
         },
         {
           type: "line" as const,
-          label: "Mean Minimum",
-          data: marker.data.monthly_data.monthly_mean_minimum,
+          label: "Apparent Low",
+          data: marker.data.monthly_data.monthly_apparent_low,
           backgroundColor: "rgba(137, 182, 249, 0.3)",
           borderColor: "rgba(137, 182, 249, 0.3)",
           borderWidth: 2,
@@ -198,7 +198,7 @@ export default function IndowWindowChart({ marker }: InfoWindowChartProps) {
             return value + " in"; // Append 'units' to the tick value
           },
           maxTicksLimit: 8,
-          stepSize: 0.2,
+          stepSize: 0.5,
           font: {
             size: 10,
           },

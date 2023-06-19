@@ -19,6 +19,7 @@ const getRandomColor = () => {
 
 export default function ComparisonPage({ locations }: ComparisonPageProps) {
   const CHART_BORDER_WIDTH = 2;
+  const LINE_TENSION = 0.35;
   const highlowDataset = (locations: MarkerType[]): ClimateChartDataset[] => {
     const datasets: ClimateChartDataset[] = [];
 
@@ -33,7 +34,21 @@ export default function ComparisonPage({ locations }: ComparisonPageProps) {
         borderWidth: CHART_BORDER_WIDTH,
         pointRadius: 0,
         pointHoverRadius: 5,
-        lineTension: 0.5,
+        lineTension: LINE_TENSION,
+        fill: false,
+        yAxisID: "Temperature",
+      };
+
+      const apparent_high_dataset: ClimateChartDataset = {
+        type: "line",
+        label: location.data.location_data.location,
+        data: location.data.monthly_data.monthly_apparent_high,
+        backgroundColor: LocationColors(0.3)[index],
+        borderColor: LocationColors(0.3)[index],
+        borderWidth: 1,
+        pointRadius: 0,
+        pointHoverRadius: 5,
+        lineTension: LINE_TENSION,
         fill: false,
         yAxisID: "Temperature",
       };
@@ -47,13 +62,29 @@ export default function ComparisonPage({ locations }: ComparisonPageProps) {
         borderWidth: CHART_BORDER_WIDTH,
         pointRadius: 0,
         pointHoverRadius: 5,
-        lineTension: 0.5,
+        lineTension: LINE_TENSION,
+        fill: false,
+        yAxisID: "Temperature",
+      };
+
+      const apparent_low_dataset: ClimateChartDataset = {
+        type: "line",
+        label: location.data.location_data.location,
+        data: location.data.monthly_data.monthly_apparent_low,
+        backgroundColor: LocationColors(0.3)[index],
+        borderColor: LocationColors(0.3)[index],
+        borderWidth: 1,
+        pointRadius: 0,
+        pointHoverRadius: 5,
+        lineTension: LINE_TENSION,
         fill: false,
         yAxisID: "Temperature",
       };
 
       datasets.push(high_dataset);
+      datasets.push(apparent_high_dataset);
       datasets.push(low_dataset);
+      datasets.push(apparent_low_dataset);
     });
     return datasets;
   };
@@ -72,7 +103,7 @@ export default function ComparisonPage({ locations }: ComparisonPageProps) {
         borderWidth: CHART_BORDER_WIDTH,
         pointRadius: 0,
         pointHoverRadius: 5,
-        lineTension: 0.5,
+        lineTension: LINE_TENSION,
         fill: false,
         yAxisID: "Precip",
       };
@@ -96,7 +127,7 @@ export default function ComparisonPage({ locations }: ComparisonPageProps) {
         borderWidth: CHART_BORDER_WIDTH,
         pointRadius: 0,
         pointHoverRadius: 5,
-        lineTension: 0.5,
+        lineTension: LINE_TENSION,
         fill: false,
         yAxisID: "Precip",
       };
@@ -120,7 +151,7 @@ export default function ComparisonPage({ locations }: ComparisonPageProps) {
         borderWidth: CHART_BORDER_WIDTH,
         pointRadius: 0,
         pointHoverRadius: 5,
-        lineTension: 0.5,
+        lineTension: LINE_TENSION,
         fill: false,
         yAxisID: "Sunshine_Percentage",
       };
@@ -144,7 +175,7 @@ export default function ComparisonPage({ locations }: ComparisonPageProps) {
         borderWidth: CHART_BORDER_WIDTH,
         pointRadius: 0,
         pointHoverRadius: 5,
-        lineTension: 0.5,
+        lineTension: LINE_TENSION,
         fill: false,
         yAxisID: "Humidity_Percentage",
       };
@@ -168,7 +199,7 @@ export default function ComparisonPage({ locations }: ComparisonPageProps) {
         borderWidth: CHART_BORDER_WIDTH,
         pointRadius: 0,
         pointHoverRadius: 5,
-        lineTension: 0.5,
+        lineTension: LINE_TENSION,
         fill: false,
         yAxisID: "Wind",
       };
@@ -192,7 +223,7 @@ export default function ComparisonPage({ locations }: ComparisonPageProps) {
         borderWidth: CHART_BORDER_WIDTH,
         pointRadius: 0,
         pointHoverRadius: 5,
-        lineTension: 0.35,
+        lineTension: LINE_TENSION,
         fill: false,
         yAxisID: "Sunshine_Percentage",
       };
