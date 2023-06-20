@@ -54,26 +54,45 @@ export default function CompareLocationsList({
           <Card
             key={card.id}
             style={{
-              marginBottom: 8,
+              marginBottom: 4,
               border: `4px solid ${LocationColors(0.5)[index]}`,
+              padding: 0,
             }}
           >
             <CardContent>
-              <Typography variant="body2">
-                {card.data.location_data.location}
-              </Typography>
-              <Typography variant="body2">
-                {`${truncDec(card.data.location_data.elevation)} ft`}
-              </Typography>
+              <div style={{ display: "flex", alignItems: "center" }}>
+                <div
+                  style={{
+                    flex: 1,
+                    overflow: "hidden",
+                    whiteSpace: "nowrap", // Prevent line breaks
+                    textOverflow: "ellipsis",
+                  }}
+                >
+                  <Typography
+                    variant="body2"
+                    style={{
+                      overflow: "hidden",
+                      whiteSpace: "nowrap", // Prevent line breaks
+                      textOverflow: "ellipsis", // Display ellipsis (...) for overflow
+                    }}
+                  >
+                    {card.data.location_data.location}
+                  </Typography>
+                  <Typography variant="body2">{`${truncDec(
+                    card.data.location_data.elevation
+                  )} ft`}</Typography>
+                </div>
+                <IconButton
+                  aria-label="Remove"
+                  size="small"
+                  onClick={() => handleRemoveLocation(card)}
+                  style={{ margin: "auto" }}
+                >
+                  <CloseIcon />
+                </IconButton>
+              </div>
             </CardContent>
-
-            <IconButton
-              aria-label="Remove"
-              size="small"
-              onClick={() => handleRemoveLocation(card)}
-            >
-              <CloseIcon />
-            </IconButton>
           </Card>
         ))}
       </div>

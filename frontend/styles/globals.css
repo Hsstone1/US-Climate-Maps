@@ -15,66 +15,87 @@ a {
   box-sizing: border-box;
 }
 
-
-
-.container {
+.app-container{
   display: flex;
-  height: 100vh;
-  
-}
-
-.highlight {
-  font-size: 1.25rem;
-  font-weight: bold;
-}
-
-
-
-.map-container {
+  flex-direction: column;
   width: 100%;
   height: 100vh;
 }
 
-.map {
-  width: 80%;
+
+.nav{
+  width: 100%;
+  height: 5vh;
+  background-color: #303030;
+  color: #ffffff;
+  display: flex;
+  justify-content: left;
+  align-items: center;
+  position: fixed;
+  text-align: center;
+  
+}
+.nav h2{
+  padding-left: 4rem;
+  color: #ffffff;
+  display: inline;
+  text-align: center;
+}
+
+.nav li{
+  padding: 1rem;
+  color: #ffffff;
+  display: inline;
+}
+
+.footer {
+  width: 100%;
+  height: 5vh;
+  background-color: #303030;
+  color: #ffffff;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+.container {
+  display: flex;
   height: 100vh;
+  top: 5vh;
+  margin-top: 5vh;
 }
-
-.iw-marker-buttons{
-  padding: 0.5rem;
-}
-
-.iw-marker-button-remove{
-  width: 50%;
-  height: 50%;
-  font-size: 12px;
-
-}
-
-.iw-marker-button-compare{
-  width: 50%;
-  height: 50%;
-  font-size: 12px;
-
-}
-
-
 
 
 .side-pannel {
   width: 20%;
-  height: 100vh;
+  height: 100%;
   padding: 1rem;
   background: #303030;
   color: #ffffff;
   justify-content: center;
+  position: fixed;
+  text-align: center;
   
 }
 
 .side-pannel-list {
   width: 100%;
+  height: 75%;
   justify-content: center;
 }
+
+.map-container {
+  width: 100%;
+  height: 100%;
+  
+}
+
+.map {
+  width: 100%;
+  height: 100%;
+  margin-left: 20%;
+}
+
 
 
 .combobox {
@@ -90,28 +111,25 @@ a {
 
 .compare-button {
   padding: 1rem;
-  margin: 1rem;
   width: 50%;
 }
 
 .compare-page {
-  width: 80%;
-  height: 100vh;
+  width: 100%;
+  height: 100%;
   background-color: #fbfbfb;
+  margin-left: 20%;
+
 }
 
 .compare-page-scroll{
   width: 100%;
-  height: 100%;
   align-items: center;
-  overflow-y: scroll;
-  padding: 1rem;
 }
 
 .compare_chart-div {
   width: 70%;
-  height: 400px;
-  margin: 0 auto;
+  margin: auto;
   align-items: center;
   display: block;
 }

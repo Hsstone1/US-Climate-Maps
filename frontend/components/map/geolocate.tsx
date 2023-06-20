@@ -21,17 +21,17 @@ export const getGeolocate = async (
         }
       }
 
-      const formattedAddress = [locality, state, country]
+      const formattedAddress = [locality, state, country !== "US" && country]
         .filter(Boolean)
         .join(", ");
 
       if (formattedAddress.length === 0) {
-        return `${latitude.toFixed(3)}, ${longitude.toFixed(3)}`;
+        return `${latitude.toFixed(5)}, ${longitude.toFixed(5)}`;
       }
 
       return formattedAddress;
     } else {
-      return `${latitude.toFixed(3)}, ${longitude.toFixed(3)}`;
+      return `${latitude.toFixed(5)}, ${longitude.toFixed(5)}`;
     }
   } catch (error) {
     console.log("Geocoder failed due to: " + error);

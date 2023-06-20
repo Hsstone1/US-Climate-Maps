@@ -13,6 +13,7 @@ type ClimateTableRowProps = {
     | "SunPercent";
   numDec?: number;
   divideAnnualBackground?: 1 | 12;
+  annual_units?: string;
 };
 
 export default function ClimateTableRow({
@@ -22,6 +23,7 @@ export default function ClimateTableRow({
   dataType,
   numDec = 0,
   divideAnnualBackground = 1,
+  annual_units = "",
 }: ClimateTableRowProps) {
   const getBackgroundColor = (value: number, dataType: string) => {
     if (dataType === "Temperature") {
@@ -132,6 +134,8 @@ export default function ClimateTableRow({
         style={{
           border: "1px solid black",
           padding: 8,
+          marginRight: 8,
+          whiteSpace: "nowrap",
         }}
       >
         {rowTitle}
@@ -144,6 +148,7 @@ export default function ClimateTableRow({
             color: getTextColor(value, dataType),
             textAlign: "center",
             border: "1px solid black",
+            width: 50,
             padding: 8,
           }}
         >
@@ -164,9 +169,10 @@ export default function ClimateTableRow({
           textAlign: "center",
           border: "1px solid black",
           padding: 8,
+          width: 100,
         }}
       >
-        {annual_data.toFixed(numDec)}
+        {`${annual_data.toFixed(numDec)}${annual_units}`}
       </td>
     </tr>
   );

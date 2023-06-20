@@ -53,6 +53,7 @@ export default function SearchBar({ setMarker }: SearchBarProps) {
       <ComboboxInput
         value={value}
         onChange={(e) => setValue(e.target.value)}
+        onClick={() => setValue("")}
         disabled={!ready}
         className="combobox-input"
         placeholder="Search an address"

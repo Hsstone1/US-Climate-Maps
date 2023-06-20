@@ -157,6 +157,8 @@ export default function ClimateChart({ datasetProp }: ClimateChartProps) {
         type: "linear",
         position: "left",
         display: "auto",
+        min: 0,
+        suggestedMax: 5,
         ticks: {
           beginAtZero: true,
           callback: function (value) {

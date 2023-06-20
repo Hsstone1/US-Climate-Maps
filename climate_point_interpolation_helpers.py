@@ -1,3 +1,4 @@
+import math
 import requests
 import urllib
 from math import radians, sin, cos, sqrt, atan2
@@ -33,6 +34,8 @@ def calculate_koppen_climate(temp_f, precip_in):
             return 'Tropical monsoon climate (Am)'
         elif driest_month_precip_mm < 60 and driest_month_precip_mm < 100 - (annual_precipitation_mm / 25):
             return 'Tropical savanna climate (Aw)'
+        else:
+            return 'Tropical climate (A)'
 
     # Koppen type C, Temperate
     elif min(avg_month_temp_c) > 0 and min(avg_month_temp_c) < 18 and max(avg_month_temp_c) > 10 and annual_precipitation_mm > 0.5 * threshold_mm:
@@ -45,6 +48,8 @@ def calculate_koppen_climate(temp_f, precip_in):
                 return 'Subtropical highland climate (Cwb)'
             elif max(get_highest_N_values(avg_month_temp_c, 2)) > 10:
                 return 'Cold subtropical highland climate (Cwc)'
+            else:
+                return 'Subtropical climate (C)'
 
         # Mediterranean
         if percent_precip_cold > 0.7 and driest_month_precip_mm < 40:
@@ -54,6 +59,8 @@ def calculate_koppen_climate(temp_f, precip_in):
                 return 'Warm-summer Mediterranean climate (Csb)'
             elif max(get_highest_N_values(avg_month_temp_c, 2)) > 10:
                 return 'Cold-summer Mediterranean climate (Csc)'
+            else:
+                return 'Mediterranean climate (C)'
 
         # Oceanic
         if max(avg_month_temp_c) > 22 and min(get_highest_N_values(avg_month_temp_c, 4)) > 10:
@@ -63,6 +70,8 @@ def calculate_koppen_climate(temp_f, precip_in):
             return 'Temperate oceanic climate (Cfb)'
         elif min(get_highest_N_values(avg_month_temp_c, 2)) > 10:
             return 'Subpolar oceanic climate (Cfc)'
+        else:
+            return 'Oceanic climate (C)'
 
     # Koppen type D, Continental
     elif max(avg_month_temp_c) > 10 and min(avg_month_temp_c) < 0 and annual_precipitation_mm > 0.5 * threshold_mm:
@@ -77,6 +86,8 @@ def calculate_koppen_climate(temp_f, precip_in):
                 return 'Monsoon Subarctic climate (Dfc)'
             elif min(avg_month_temp_c) < -38 and min(get_highest_N_values(avg_month_temp_c, 2)) > 10:
                 return 'Monsoon Extremely cold subarctic climate (Dfd)'
+            else:
+                return 'Monsoon climate (D)'
 
         # Mediterranean
         if percent_precip_cold > 0.7 and driest_month_precip_mm < 30:
@@ -88,6 +99,8 @@ def calculate_koppen_climate(temp_f, precip_in):
                 return 'Mediterranean Subarctic climate (Dsc)'
             elif min(avg_month_temp_c) < -38 and min(get_highest_N_values(avg_month_temp_c, 3)) > 10:
                 return 'Mediterranean Extremely cold subarctic climate (Dsd)'
+            else:
+                return 'Mediterranean climate (D)'
 
         if max(avg_month_temp_c) > 22 and min(get_highest_N_values(avg_month_temp_c, 4)) > 10:
             return 'Hot-summer humid continental climate (Dfa)'
@@ -97,6 +110,8 @@ def calculate_koppen_climate(temp_f, precip_in):
             return 'Subarctic climate (Dfc)'
         elif min(avg_month_temp_c) < -38 and min(get_highest_N_values(avg_month_temp_c, 2)) > 10:
             return 'Extremely cold subarctic climate (Dfd)'
+        else:
+            return 'Continental climate (D)'
 
     # Koppen type B, Semi-arid
     elif max(avg_month_temp_c) > 10:
@@ -112,6 +127,7 @@ def calculate_koppen_climate(temp_f, precip_in):
                 return 'Hot semi-arid climate (BSh)'
             else:
                 return 'Cold semi-arid climate (BSk)'
+                
 
     # Koppen type E, Tundra
     elif max(avg_month_temp_c) < 10:
@@ -227,9 +243,19 @@ def calculate_humidity_percentage(dew_points_F, temperatures_F):
 
 #https://www.weather.gov/epz/wxcalc_windchill
 #https://www.wpc.ncep.noaa.gov/html/heatindex_equation.shtml
-def calc_aparent_temp (T, RH, V):
+def calc_aparent_temp (T, DP, V):
+
+    RH = 100*(math.exp((17.625*DP)/(243.04+DP))/math.exp((17.625*T)/(243.04+T)))
+    print(RH)
     if T > 80:
+        adjustment = 0
         HI = -42.379 + 2.04901523*T + 10.14333127*RH - .22475541*T*RH - .00683783*T*T - .05481717*RH*RH + .00122874*T*T*RH + .00085282*T*RH*RH - .00000199*T*T*RH*RH
+        if T < 112 and RH < 13:
+            adjustment = ((13-RH)/4)*sqrt((17-abs(T-95.))/17)
+            HI = HI - adjustment
+        elif T < 87 and RH > 85:
+            adjustment = ((RH-85)/10) * ((87-T)/5)
+            HI = HI + adjustment
         return HI
     elif T < 50 and V >= 3:
         WC = 35.74 + (0.6215*T) - 35.75*(V**0.16) + 0.4275*T*(V**0.16)

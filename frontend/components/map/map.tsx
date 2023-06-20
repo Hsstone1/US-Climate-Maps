@@ -1,5 +1,5 @@
 import { useState, useMemo, useCallback, useRef, useEffect } from "react";
-import { GoogleMap, Marker, InfoWindow } from "@react-google-maps/api";
+import { GoogleMap, Marker } from "@react-google-maps/api";
 import SearchBar from "../compare-sidebar/searchbar";
 import CompareLocationsList from "../compare-sidebar/comparisonlist";
 import ComparePage from "../compare-page/comparepage";
@@ -63,8 +63,6 @@ export default function Map() {
     (position: LatLngLiteral): void => {
       const { lat: latitude, lng: longitude } = position;
       const startTime = performance.now();
-
-      // Generate unique key based on lat and lng
       const markerId = `${latitude}_${longitude}`;
 
       // Check if marker with the same ID already exists
@@ -89,7 +87,7 @@ export default function Map() {
             body: JSON.stringify({
               latitude,
               longitude,
-              elevation, // Include elevationData in the request body
+              elevation,
             }),
           })
             .then((response) => response.json())
@@ -113,15 +111,16 @@ export default function Map() {
                     newMarker,
                   ]);
 
-                  //TODO fix the boolean state variable
+                  handleCompareMarker(newMarker);
 
-                  setIsSearched((prevIsSearched) => {
-                    if (prevIsSearched) {
-                      handleCompareMarker(newMarker);
-                      setIsSearched(false);
-                    }
-                    return prevIsSearched;
-                  });
+                  // setIsSearched((prevIsSearched) => {
+                  //   if (prevIsSearched) {
+                  //     handleCompareMarker(newMarker);
+                  //     setIsSearched(false);
+                  //   }
+                  //   return prevIsSearched;
+                  // });
+
                   console.log(data);
                   console.log(
                     "Time difference:",
@@ -134,7 +133,6 @@ export default function Map() {
                 });
             })
             .catch((error) => {
-              // Handle any error that occurred during the request
               console.error("Error Cannot Retrieve Data: " + error);
             });
         })
@@ -159,6 +157,12 @@ export default function Map() {
     setLocationsCompare((prevLocations) =>
       prevLocations.filter((location) => location.id !== marker.id)
     );
+
+    //If there are no more locations in the list, hide the compare page
+    //console.log("locations in list", locationsCompare.length);
+    if (locationsCompare.length === 1) {
+      setShowComparePage(false);
+    }
   }, []);
 
   const handleCompareMarker = useCallback((marker: MarkerType) => {
@@ -183,69 +187,100 @@ export default function Map() {
   }, []);
 
   return (
-    <div className="container">
-      <div className="side-pannel" style={{ textAlign: "center" }}>
-        <h3>US Climate Maps</h3>
-        <SearchBar
-          setMarker={(position) => {
-            setIsSearched(true);
-            handleBackendMarkerData(position);
-            mapRef.current?.panTo(position);
-          }}
-        />
-        <hr style={{ marginTop: "1rem" }} />
-        <div className="side-pannel-list">
-          <div>
-            <h5>Compare Locations</h5>
-            <CompareLocationsList
-              locations={locationsCompare}
-              onRemoveLocation={handleRemoveLocation}
-            />
-          </div>
+    <div className="app-container">
+      <nav className="nav">
+        <div>
+          <h2>US Climate Maps</h2>
         </div>
 
-        {locationsCompare.length === 0 ? (
-          <>
-            <p>Click a location on the map, then add to compare (up to 10)</p>
-          </>
+        <ul>
+          <li>
+            <a href="index.html">Map</a>
+          </li>
+          <li>
+            <a href="index.html">Compare</a>
+          </li>
+          <li>
+            <a href="index.html">Historical Weather</a>
+          </li>
+          <li>
+            <a href="index.html">Route Planning</a>
+          </li>
+          <li>
+            <a href="about.html">About</a>
+          </li>
+        </ul>
+      </nav>
+
+      <div className="container">
+        <div className="side-pannel">
+          <SearchBar
+            setMarker={(position) => {
+              setIsSearched(true);
+              handleBackendMarkerData(position);
+              mapRef.current?.panTo(position);
+            }}
+          />
+          <hr style={{ marginTop: "1rem" }} />
+          <div className="side-pannel-list">
+            <div>
+              <h5>Location List</h5>
+              <CompareLocationsList
+                locations={locationsCompare}
+                onRemoveLocation={handleRemoveMarker}
+              />
+            </div>
+          </div>
+
+          {locationsCompare.length === 0 ? (
+            <>
+              <p>Click a location on the map, then add to compare (up to 10)</p>
+            </>
+          ) : (
+            <button
+              className="compare-button"
+              onClick={handleCompareButtonClick}
+            >
+              {showComparePage ? "View Map" : "View Locations"}
+            </button>
+          )}
+        </div>
+
+        {/* Render ComparePage if showComparePage is true, else render map */}
+        {showComparePage && locationsCompare.length > 0 ? (
+          <ComparePage locations={locationsCompare} />
         ) : (
-          <button className="compare-button" onClick={handleCompareButtonClick}>
-            {showComparePage ? "View Map" : "View Locations"}
-          </button>
+          <div className="map">
+            <GoogleMap
+              zoom={5}
+              center={center}
+              mapContainerClassName="map-container"
+              onLoad={onLoad}
+              options={mapOptions}
+              onClick={handleMapClick}
+            >
+              {selectedMarker.map((marker) => (
+                <Marker
+                  key={marker.id}
+                  position={{ lat: marker.lat, lng: marker.lng }}
+                  onClick={() => {
+                    setSelectedMarker((prevMarkers) => [
+                      ...prevMarkers,
+                      marker,
+                    ]);
+                  }}
+                  visible={true}
+                >
+                  <CustomInfoWindow
+                    marker={marker}
+                    handleCloseInfoWindow={handleRemoveMarker}
+                  />
+                </Marker>
+              ))}
+            </GoogleMap>
+          </div>
         )}
       </div>
-
-      {showComparePage && locationsCompare.length > 0 ? ( // Render ComparePage if showComparePage is true, else render map
-        <ComparePage locations={locationsCompare} />
-      ) : (
-        <div className="map">
-          <GoogleMap
-            zoom={5}
-            center={center}
-            mapContainerClassName="map-container"
-            onLoad={onLoad}
-            options={mapOptions}
-            onClick={handleMapClick}
-          >
-            {selectedMarker.map((marker) => (
-              <Marker
-                key={marker.id}
-                position={{ lat: marker.lat, lng: marker.lng }}
-                onClick={() =>
-                  setSelectedMarker((prevMarkers) => [...prevMarkers, marker])
-                }
-                visible={true}
-              >
-                <CustomInfoWindow
-                  marker={marker}
-                  handleCompareMarker={handleCompareMarker}
-                  handleRemoveMarker={handleRemoveMarker}
-                />
-              </Marker>
-            ))}
-          </GoogleMap>
-        </div>
-      )}
     </div>
   );
 }
