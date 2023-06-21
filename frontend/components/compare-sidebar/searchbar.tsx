@@ -11,6 +11,7 @@ import {
   ComboboxOption,
 } from "@reach/combobox";
 import "@reach/combobox/styles.css";
+import { useEffect } from "react";
 
 type SearchBarProps = {
   setMarker: (position: google.maps.LatLngLiteral) => void;

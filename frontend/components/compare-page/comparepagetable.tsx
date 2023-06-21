@@ -10,7 +10,7 @@ type ComparisonPageProps = {
   units?: string;
 };
 
-const TemperatureTable = ({
+const ClimateTable = ({
   locations,
   heading,
   monthlyDataStr,
@@ -65,7 +65,7 @@ const TemperatureTable = ({
                     textAlign: "center",
                   }}
                 >
-                  {value.toFixed(decimalTrunc)}
+                  {value % 1 === 0 ? 0 : value.toFixed(decimalTrunc)}
                 </td>
               ))}
               <td style={{ border: "1px solid black", textAlign: "center" }}>
@@ -79,4 +79,4 @@ const TemperatureTable = ({
   );
 };
 
-export default TemperatureTable;
+export default ClimateTable;

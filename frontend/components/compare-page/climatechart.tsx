@@ -15,7 +15,7 @@ import {
 import React from "react";
 import { Chart } from "react-chartjs-2";
 import ChartDataLabels from "chartjs-plugin-datalabels";
-import { ClimateChartDataset, MonthLabels } from "./comparepageprops";
+import { ClimateChartDataset } from "./comparepageprops";
 
 ChartJS.register(
   LinearScale,
@@ -38,7 +38,21 @@ type ClimateChartProps = {
 export default function ClimateChart({ datasetProp }: ClimateChartProps) {
   const createChartData = () => {
     return {
-      labels: MonthLabels,
+      labels: [
+        "Jan",
+        "Feb",
+        "Mar",
+        "Apr",
+        "May",
+        "Jun",
+        "Jul",
+        "Aug",
+        "Sep",
+        "Oct",
+        "Nov",
+        "Dec",
+        "",
+      ],
       datasets: datasetProp.map((dataset) => ({
         type: dataset.type,
         label: dataset.label,
@@ -54,7 +68,7 @@ export default function ClimateChart({ datasetProp }: ClimateChartProps) {
         datalabels: {
           formatter: (value: any, context: any) => {
             const yAxisID = context.dataset.yAxisID;
-            const skippedIndexes = [1, 2, 4, 5, 7, 8, 10];
+            const skippedIndexes = [1, 2, 4, 5, 7, 8, 10, 11];
 
             if (skippedIndexes.includes(context.dataIndex)) {
               return "";
@@ -69,6 +83,8 @@ export default function ClimateChart({ datasetProp }: ClimateChartProps) {
               return value.toFixed(0) + " %";
             } else if (yAxisID === "Wind") {
               return value.toFixed(0) + " mph";
+            } else if (yAxisID === "Sun_Angle") {
+              return value.toFixed(1) + " °";
             } else {
               return value.toFixed(0);
             }
@@ -164,7 +180,7 @@ export default function ClimateChart({ datasetProp }: ClimateChartProps) {
           callback: function (value) {
             return value + " in "; // Append 'units' to the tick value
           },
-          maxTicksLimit: 8,
+          maxTicksLimit: 10,
           stepSize: 0.2,
           font: {
             size: 10,
@@ -183,8 +199,25 @@ export default function ClimateChart({ datasetProp }: ClimateChartProps) {
           callback: function (value: number) {
             return (value * 100).toFixed(0) + " % "; // Multiply by 100 and append "%"
           },
-          maxTicksLimit: 8,
+          maxTicksLimit: 10,
           stepSize: 0.1,
+          font: {
+            size: 10,
+          },
+        },
+      },
+
+      Sun_Angle: {
+        type: "linear",
+        position: "left",
+        display: "auto",
+        max: 90,
+        min: 0,
+        ticks: {
+          beginAtZero: true,
+
+          maxTicksLimit: 10,
+          stepSize: 10,
           font: {
             size: 10,
           },
@@ -202,7 +235,7 @@ export default function ClimateChart({ datasetProp }: ClimateChartProps) {
           callback: function (value: number) {
             return value.toFixed(0) + " % "; // Multiply by 100 and append "%"
           },
-          maxTicksLimit: 8,
+          maxTicksLimit: 10,
           stepSize: 10,
           font: {
             size: 10,
@@ -219,8 +252,25 @@ export default function ClimateChart({ datasetProp }: ClimateChartProps) {
           callback: function (value) {
             return value + " mph "; // Append 'units' to the tick value
           },
-          maxTicksLimit: 8,
+          maxTicksLimit: 10,
           stepSize: 1,
+          font: {
+            size: 10,
+          },
+        },
+      },
+
+      Comfort_Index: {
+        type: "linear",
+        position: "left",
+        display: "auto",
+        max: 100,
+        min: 0,
+        ticks: {
+          beginAtZero: true,
+
+          maxTicksLimit: 10,
+          stepSize: 10,
           font: {
             size: 10,
           },

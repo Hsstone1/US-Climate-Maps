@@ -165,7 +165,7 @@ def get_climate_avg_at_point(target_lat, target_lon, target_elevation, df_statio
 
         dewpoints = humidity_regr_from_temp_max_min(months_arr['high_avg'], months_arr['low_avg'], months_arr['precip_avg'])
         noaa_monthly_metrics['monthly_dewpoint_avg'].append(dewpoints)
-        noaa_monthly_metrics['monthly_humidity_avg'].append(calculate_humidity_percentage(dewpoints, months_arr['mean_avg']))
+        noaa_monthly_metrics['monthly_humidity_avg'].append(calc_humidity_percentage(dewpoints, months_arr['mean_avg']))
 
     print("NOAA Elapsed Time:", time.time() - start_time, "seconds")
 
@@ -180,6 +180,7 @@ def get_climate_avg_at_point(target_lat, target_lon, target_elevation, df_statio
     In short, the methods bellow combine all querried stations into one result, with respective weights 
     '''
 
+    # Compute weighted average for each month
     for key in nws_monthly_metrics:
         weighted_list = []
         for month_num in range(12):
@@ -217,8 +218,7 @@ def get_climate_avg_at_point(target_lat, target_lon, target_elevation, df_statio
     '''
     
     ELEV_TEMP_CHANGE = 5.5
-    # This reduces the sunshine percentage with interpolated elevation, as is often the case with uplift in
-    # mountainous areas
+    # This reduces the sunshine percentage with interpolated elevation, as is often the case with uplift in mountainous areas
     sunshine_adjust_elev = {'monthly_sunshine_avg':[nws_monthly_weighted_metrics['monthly_sunshine_avg'][i] * (1 - (target_dif_elev / 1000) * 0.03) for i in range(12)]}
     temp_adj_monthly = [max(ELEV_TEMP_CHANGE * sunshine, 3) * (target_dif_elev / 1000) for sunshine in sunshine_adjust_elev['monthly_sunshine_avg']]
     precip_adjust_elev = min((1 + (target_dif_elev / 1000) * 0.2),2)
@@ -248,26 +248,26 @@ def get_climate_avg_at_point(target_lat, target_lon, target_elevation, df_statio
     monthly_values['weighted_monthly_snow_avg'] = noaa_monthly_weighted_metrics['monthly_snow_avg']
     monthly_values['weighted_monthly_snow_days_avg'] = noaa_monthly_weighted_metrics['monthly_snow_days_avg']
     
-    
 
-    frost_free_normal =  [calculate_frost_free_chance(value) for value in monthly_values['weighted_monthly_low_avg']]
-    frost_free_maxima =  [calculate_frost_free_chance(value) for value in monthly_values['weighted_monthly_mean_minimum']]
-    frost_free_extreme = [calculate_frost_free_chance(value) for value in monthly_values['weighted_monthly_record_low']]
+    frost_free_normal =  [calc_frost_free_chance(value) for value in monthly_values['weighted_monthly_low_avg']]
+    frost_free_maxima =  [calc_frost_free_chance(value) for value in monthly_values['weighted_monthly_mean_minimum']]
+    frost_free_extreme = [calc_frost_free_chance(value) for value in monthly_values['weighted_monthly_record_low']]
     frost_free_normal_maxima = [(normal + maxima) / 2 for normal, maxima in zip(frost_free_normal, frost_free_maxima)]
     frost_free_maxima_extreme = [(maxima + extreme) / 2 for maxima, extreme in zip(frost_free_maxima, frost_free_extreme )]
-    monthly_values['weighted_monthly_frost_free_days_avg'] = [.4 *frost_free_normal[i] + .3 *frost_free_maxima[i] + .05 *frost_free_extreme[i] + .15 *frost_free_normal_maxima[i] + .1*frost_free_maxima_extreme[i] for i in range(12)]
+    monthly_values['weighted_monthly_frost_free_days_avg'] = [.7 *frost_free_normal[i] + .2 *frost_free_maxima[i] + .01 *frost_free_extreme[i] + .05 *frost_free_normal_maxima[i] + .04*frost_free_maxima_extreme[i] for i in range(12)]
+    monthly_values['weighted_monthly_frost_free_days_avg'] = [1 if value > 0.98 else value**1.5 for value in monthly_values['weighted_monthly_frost_free_days_avg']]
+
     monthly_values['weighted_monthly_humidity_avg'] = noaa_monthly_weighted_metrics['monthly_humidity_avg']
     
-    snow_chance_max =  [1-calculate_frost_free_chance(value) for value in monthly_values['weighted_monthly_mean_maximum']]
-    snow_chance_high =  [1-calculate_frost_free_chance(value) for value in monthly_values['weighted_monthly_high_avg']]
-    snow_chance_mean =  [1-calculate_frost_free_chance(value) for value in monthly_values['weighted_monthly_mean_avg']]
-    snow_chance_low =  [1-calculate_frost_free_chance(value) for value in monthly_values['weighted_monthly_low_avg']]
+    snow_chance_max =  [1-calc_frost_free_chance(value) for value in monthly_values['weighted_monthly_mean_maximum']]
+    snow_chance_high =  [1-calc_frost_free_chance(value) for value in monthly_values['weighted_monthly_high_avg']]
+    snow_chance_mean =  [1-calc_frost_free_chance(value) for value in monthly_values['weighted_monthly_mean_avg']]
+    snow_chance_low =  [1-calc_frost_free_chance(value) for value in monthly_values['weighted_monthly_low_avg']]
 
     monthly_snow_chance = [.1 * snow_chance_max[i] + .3 *snow_chance_high[i] + .5 *snow_chance_mean[i] + .1 *snow_chance_low[i] for i in range(12)]
     
     #This adjusts for winter weather. A ramping linear interpolation function calculates the ratio of snow
     #totals, or percentage of rainy days that should be converted to snowy days
-    
     for i in range(12):
         precip_days = monthly_values['weighted_monthly_precip_days_avg'][i]
         snow_days = monthly_values['weighted_monthly_snow_days_avg'][i]
@@ -279,7 +279,12 @@ def get_climate_avg_at_point(target_lat, target_lon, target_elevation, df_statio
         monthly_values['weighted_monthly_precip_days_avg'][i] = precip_days - monthly_values['weighted_monthly_snow_days_avg'][i]
         monthly_values['weighted_monthly_snow_avg'][i] = rain_to_snow_days * snow_per_snow_day
 
-        
+    #This adjusts for summer weather. A ramping linear interpolation function calculates the ratio of snow
+    average_snowfall_day_annualized = sum(monthly_values['weighted_monthly_snow_avg']) / sum(monthly_values['weighted_monthly_snow_days_avg'])
+    for i in range(12):
+        if monthly_values['weighted_monthly_snow_avg'][i] == 0 and monthly_values['weighted_monthly_snow_days_avg'][i] > 0:
+            monthly_values['weighted_monthly_snow_avg'][i] = average_snowfall_day_annualized * monthly_values['weighted_monthly_snow_days_avg'][i]
+
 
     monthly_values['weighted_monthly_sunshine_avg'] = sunshine_adjust_elev['monthly_sunshine_avg']
     monthly_values['weighted_monthly_sunshine_days_avg'] = [value * DAYS_IN_MONTH for value in monthly_values['weighted_monthly_sunshine_avg']]
@@ -288,10 +293,16 @@ def get_climate_avg_at_point(target_lat, target_lon, target_elevation, df_statio
     monthly_values['weighted_monthly_wind_gust_peak'] = nws_monthly_weighted_metrics['monthly_wind_gust_peak']
     monthly_values['weighted_monthly_wind_dir_avg'] = nws_monthly_weighted_metrics['monthly_wind_dir_avg']
     
-    monthly_values['monthly_daylight_hours_avg'] = calculate_daylight_length(target_lat, 2023)
+    monthly_values['monthly_daylight_hours_avg'] = calc_daylight_length(target_lat, 2023)
     monthly_values['monthly_sunshine_hours_avg'] = [x * y for x, y in zip(monthly_values['monthly_daylight_hours_avg'], monthly_values['weighted_monthly_sunshine_avg'])]
-    monthly_values['weighted_apparent_temp_high'] = [calc_aparent_temp(T, RH, wind_speed) for T, RH, wind_speed in zip(monthly_values['weighted_monthly_high_avg'], monthly_values['weighted_monthly_dewpoint_avg'], monthly_values['weighted_monthly_wind_gust_avg'])]
-    monthly_values['weighted_apparent_temp_low'] = [calc_aparent_temp(T, RH, wind_speed) for T, RH, wind_speed in zip(monthly_values['weighted_monthly_low_avg'], monthly_values['weighted_monthly_dewpoint_avg'], monthly_values['weighted_monthly_wind_gust_avg'])]
+    monthly_values['weighted_monthly_apparent_temp_high'] = [calc_aparent_temp(T, RH, wind_speed) for T, RH, wind_speed in zip(monthly_values['weighted_monthly_high_avg'], monthly_values['weighted_monthly_dewpoint_avg'], monthly_values['weighted_monthly_wind_gust_avg'])]
+    monthly_values['weighted_monthly_apparent_temp_low'] = [calc_aparent_temp(T, RH, wind_speed) for T, RH, wind_speed in zip(monthly_values['weighted_monthly_low_avg'], monthly_values['weighted_monthly_dewpoint_avg'], monthly_values['weighted_monthly_wind_gust_avg'])]
+    monthly_values['weighted_monthly_apparent_temp_mean'] = [(high + low) / 2 for low, high in zip(monthly_values['weighted_monthly_apparent_temp_low'], monthly_values['weighted_monthly_apparent_temp_high'])]
+    monthly_values['monthly_sun_angle'] = [calc_sun_angle(target_lat, 2023, month+1, 21) for month in range(12)]
+    monthly_values['monthly_uv_index'] = [calc_uv_index(sun_angle, target_elevation, sunshine_percent) for sun_angle, sunshine_percent in zip(monthly_values['monthly_sun_angle'], monthly_values['weighted_monthly_sunshine_avg'])]
+    monthly_values['monthly_comfort_index'] = [calc_comfort_index(T, DP, precip, wind, UV, sun_percent, aparent) for T, DP, precip, wind, UV, sun_percent, aparent in zip(monthly_values['weighted_monthly_mean_avg'], monthly_values['weighted_monthly_dewpoint_avg'], monthly_values['weighted_monthly_precip_avg'], monthly_values['weighted_monthly_wind_gust_avg'], monthly_values['monthly_uv_index'], monthly_values['weighted_monthly_sunshine_avg'], monthly_values['weighted_monthly_apparent_temp_mean'])]
+
+
 
     annual_values['weighted_annual_high_avg'] = sum(monthly_values['weighted_monthly_high_avg'])/12
     annual_values['weighted_annual_low_avg'] = sum(monthly_values['weighted_monthly_low_avg'])/12
@@ -318,11 +329,14 @@ def get_climate_avg_at_point(target_lat, target_lon, target_elevation, df_statio
     annual_values['weighted_annual_wind_gust_peak'] = max(monthly_values['weighted_monthly_wind_gust_peak'])
     annual_values['annual_daylight_hours_avg'] = sum(monthly_values['monthly_daylight_hours_avg'])
     annual_values['annual_sunshine_hours_avg'] = sum(monthly_values['monthly_sunshine_hours_avg'])
-    annual_values['weighted_annual_apparent_temp_high'] = max(monthly_values['weighted_apparent_temp_high'])
-    annual_values['weighted_annual_apparent_temp_low'] = min(monthly_values['weighted_apparent_temp_low'])
-    
+    annual_values['weighted_annual_apparent_temp_high'] = max(monthly_values['weighted_monthly_apparent_temp_high'])
+    annual_values['weighted_annual_apparent_temp_low'] = min(monthly_values['weighted_monthly_apparent_temp_low'])
+    annual_values['annual_sun_angle_avg'] = sum(monthly_values['monthly_sun_angle'])/12
+    annual_values['annual_uv_index_avg'] = sum(monthly_values['monthly_uv_index'])/12
+    annual_values['annual_comfort_index'] = sum(monthly_values['monthly_comfort_index'])/12
+
     
     location_values['elevation'] = target_elevation
-    location_values['koppen'] = calculate_koppen_climate(monthly_values['weighted_monthly_mean_avg'], monthly_values['weighted_monthly_precip_avg'])
+    location_values['koppen'] = calc_koppen_climate(monthly_values['weighted_monthly_mean_avg'], monthly_values['weighted_monthly_precip_avg'])
     location_values['plant_hardiness'] = calc_plant_hardiness(annual_values['weighted_annual_mean_minimum'])
     return annual_values, monthly_values, location_values

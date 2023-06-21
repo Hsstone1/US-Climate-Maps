@@ -1,4 +1,9 @@
-import { TemperatureColors, PrecipColors, SunColors } from "./colors";
+import {
+  TemperatureColors,
+  PrecipColors,
+  SunColors,
+  UV_Index_Colors,
+} from "./colors";
 
 type ClimateTableRowProps = {
   monthly_data: any;
@@ -10,7 +15,8 @@ type ClimateTableRowProps = {
     | "Snow"
     | "Humidity"
     | "SunHours"
-    | "SunPercent";
+    | "SunPercent"
+    | "UV Index";
   numDec?: number;
   divideAnnualBackground?: 1 | 12;
   annual_units?: string;
@@ -62,8 +68,6 @@ export default function ClimateTableRow({
         )
       ];
     } else if (dataType === "Humidity") {
-      //Inches of rain per month 0 is light blue, 12 is dark blue
-
       const lowerValue = 20;
       const upperValue = 90;
       if (value > upperValue) {
@@ -80,8 +84,6 @@ export default function ClimateTableRow({
         )
       ];
     } else if (dataType === "SunHours") {
-      //Inches of rain per month 0 is light blue, 12 is dark blue
-
       const lowerValue = 0;
       const upperValue = 400;
       if (value > upperValue) {
@@ -98,8 +100,6 @@ export default function ClimateTableRow({
         )
       ];
     } else if (dataType === "SunPercent") {
-      //Inches of rain per month 0 is light blue, 12 is dark blue
-
       const lowerValue = 0;
       const upperValue = 100;
       if (value > upperValue) {
@@ -115,16 +115,32 @@ export default function ClimateTableRow({
             (SunColors.length - 1)
         )
       ];
+    } else if (dataType === "UV Index") {
+      if (value <= 2.5) {
+        return UV_Index_Colors[0];
+      } else if (value <= 5.5) {
+        return UV_Index_Colors[1];
+      } else if (value <= 7.5) {
+        return UV_Index_Colors[2];
+      } else if (value < 10.5) {
+        return UV_Index_Colors[3];
+      } else {
+        return UV_Index_Colors[4];
+      }
     }
   };
 
   const getTextColor = (value: number, dataType: string) => {
     if (dataType === "Temperature") {
-      return value >= 89.5 || value <= 0 ? "#FFFFFF" : "#000000";
+      return value >= 89.5 || value <= 0.5 ? "#FFFFFF" : "#000000";
     } else if (dataType === "Precip") {
-      return value >= 4 ? "#FFFFFF" : "#000000";
+      return value >= 4.5 ? "#FFFFFF" : "#000000";
     } else if (dataType === "Humidity") {
-      return value >= 30 ? "#FFFFFF" : "#000000";
+      return value >= 29.5 ? "#FFFFFF" : "#000000";
+    } else if (dataType === "SunHours") {
+      return value <= 49.5 ? "#FFFFFF" : "#000000";
+    } else if (dataType === "SunPercent") {
+      return value <= 19.5 ? "#FFFFFF" : "#000000";
     }
   };
 
@@ -133,7 +149,7 @@ export default function ClimateTableRow({
       <td
         style={{
           border: "1px solid black",
-          padding: 8,
+          padding: 4,
           marginRight: 8,
           whiteSpace: "nowrap",
         }}
@@ -149,7 +165,7 @@ export default function ClimateTableRow({
             textAlign: "center",
             border: "1px solid black",
             width: 50,
-            padding: 8,
+            padding: 4,
           }}
         >
           {value.toFixed(numDec)}
@@ -168,7 +184,7 @@ export default function ClimateTableRow({
           color: getTextColor(annual_data / divideAnnualBackground, dataType),
           textAlign: "center",
           border: "1px solid black",
-          padding: 8,
+          padding: 4,
           width: 100,
         }}
       >

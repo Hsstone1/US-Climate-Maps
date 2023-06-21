@@ -1,14 +1,16 @@
+import datetime
 import math
 import requests
 import urllib
 from math import radians, sin, cos, sqrt, atan2
 import ephem
+import datetime
 
 DAYS_IN_MONTH = 30.417
     
 
 #https://en.wikipedia.org/wiki/K%C3%B6ppen_climate_classification#Overview
-def calculate_koppen_climate(temp_f, precip_in):
+def calc_koppen_climate(temp_f, precip_in):
     avg_month_precip_mm = [value * 25.4 for value in precip_in]
     avg_month_temp_c = [(value-32) * (5/9) for value in temp_f]
     annual_temp_c = sum(avg_month_temp_c) / len(avg_month_temp_c)
@@ -172,46 +174,55 @@ def get_highest_N_values(values, numValues):
     return sorted(values, reverse=True)[:numValues]
 
 
-def calculate_daylight_length(latitude, year):
+'''
+This function calculates the sunrise and sunset times for a given latitude, month, and year.
+sunrise and sunset return times are days since janurary 1 1900
+'''
+def calc_sun_info(latitude, year, month, day):
+    try:
+        
+        # Set the observer's latitude
+        observer = ephem.Observer()
+        observer.lat = str(latitude)
+
+        # Set the date to the 21st day of the month
+        date_str = f"{year}/{month}/{day}"
+        observer.date = ephem.Date(date_str)
+
+        # Get the sunrise and sunset times
+        sun = ephem.Sun()
+        sunrise = observer.previous_rising(sun)
+        sunset = observer.next_setting(sun)
+
+        # Calculate the daylight length
+        daylight_length = sunset - sunrise - 1
+
+        # Convert the daylight length to hours, minutes, and seconds
+        daylight_hours = daylight_length * 24
+        daylight_minutes = daylight_hours * 60
+        daylight_seconds = daylight_minutes * 60
+
+    except ephem.AlwaysUpError:
+        daylight_hours = 24
+        sunrise = None
+        sunset = None
+    except ephem.NeverUpError:
+        daylight_hours = 0
+        sunrise = None
+        sunset = None
+    return sunrise, sunset, daylight_hours
+
+
+def calc_daylight_length(latitude, year):
     daylight_lengths = []
 
     for month in range(1, 13):  # Iterate over each month
-        try:
-            # Set the observer's latitude
-            observer = ephem.Observer()
-            observer.lat = str(latitude)
-
-            # Set the date to the 21st day of the month
-            date_str = f"{year}/{month}/21"
-            observer.date = ephem.Date(date_str)
-
-            # Get the sunrise and sunset times
-            sun = ephem.Sun()
-            sunrise = observer.previous_rising(sun)
-            sunset = observer.next_setting(sun)
-
-            # Calculate the daylight length
-            daylight_length = sunset - sunrise - 1
-
-            # Convert the daylight length to hours, minutes, and seconds
-            daylight_hours = daylight_length * 24
-            daylight_minutes = daylight_hours * 60
-            daylight_seconds = daylight_minutes * 60
-            monthly_hours = daylight_hours * DAYS_IN_MONTH 
-
-            daylight_lengths.append((monthly_hours))
-        
-        except ephem.AlwaysUpError:
-            daylight_lengths.append((24 * DAYS_IN_MONTH ))
-            continue
-        except ephem.NeverUpError:
-            daylight_lengths.append((0))
-            continue
+        daylight_lengths.append(calc_sun_info(latitude, year, month, 21)[2] * DAYS_IN_MONTH )
 
     return daylight_lengths
 
 
-def calculate_frost_free_chance(value):
+def calc_frost_free_chance(value):
     maxVal = 40
     if value >= maxVal:
         return 1
@@ -222,7 +233,7 @@ def calculate_frost_free_chance(value):
     
 
 
-def calculate_humidity_percentage(dew_points_F, temperatures_F):
+def calc_humidity_percentage(dew_points_F, temperatures_F):
     humidity_percentages = []
     for dew_point, temperature in zip(dew_points_F, temperatures_F):
         # Convert Fahrenheit to Celsius
@@ -246,7 +257,7 @@ def calculate_humidity_percentage(dew_points_F, temperatures_F):
 def calc_aparent_temp (T, DP, V):
 
     RH = 100*(math.exp((17.625*DP)/(243.04+DP))/math.exp((17.625*T)/(243.04+T)))
-    print(RH)
+    #print(RH)
     if T > 80:
         adjustment = 0
         HI = -42.379 + 2.04901523*T + 10.14333127*RH - .22475541*T*RH - .00683783*T*T - .05481717*RH*RH + .00122874*T*T*RH + .00085282*T*RH*RH - .00000199*T*T*RH*RH
@@ -262,6 +273,94 @@ def calc_aparent_temp (T, DP, V):
         return WC
     else:
         return T
+
+
+'''
+This function calculates the angle the sun is above the horizon for a given latitude and date.
+date is a datetime object datetime.date(2023, 1, 21)
+'''
+def calc_sun_angle (latitude, year, month, day):
+    sun_angles = []
+    for hour in range(0, 24):
+        datetime_obj = datetime.datetime(year, month, day, hour, 0, 0)
+        
+        # Create an observer object for the specified latitude
+        observer = ephem.Observer()
+        observer.lat = str(latitude)
+
+        # Set the observer's date and time
+        observer.date = datetime_obj
+
+        # Calculate the position of the sun
+        sun = ephem.Sun()
+        sun.compute(observer)
+
+        # Get the altitude of the sun (elevation angle)
+        sun_angles.append(math.degrees(sun.alt))
+    
+    #Returns the value at noon
+    return sun_angles[12]
+
+
+def calc_uv_index(sun_angle, altitude, sunshine_percentage):
+    # Calculate the UV index based on the sun angle, where 90 degrees is the maximum returning 12
+    uv_index = (sun_angle / 90) * 12
+    
+    # Adjust the UV index based on altitude
+    altitude_adjustment = altitude / 1000 * 0.05
+    uv_index_adjusted = uv_index * (1 + altitude_adjustment)
+
+    # Adjust the UV index based on sunshine percentage
+    # The sunshine effect is multiplied by the square root to better reflect the effect of clouds
+    uv_index_adjusted = uv_index_adjusted * min(sunshine_percentage ** 0.5,1)
+
+    return max(uv_index_adjusted, 0)
+
+
+'''
+This function calculates the comfort index for a given set of weather conditions.
+'''
+def calc_comfort_index(temp, dewpoint, precip, windspeed, uv_index, sunshine_percent, apparent):
+    cloud_cover = 100 - 100*sunshine_percent
+    def bound_value(value, min_val, max_val):
+        return max(min(value, max_val), min_val)
+
+    hourlyTempIndex = max((((math.exp(-(math.pow((temp - 70), 2) / 1500)))) - math.pow((0.007 * temp), 11)) + .01, 0) * 100
+    hourlyDewIndex = max(((-0.5 * dewpoint) + 165) - (math.exp(0.06 * dewpoint)), 0)
+    hourlyPrecipIndex = min(-math.pow(10000 * precip, 1/3) - math.exp(0.045 * precip) + 150, 100)
+    hourlyWindSpeedIndex = min(-(math.pow(280000 * windspeed, 1/3)) - math.exp(0.05 * windspeed) - (math.pow((-0.005 * windspeed - 6), 3) + 5), 100)
+    hourlyUVIndexIndex = min(-math.pow(15000 * uv_index, 1/3) - math.exp(0.43 * uv_index) + 150, 100)
+    hourlyCloudCoverIndex = max(((-0.05 * cloud_cover) + 101) - (math.exp(0.046 * cloud_cover)), 0)
+    hourlyFeelLikeIndex = 100 * (math.exp((-((math.pow((apparent - 70), 2) / 2800)))) - (math.pow((0.0005 * apparent), 2)) - (0.07 * math.exp(-0.05 * apparent)) - (math.pow((0.008 * apparent), 11)) + 0.01)
+    
+    
+    temp_weight = 50
+    apparent_weight = 100
+    windspeed_weight = 25
+    uv_weight = 10
+    sunshine_weight = 25
+    precip_weight = 50
+    dewpoint_weight = 100
+
+    hourlyUVIndexIndex = bound_value(hourlyUVIndexIndex, 0, 100)
+    hourlyPrecipIndex = bound_value(hourlyPrecipIndex, 0, 100)
+    hourlyDewIndex = bound_value(hourlyDewIndex, 0, 100)
+    hourlyWindSpeedIndex = max(hourlyWindSpeedIndex, 0)
+    hourlyTempIndex = min(hourlyTempIndex, 100)
+    if apparent < 25:
+        dewpoint_weight = 3
+    if temp < 0:
+        hourlyTempIndex = 0
+        dewpoint_weight = 1
+    hourlyFeelLikeIndex = bound_value(hourlyFeelLikeIndex, -100, 100)
+
+    comfortIndex = ((hourlyTempIndex * temp_weight) + (hourlyDewIndex * dewpoint_weight) + 
+                    (hourlyFeelLikeIndex * apparent_weight) + 
+                    (hourlyWindSpeedIndex * windspeed_weight) + 
+                    (hourlyUVIndexIndex * uv_weight) + (hourlyCloudCoverIndex * sunshine_weight) + 
+                    (hourlyPrecipIndex * precip_weight)) / (temp_weight + dewpoint_weight + apparent_weight + windspeed_weight + uv_weight + sunshine_weight + precip_weight)
+    
+    return max(min(comfortIndex, 100),0)
     
     
 def get_elevation_from_coords(lat,lon):

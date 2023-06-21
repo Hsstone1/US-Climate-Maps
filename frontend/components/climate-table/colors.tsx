@@ -312,3 +312,11 @@ export const SunColors = [
   "#FFFFFA",
   "#FFFFFF",
 ];
+
+export const UV_Index_Colors = [
+  "#96FF96",
+  "#FFFF96",
+  "#FFD296",
+  "#FF9696",
+  "#DC96FF",
+];

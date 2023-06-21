@@ -46,8 +46,8 @@ def climate_data():
         'monthly_frost_free_days_avg': monthly_data['weighted_monthly_frost_free_days_avg'],
         'monthly_dewpoint_avg': monthly_data['weighted_monthly_dewpoint_avg'],
         'monthly_humidity_avg': monthly_data['weighted_monthly_humidity_avg'],
-        'monthly_apparent_high': monthly_data['weighted_apparent_temp_high'],
-        'monthly_apparent_low': monthly_data['weighted_apparent_temp_low'],
+        'monthly_apparent_high': monthly_data['weighted_monthly_apparent_temp_high'],
+        'monthly_apparent_low': monthly_data['weighted_monthly_apparent_temp_low'],
         'monthly_wind_avg': monthly_data['weighted_monthly_wind_avg'],
         'monthly_wind_gust_avg': monthly_data['weighted_monthly_wind_gust_avg'],
         'monthly_sunshine_avg': monthly_data['weighted_monthly_sunshine_avg'],
@@ -56,7 +56,9 @@ def climate_data():
         'monthly_wind_gust_peak': monthly_data['weighted_monthly_wind_gust_peak'],
         'monthly_daylight_hours_avg': monthly_data['monthly_daylight_hours_avg'],
         'monthly_sunshine_hours_avg': monthly_data['monthly_sunshine_hours_avg'],
-
+        'monthly_sun_angle': monthly_data['monthly_sun_angle'],
+        'monthly_uv_index': monthly_data['monthly_uv_index'],
+        'monthly_comfort_index': monthly_data['monthly_comfort_index']
     }
 
     # Create a response containing the data to be sent back to the JavaScript code
@@ -87,6 +89,11 @@ def climate_data():
         'annual_wind_gust_peak': annual_data['weighted_annual_wind_gust_peak'],
         'annual_daylight_hours_avg': annual_data['annual_daylight_hours_avg'],
         'annual_sunshine_hours_avg': annual_data['annual_sunshine_hours_avg'],
+        'annual_uv_index_avg': annual_data['annual_uv_index_avg'],
+        'annual_sun_angle_avg': annual_data['annual_sun_angle_avg'],
+        'annual_comfort_index': annual_data['annual_comfort_index']
+
+
     }
 
 

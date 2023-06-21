@@ -11,8 +11,6 @@ export default function ClimateTablePaginate({ locations }: ClimateTableProps) {
   const [currentChart, setCurrentChart] = useState<MarkerType | null>(null);
 
   useEffect(() => {
-    console.log(currentIndex);
-
     //This is a hack to prevent the app from crashing when the user removes a location
     //when the current index is at the end of the array
     if (
