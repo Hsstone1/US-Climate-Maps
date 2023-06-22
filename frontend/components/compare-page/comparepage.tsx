@@ -14,6 +14,7 @@ export default function ComparisonPage({ locations }: ComparisonPageProps) {
   const CHART_BORDER_WIDTH = 2;
   const LINE_TENSION = 0.35;
   const LINE_ALPHA = 1;
+  const BACKGROUND_ALPHA = 0.05;
   const HEADING_VARIANT = "h5";
 
   // Append first index to end of array for chart
@@ -30,19 +31,36 @@ export default function ComparisonPage({ locations }: ComparisonPageProps) {
 
     locations.forEach((location: MarkerType, index) => {
       const color = LocationColors(LINE_ALPHA)[index];
+      const background_color = LocationColors(BACKGROUND_ALPHA)[index];
+
       const high_dataset: ClimateChartDataset = {
         type: "line",
         label: location.data.location_data.location,
         data: appendFirstIndexToEnd(
           location.data.monthly_data.monthly_high_avg
         ),
-        backgroundColor: color,
+        backgroundColor: background_color,
+        borderColor: color,
+        borderWidth: CHART_BORDER_WIDTH,
+
+        pointRadius: 0,
+        pointHoverRadius: 0,
+        lineTension: LINE_TENSION,
+        fill: (locations.length % 4) * locations.length,
+        yAxisID: "Temperature",
+      };
+
+      const low_dataset: ClimateChartDataset = {
+        type: "line",
+        label: location.data.location_data.location,
+        data: appendFirstIndexToEnd(location.data.monthly_data.monthly_low_avg),
+        backgroundColor: background_color,
         borderColor: color,
         borderWidth: CHART_BORDER_WIDTH,
         pointRadius: 0,
-        pointHoverRadius: 5,
+        pointHoverRadius: 0,
         lineTension: LINE_TENSION,
-        fill: false,
+        fill: (locations.length % 4) * locations.length,
         yAxisID: "Temperature",
       };
 
@@ -55,22 +73,9 @@ export default function ComparisonPage({ locations }: ComparisonPageProps) {
         backgroundColor: LocationColors(0.4)[index],
         borderColor: LocationColors(0.4)[index],
         borderWidth: 1,
+        borderDash: [3, 3],
         pointRadius: 0,
-        pointHoverRadius: 5,
-        lineTension: LINE_TENSION,
-        fill: false,
-        yAxisID: "Temperature",
-      };
-
-      const low_dataset: ClimateChartDataset = {
-        type: "line",
-        label: location.data.location_data.location,
-        data: appendFirstIndexToEnd(location.data.monthly_data.monthly_low_avg),
-        backgroundColor: color,
-        borderColor: color,
-        borderWidth: CHART_BORDER_WIDTH,
-        pointRadius: 0,
-        pointHoverRadius: 5,
+        pointHoverRadius: 0,
         lineTension: LINE_TENSION,
         fill: false,
         yAxisID: "Temperature",
@@ -85,18 +90,22 @@ export default function ComparisonPage({ locations }: ComparisonPageProps) {
         backgroundColor: LocationColors(0.4)[index],
         borderColor: LocationColors(0.4)[index],
         borderWidth: 1,
+        borderDash: [3, 3],
         pointRadius: 0,
-        pointHoverRadius: 5,
+        pointHoverRadius: 0,
         lineTension: LINE_TENSION,
         fill: false,
         yAxisID: "Temperature",
       };
 
-      datasets.push(high_dataset);
-      datasets.push(apparent_high_dataset);
-      datasets.push(low_dataset);
-      datasets.push(apparent_low_dataset);
+      datasets.push(
+        high_dataset,
+        low_dataset,
+        apparent_high_dataset,
+        apparent_low_dataset
+      );
     });
+
     return datasets;
   };
 
@@ -115,7 +124,7 @@ export default function ComparisonPage({ locations }: ComparisonPageProps) {
         borderColor: color,
         borderWidth: CHART_BORDER_WIDTH,
         pointRadius: 0,
-        pointHoverRadius: 5,
+        pointHoverRadius: 0,
         lineTension: LINE_TENSION,
         fill: false,
         yAxisID: "Precip",
@@ -141,7 +150,7 @@ export default function ComparisonPage({ locations }: ComparisonPageProps) {
         borderColor: color,
         borderWidth: CHART_BORDER_WIDTH,
         pointRadius: 0,
-        pointHoverRadius: 5,
+        pointHoverRadius: 0,
         lineTension: LINE_TENSION,
         fill: false,
         yAxisID: "Precip",
@@ -167,7 +176,7 @@ export default function ComparisonPage({ locations }: ComparisonPageProps) {
         borderColor: color,
         borderWidth: CHART_BORDER_WIDTH,
         pointRadius: 0,
-        pointHoverRadius: 5,
+        pointHoverRadius: 0,
         lineTension: LINE_TENSION,
         fill: false,
         yAxisID: "Sunshine_Percentage",
@@ -195,7 +204,7 @@ export default function ComparisonPage({ locations }: ComparisonPageProps) {
         borderColor: color,
         borderWidth: CHART_BORDER_WIDTH,
         pointRadius: 0,
-        pointHoverRadius: 5,
+        pointHoverRadius: 0,
         lineTension: LINE_TENSION,
         fill: false,
         yAxisID: "Sun_Angle",
@@ -221,7 +230,7 @@ export default function ComparisonPage({ locations }: ComparisonPageProps) {
         borderColor: color,
         borderWidth: CHART_BORDER_WIDTH,
         pointRadius: 0,
-        pointHoverRadius: 5,
+        pointHoverRadius: 0,
         lineTension: LINE_TENSION,
         fill: false,
         yAxisID: "Humidity_Percentage",
@@ -247,7 +256,7 @@ export default function ComparisonPage({ locations }: ComparisonPageProps) {
         borderColor: color,
         borderWidth: CHART_BORDER_WIDTH,
         pointRadius: 0,
-        pointHoverRadius: 5,
+        pointHoverRadius: 0,
         lineTension: LINE_TENSION,
         fill: false,
         yAxisID: "Wind",
@@ -273,7 +282,7 @@ export default function ComparisonPage({ locations }: ComparisonPageProps) {
         borderColor: color,
         borderWidth: CHART_BORDER_WIDTH,
         pointRadius: 0,
-        pointHoverRadius: 5,
+        pointHoverRadius: 0,
         lineTension: LINE_TENSION,
         fill: false,
         yAxisID: "Comfort_Index",
@@ -299,7 +308,7 @@ export default function ComparisonPage({ locations }: ComparisonPageProps) {
         borderColor: color,
         borderWidth: CHART_BORDER_WIDTH,
         pointRadius: 0,
-        pointHoverRadius: 5,
+        pointHoverRadius: 0,
         lineTension: LINE_TENSION,
         fill: false,
         yAxisID: "Sunshine_Percentage",
@@ -333,10 +342,11 @@ export default function ComparisonPage({ locations }: ComparisonPageProps) {
 
             <ClimateChart
               datasetProp={temperature_dataset(locations)}
+              units={"°F"}
             ></ClimateChart>
             <p style={{ textAlign: "center" }}>
               Average monthly high and low temperatures for each location. The
-              thinner line represents the average monthly apparent temperature,
+              dashed line represents the average monthly apparent temperature,
               which can change based on humidity and wind speed.
             </p>
             <div>
@@ -375,6 +385,7 @@ export default function ComparisonPage({ locations }: ComparisonPageProps) {
 
             <ClimateChart
               datasetProp={precip_dataset(locations)}
+              units={"in"}
             ></ClimateChart>
             <p style={{ textAlign: "center" }}>
               Rainfall in inches for each month. The total number of rainy days
@@ -405,7 +416,10 @@ export default function ComparisonPage({ locations }: ComparisonPageProps) {
             >
               Yearly Snowfall
             </Typography>
-            <ClimateChart datasetProp={snow_dataset(locations)}></ClimateChart>
+            <ClimateChart
+              datasetProp={snow_dataset(locations)}
+              units={"in"}
+            ></ClimateChart>
             <p style={{ textAlign: "center" }}>
               Snowfall in inches for each month. The total number of snowy days
               expected for each month, along with the annual total are displayed
@@ -439,6 +453,8 @@ export default function ComparisonPage({ locations }: ComparisonPageProps) {
             </Typography>
             <ClimateChart
               datasetProp={sunshine_dataset(locations)}
+              units={"%"}
+              adjustUnitsByVal={100}
             ></ClimateChart>
             <p style={{ textAlign: "center" }}>
               Percent possible sunshine for each month. The total number of
@@ -473,6 +489,7 @@ export default function ComparisonPage({ locations }: ComparisonPageProps) {
             </Typography>
             <ClimateChart
               datasetProp={sun_angle_dataset(locations)}
+              units={"°"}
             ></ClimateChart>
             <p style={{ textAlign: "center" }}>
               Average sun angle for each month. The sun angle is the angle of
@@ -508,6 +525,7 @@ export default function ComparisonPage({ locations }: ComparisonPageProps) {
 
             <ClimateChart
               datasetProp={humidityDataset(locations)}
+              units={"%"}
             ></ClimateChart>
             <p style={{ textAlign: "center" }}>
               Average humidity percentage for each month. The table contains the
@@ -542,7 +560,10 @@ export default function ComparisonPage({ locations }: ComparisonPageProps) {
             >
               Yearly Wind Speed
             </Typography>
-            <ClimateChart datasetProp={windDataset(locations)}></ClimateChart>
+            <ClimateChart
+              datasetProp={windDataset(locations)}
+              units={"mph"}
+            ></ClimateChart>
             <p style={{ textAlign: "center" }}>
               Average wind speed for each month. The table contains the average
               wind speed for each month. The wind speed is measured in miles per
@@ -610,6 +631,8 @@ export default function ComparisonPage({ locations }: ComparisonPageProps) {
             </Typography>
             <ClimateChart
               datasetProp={growingDataset(locations)}
+              units={"%"}
+              adjustUnitsByVal={100}
             ></ClimateChart>
             <p style={{ textAlign: "center" }}>
               Average frost free growing season. The table contains the monthly

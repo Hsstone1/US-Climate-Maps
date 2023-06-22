@@ -49,7 +49,7 @@ export default function CompareLocationsList({
             key={card.id}
             style={{
               marginBottom: 4,
-              border: `3px solid ${LocationColors(1)[index]}`,
+              border: `4px solid ${LocationColors(1)[index]}`,
               padding: 0,
             }}
           >

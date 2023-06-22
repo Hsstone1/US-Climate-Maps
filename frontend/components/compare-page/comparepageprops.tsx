@@ -5,10 +5,11 @@ export type ClimateChartDataset = {
   backgroundColor?: string; //rgba(N, N, N, 0.N)
   borderColor: string; //rgba(N, N, N, 0.N)
   borderWidth?: number;
+  borderDash?: any;
   pointRadius?: number;
   pointHoverRadius?: number;
   lineTension?: number;
-  fill?: boolean;
+  fill?: boolean | number | string;
   yAxisID:
     | "Temperature"
     | "Precip"

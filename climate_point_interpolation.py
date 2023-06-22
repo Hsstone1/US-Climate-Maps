@@ -124,13 +124,13 @@ def get_climate_avg_at_point(target_lat, target_lon, target_elevation, df_statio
             # Filter the DataFrame for the specific month
             month_df = df[df['DATE'].dt.month == month]
             num_days = int(pd.DatetimeIndex(month_df['DATE']).days_in_month[0])
-            months_arr['record_high'].append((month_df["TMAX"].quantile(1)* 9/50) + 32)
+            months_arr['record_high'].append((month_df["TMAX"].quantile(.999)* 9/50) + 32)
             months_arr['mean_maximum'].append((month_df["TMAX"].quantile(.9)* 9/50) + 32)
             months_arr['high_avg'].append((month_df["TMAX"].mean()* 9/50) + 32)
             months_arr['mean_avg'].append((month_df["TAVG"].mean()* 9/50) + 32)
             months_arr['low_avg'].append((month_df["TMIN"].mean()* 9/50) + 32)
             months_arr['mean_minimum'].append((month_df["TMIN"].quantile(.1)* 9/50) + 32)
-            months_arr['record_low'].append((month_df["TMIN"].quantile(0)* 9/50) + 32)
+            months_arr['record_low'].append((month_df["TMIN"].quantile(0.001)* 9/50) + 32)
             months_arr['HDD_avg'].append((month_df["HDD"].sum() /num_days))
             months_arr['CDD_avg'].append((month_df["CDD"].sum() /num_days))
             months_arr['precip_avg'].append((month_df["PRCP"].mean() / 254 * num_days))
@@ -258,13 +258,20 @@ def get_climate_avg_at_point(target_lat, target_lon, target_elevation, df_statio
     monthly_values['weighted_monthly_snow_days_avg'] = noaa_monthly_weighted_metrics['monthly_snow_days_avg']
     
 
+    '''
+    This section calculates the frost free days for each month
+    some adjustments are made to the frost free days based on edge cases to better reflect reality
+    '''
     frost_free_normal =  [calc_frost_free_chance(value) for value in monthly_values['weighted_monthly_low_avg']]
     frost_free_maxima =  [calc_frost_free_chance(value) for value in monthly_values['weighted_monthly_mean_minimum']]
     frost_free_extreme = [calc_frost_free_chance(value) for value in monthly_values['weighted_monthly_record_low']]
     frost_free_normal_maxima = [(normal + maxima) / 2 for normal, maxima in zip(frost_free_normal, frost_free_maxima)]
     frost_free_maxima_extreme = [(maxima + extreme) / 2 for maxima, extreme in zip(frost_free_maxima, frost_free_extreme )]
     monthly_values['weighted_monthly_frost_free_days_avg'] = [.7 *frost_free_normal[i] + .2 *frost_free_maxima[i] + .01 *frost_free_extreme[i] + .05 *frost_free_normal_maxima[i] + .04*frost_free_maxima_extreme[i] for i in range(12)]
-    monthly_values['weighted_monthly_frost_free_days_avg'] = [1 if value > 0.97 else value**1.5 for value in monthly_values['weighted_monthly_frost_free_days_avg']]
+    monthly_values['weighted_monthly_frost_free_days_avg'] = [1 if value > 0.95 else value**1.5 for value in monthly_values['weighted_monthly_frost_free_days_avg']]
+    values = monthly_values['weighted_monthly_frost_free_days_avg']
+    monthly_values['weighted_monthly_frost_free_days_avg'] = [1 if values[i] > 0.8 and values[i - 1] > 0.8 and values[i + 1] > 0.8 else values[i] for i in range(0, len(values))]
+
 
     monthly_values['weighted_monthly_humidity_avg'] = noaa_monthly_weighted_metrics['monthly_humidity_avg']
     

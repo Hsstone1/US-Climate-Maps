@@ -50,6 +50,15 @@ const labels = [
   "Dec",
 ];
 
+const labelUnitMapping: { [key: string]: string } = {
+  "Apparent High: ": "°F",
+  "Max Temperature: ": "°F",
+  "Min Temperature: ": "°F",
+  "Apparent Low: ": "°F",
+  "Dewpoint Avg: ": "°F",
+  "Precip Totals: ": "in",
+};
+
 export default function IndowWindowChart({ marker }: InfoWindowChartProps) {
   const createChartData = (marker: MarkerType) => {
     return {
@@ -112,7 +121,7 @@ export default function IndowWindowChart({ marker }: InfoWindowChartProps) {
 
         {
           type: "line" as const,
-          label: "Dewpoint",
+          label: "Dewpoint Avg",
           data: marker.data.monthly_data.monthly_dewpoint_avg,
           backgroundColor: "rgba(15, 176, 0, 0.5)",
           borderColor: "rgba(15, 176, 0, 0.5)",
@@ -156,8 +165,25 @@ export default function IndowWindowChart({ marker }: InfoWindowChartProps) {
         delay: 100, // delay 100 milliseconds
       },
       tooltip: {
-        mode: "x", // Set the tooltips mode to 'index' to display values for all datasets at the same index
-        intersect: true, // Allow tooltips to display values even if not at the center point
+        mode: "nearest",
+        axis: "x",
+        intersect: false,
+        callbacks: {
+          label: (context) => {
+            let label = context.dataset.label || "";
+
+            if (label) {
+              label += ": ";
+            }
+
+            if (context.parsed.y !== null) {
+              const unit = labelUnitMapping[label] || ""; // Retrieve the unit based on the label
+              label += context.parsed.y.toFixed(1) + " " + unit;
+            }
+
+            return label;
+          },
+        },
       },
       datalabels: {
         display: false,

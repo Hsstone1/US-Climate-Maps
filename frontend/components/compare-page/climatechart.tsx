@@ -33,9 +33,15 @@ ChartJS.register(
 
 type ClimateChartProps = {
   datasetProp: ClimateChartDataset[];
+  units?: string;
+  adjustUnitsByVal?: number;
 };
 
-export default function ClimateChart({ datasetProp }: ClimateChartProps) {
+export default function ClimateChart({
+  datasetProp,
+  units = "",
+  adjustUnitsByVal = 1,
+}: ClimateChartProps) {
   const createChartData = () => {
     return {
       labels: [
@@ -60,6 +66,7 @@ export default function ClimateChart({ datasetProp }: ClimateChartProps) {
         backgroundColor: dataset.backgroundColor,
         borderColor: dataset.borderColor,
         borderWidth: dataset.borderWidth,
+        borderDash: dataset.borderDash,
         pointRadius: dataset.pointRadius,
         pointHoverRadius: dataset.pointHoverRadius,
         lineTension: dataset.lineTension,
@@ -121,6 +128,22 @@ export default function ClimateChart({ datasetProp }: ClimateChartProps) {
         mode: "nearest",
         axis: "x",
         intersect: false,
+        callbacks: {
+          label: (context) => {
+            let label = context.dataset.label || "";
+
+            if (label) {
+              label += ": ";
+            }
+
+            if (context.parsed.y !== null) {
+              label +=
+                (context.parsed.y * adjustUnitsByVal).toFixed(1) + " " + units;
+            }
+
+            return label;
+          },
+        },
       },
 
       datalabels: {
@@ -157,7 +180,7 @@ export default function ClimateChart({ datasetProp }: ClimateChartProps) {
         suggestedMax: 100,
         ticks: {
           callback: function (value) {
-            return value + " °F "; // Append 'units' to the tick value
+            return value + " °F ";
           },
           maxTicksLimit: 10,
 
@@ -177,7 +200,7 @@ export default function ClimateChart({ datasetProp }: ClimateChartProps) {
         ticks: {
           beginAtZero: true,
           callback: function (value) {
-            return value + " in "; // Append 'units' to the tick value
+            return value + " in ";
           },
           maxTicksLimit: 10,
           stepSize: 0.2,
@@ -249,7 +272,7 @@ export default function ClimateChart({ datasetProp }: ClimateChartProps) {
         ticks: {
           beginAtZero: true,
           callback: function (value) {
-            return value + " mph "; // Append 'units' to the tick value
+            return value + " mph ";
           },
           maxTicksLimit: 10,
           stepSize: 1,
