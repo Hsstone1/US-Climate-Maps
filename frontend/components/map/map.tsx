@@ -15,7 +15,9 @@ export default function Map() {
   const center = useMemo<LatLngLiteral>(() => ({ lat: 38.0, lng: -98.0 }), []);
   const [selectedMarker, setSelectedMarker] = useState<MarkerType[]>([]);
   const [locationsCompare, setLocationsCompare] = useState<MarkerType[]>([]);
-  const [showComparePage, setShowComparePage] = useState(false); // New state variable
+  const [activeComponent, setActiveComponent] = useState<
+    "map" | "compare" | "historical_weather" | "route_planning" | "about"
+  >("map");
   const [isSearched, setIsSearched] = useState(false);
 
   const mapOptions = useMemo<MapOptions>(
@@ -161,7 +163,7 @@ export default function Map() {
     //If there are no more locations in the list, hide the compare page
     //console.log("locations in list", locationsCompare.length);
     if (locationsCompare.length === 1) {
-      setShowComparePage(false);
+      setActiveComponent("map");
     }
   }, []);
 
@@ -182,10 +184,6 @@ export default function Map() {
     });
   }, []);
 
-  const handleCompareButtonClick = useCallback(() => {
-    setShowComparePage((prevState) => !prevState);
-  }, []);
-
   return (
     <div className="app-container">
       <nav className="nav">
@@ -195,19 +193,56 @@ export default function Map() {
 
         <ul>
           <li>
-            <a href="index.html">Map</a>
+            <a
+              href="#"
+              onClick={() => {
+                setActiveComponent("map");
+              }}
+            >
+              Map
+            </a>
           </li>
           <li>
-            <a href="index.html">Compare</a>
+            <a
+              href="#"
+              onClick={() => {
+                if (locationsCompare.length > 0) {
+                  setActiveComponent("compare");
+                }
+              }}
+            >
+              Compare
+            </a>
           </li>
           <li>
-            <a href="index.html">Historical Weather</a>
+            <a
+              href="#"
+              onClick={() => {
+                setActiveComponent("historical_weather");
+              }}
+            >
+              Historical Weather
+            </a>
           </li>
           <li>
-            <a href="index.html">Route Planning</a>
+            <a
+              href="#"
+              onClick={() => {
+                setActiveComponent("route_planning");
+              }}
+            >
+              Route Planning
+            </a>
           </li>
           <li>
-            <a href="about.html">About</a>
+            <a
+              href="#"
+              onClick={() => {
+                setActiveComponent("about");
+              }}
+            >
+              About
+            </a>
           </li>
         </ul>
       </nav>
@@ -232,24 +267,35 @@ export default function Map() {
             </div>
           </div>
 
-          {locationsCompare.length === 0 ? (
-            <>
-              <p>Click a location on the map, then add to compare (up to 10)</p>
-            </>
-          ) : (
-            <button
-              className="compare-button"
-              onClick={handleCompareButtonClick}
-            >
-              {showComparePage ? "View Map" : "View Locations"}
-            </button>
-          )}
+          <div>
+            {locationsCompare.length === 0 ? (
+              <>
+                <p>
+                  Click a location on the map, then navigate to the comparison
+                  tab. Up to 10 locations can be compared at once.
+                </p>
+              </>
+            ) : (
+              <button
+                className="clear-locations-button"
+                onClick={() => {
+                  setLocationsCompare([]);
+                  setSelectedMarker([]);
+                  setActiveComponent("map");
+                }}
+              >
+                Clear Locations
+              </button>
+            )}
+          </div>
         </div>
 
         {/* Render ComparePage if showComparePage is true, else render map */}
-        {showComparePage && locationsCompare.length > 0 ? (
+        {activeComponent === "compare" && (
           <ComparePage locations={locationsCompare} />
-        ) : (
+        )}
+
+        {activeComponent === "map" && (
           <div className="map">
             <GoogleMap
               zoom={5}

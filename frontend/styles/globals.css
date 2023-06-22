@@ -42,10 +42,19 @@ a {
   text-align: center;
 }
 
-.nav li{
-  padding: 1rem;
+.nav ul{
+  padding-left: 50px;
   color: #ffffff;
   display: inline;
+  text-align: center;
+}
+
+.nav li{
+  padding: 10px;
+  color: #ffffff;
+  display: inline;
+  border: 0.5px solid #ffffff;
+  
 }
 
 .footer {
@@ -109,7 +118,7 @@ a {
 
 }
 
-.compare-button {
+.clear-locations-button {
   padding: 1rem;
   width: 50%;
 }
