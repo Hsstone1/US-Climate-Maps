@@ -264,7 +264,7 @@ def get_climate_avg_at_point(target_lat, target_lon, target_elevation, df_statio
     frost_free_normal_maxima = [(normal + maxima) / 2 for normal, maxima in zip(frost_free_normal, frost_free_maxima)]
     frost_free_maxima_extreme = [(maxima + extreme) / 2 for maxima, extreme in zip(frost_free_maxima, frost_free_extreme )]
     monthly_values['weighted_monthly_frost_free_days_avg'] = [.7 *frost_free_normal[i] + .2 *frost_free_maxima[i] + .01 *frost_free_extreme[i] + .05 *frost_free_normal_maxima[i] + .04*frost_free_maxima_extreme[i] for i in range(12)]
-    monthly_values['weighted_monthly_frost_free_days_avg'] = [1 if value > 0.98 else value**1.5 for value in monthly_values['weighted_monthly_frost_free_days_avg']]
+    monthly_values['weighted_monthly_frost_free_days_avg'] = [1 if value > 0.97 else value**1.5 for value in monthly_values['weighted_monthly_frost_free_days_avg']]
 
     monthly_values['weighted_monthly_humidity_avg'] = noaa_monthly_weighted_metrics['monthly_humidity_avg']
     
@@ -307,7 +307,7 @@ def get_climate_avg_at_point(target_lat, target_lon, target_elevation, df_statio
     monthly_values['weighted_monthly_apparent_temp_high'] = [calc_aparent_temp(T, RH, wind_speed) for T, RH, wind_speed in zip(monthly_values['weighted_monthly_high_avg'], monthly_values['weighted_monthly_dewpoint_avg'], monthly_values['weighted_monthly_wind_gust_avg'])]
     monthly_values['weighted_monthly_apparent_temp_low'] = [calc_aparent_temp(T, RH, wind_speed) for T, RH, wind_speed in zip(monthly_values['weighted_monthly_low_avg'], monthly_values['weighted_monthly_dewpoint_avg'], monthly_values['weighted_monthly_wind_gust_avg'])]
     monthly_values['weighted_monthly_apparent_temp_mean'] = [(high + low) / 2 for low, high in zip(monthly_values['weighted_monthly_apparent_temp_low'], monthly_values['weighted_monthly_apparent_temp_high'])]
-    monthly_values['monthly_sun_angle'] = [calc_sun_angle(target_lat, 2023, month+1, 21) for month in range(12)]
+    monthly_values['monthly_sun_angle'] = [calc_sun_angle(target_lat, 2023, month+1, 1) for month in range(12)]
     monthly_values['monthly_uv_index'] = [calc_uv_index(sun_angle, target_elevation, sunshine_percent) for sun_angle, sunshine_percent in zip(monthly_values['monthly_sun_angle'], monthly_values['weighted_monthly_sunshine_avg'])]
     monthly_values['monthly_comfort_index'] = [calc_comfort_index(T, DP, precip, wind, UV, sun_percent, aparent) for T, DP, precip, wind, UV, sun_percent, aparent in zip(monthly_values['weighted_monthly_mean_avg'], monthly_values['weighted_monthly_dewpoint_avg'], monthly_values['weighted_monthly_precip_avg'], monthly_values['weighted_monthly_wind_gust_avg'], monthly_values['monthly_uv_index'], monthly_values['weighted_monthly_sunshine_avg'], monthly_values['weighted_monthly_apparent_temp_mean'])]
 
@@ -349,3 +349,7 @@ def get_climate_avg_at_point(target_lat, target_lon, target_elevation, df_statio
     location_values['koppen'] = calc_koppen_climate(monthly_values['weighted_monthly_mean_avg'], monthly_values['weighted_monthly_precip_avg'])
     location_values['plant_hardiness'] = calc_plant_hardiness(annual_values['weighted_annual_mean_minimum'])
     return annual_values, monthly_values, location_values
+
+
+def get_climate_data_daily(lat, lng, target_elevation, df_stations_NOAA, start_date, end_date):
+    pass

@@ -18,7 +18,8 @@ export default function Map() {
   const [activeComponent, setActiveComponent] = useState<
     "map" | "compare" | "historical_weather" | "route_planning" | "about"
   >("map");
-  const [isSearched, setIsSearched] = useState(false);
+
+  const NUM_LOCATIONS = 8;
 
   const mapOptions = useMemo<MapOptions>(
     () => ({
@@ -115,14 +116,6 @@ export default function Map() {
 
                   handleCompareMarker(newMarker);
 
-                  // setIsSearched((prevIsSearched) => {
-                  //   if (prevIsSearched) {
-                  //     handleCompareMarker(newMarker);
-                  //     setIsSearched(false);
-                  //   }
-                  //   return prevIsSearched;
-                  // });
-
                   console.log(data);
                   console.log(
                     "Time difference:",
@@ -175,7 +168,7 @@ export default function Map() {
       );
 
       //If marker doesnt exist in location list, add it
-      if (!isMarkerExists && prevLocations.length < 10) {
+      if (!isMarkerExists && prevLocations.length < NUM_LOCATIONS) {
         return [...prevLocations, marker];
       }
 
@@ -251,7 +244,6 @@ export default function Map() {
         <div className="side-pannel">
           <SearchBar
             setMarker={(position) => {
-              setIsSearched(true);
               handleBackendMarkerData(position);
               mapRef.current?.panTo(position);
             }}
@@ -272,7 +264,7 @@ export default function Map() {
               <>
                 <p>
                   Click a location on the map, then navigate to the comparison
-                  tab. Up to 10 locations can be compared at once.
+                  tab. Up to {NUM_LOCATIONS} locations can be compared at once.
                 </p>
               </>
             ) : (
@@ -290,7 +282,6 @@ export default function Map() {
           </div>
         </div>
 
-        {/* Render ComparePage if showComparePage is true, else render map */}
         {activeComponent === "compare" && (
           <ComparePage locations={locationsCompare} />
         )}
@@ -309,13 +300,6 @@ export default function Map() {
                 <Marker
                   key={marker.id}
                   position={{ lat: marker.lat, lng: marker.lng }}
-                  onClick={() => {
-                    setSelectedMarker((prevMarkers) => [
-                      ...prevMarkers,
-                      marker,
-                    ]);
-                  }}
-                  visible={true}
                 >
                   <CustomInfoWindow
                     marker={marker}

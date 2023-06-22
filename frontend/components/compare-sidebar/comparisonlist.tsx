@@ -1,12 +1,6 @@
 import React, { useState } from "react";
 import { makeStyles } from "@material-ui/core/styles";
-import {
-  Card,
-  CardContent,
-  Typography,
-  IconButton,
-  ListItem,
-} from "@material-ui/core";
+import { Card, CardContent, Typography, IconButton } from "@material-ui/core";
 import { MarkerType, LocationColors } from "../export-props";
 import CloseIcon from "@material-ui/icons/Close";
 
@@ -55,7 +49,7 @@ export default function CompareLocationsList({
             key={card.id}
             style={{
               marginBottom: 4,
-              border: `4px solid ${LocationColors(0.5)[index]}`,
+              border: `3px solid ${LocationColors(1)[index]}`,
               padding: 0,
             }}
           >

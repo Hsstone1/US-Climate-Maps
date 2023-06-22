@@ -1,5 +1,16 @@
+import * as React from "react";
+import { styled } from "@mui/material/styles";
+import Table from "@mui/material/Table";
+import TableBody from "@mui/material/TableBody";
+import TableCell, { tableCellClasses } from "@mui/material/TableCell";
+import TableContainer from "@mui/material/TableContainer";
+import TableHead from "@mui/material/TableHead";
+import TableRow from "@mui/material/TableRow";
+import Paper from "@mui/material/Paper";
+
 import { MonthLabels } from "./comparepageprops";
-import { MarkerType } from "../export-props";
+import { LocationColors, MarkerType } from "../export-props";
+import Typography from "@mui/material/Typography";
 
 type ComparisonPageProps = {
   locations: MarkerType[];
@@ -9,6 +20,24 @@ type ComparisonPageProps = {
   decimalTrunc: number;
   units?: string;
 };
+
+const StyledTableCell = styled(TableCell)(() => ({
+  [`&.${tableCellClasses.head}`]: {
+    border: "1px solid black",
+    backgroundColor: "#303030",
+    padding: "2px",
+    margin: "0px",
+    textAlign: "center",
+    color: "#FFFFFF",
+  },
+  [`&.${tableCellClasses.body}`]: {
+    border: "1px solid black",
+    fontSize: 14,
+    padding: "2px",
+    margin: "0px",
+    textAlign: "center",
+  },
+}));
 
 const ClimateTable = ({
   locations,
@@ -32,49 +61,65 @@ const ClimateTable = ({
 
   return (
     <div>
-      <h4 style={{ textAlign: "center" }}>{heading}</h4>
-      <table style={{ borderCollapse: "collapse", width: "100%" }}>
-        <thead>
-          <tr>
-            <th style={{ border: "1px solid black" }}>Location</th>
-            {MonthLabels.map((month) => (
-              <th
-                key={month}
-                style={{ border: "1px solid black", textAlign: "center" }}
-              >
-                {month}
-              </th>
-            ))}
-            <th style={{ border: "1px solid black", textAlign: "center" }}>
-              Annual
-            </th>
-          </tr>
-        </thead>
-        <tbody>
-          {locations.map((location, index) => (
-            <tr key={location.data.location_data.location}>
-              <td style={{ border: "1px solid black", padding: "8px" }}>
-                {location.data.location_data.location}
-              </td>
-
-              {filteredMonthlyDataArr[index].map((value: number, i: number) => (
-                <td
-                  key={i}
+      <Typography
+        sx={{ flex: "1 1 100%" }}
+        variant="subtitle1"
+        component="div"
+        textAlign={"center"}
+      >
+        {heading}
+      </Typography>
+      <TableContainer component={Paper}>
+        <Table style={{ borderCollapse: "collapse" }}>
+          <TableHead>
+            <TableRow>
+              <StyledTableCell>Location</StyledTableCell>
+              {MonthLabels.map((month) => (
+                <StyledTableCell key={month}>{month}</StyledTableCell>
+              ))}
+              <StyledTableCell>Annual</StyledTableCell>
+            </TableRow>
+          </TableHead>
+          <TableBody>
+            {/* TODO the mui tables and colored square pass over the nav bar when scrolling */}
+            {locations.map((location, index) => (
+              <TableRow key={location.data.location_data.location}>
+                <StyledTableCell
                   style={{
-                    border: "1px solid black",
-                    textAlign: "center",
+                    whiteSpace: "nowrap",
+                    position: "relative",
+                    paddingLeft: "10px",
                   }}
                 >
-                  {value % 1 === 0 ? 0 : value.toFixed(decimalTrunc)}
-                </td>
-              ))}
-              <td style={{ border: "1px solid black", textAlign: "center" }}>
-                {filteredAnnualDataArr[index].toFixed(decimalTrunc) + units}
-              </td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
+                  <div
+                    style={{
+                      position: "absolute",
+                      top: "50%",
+                      transform: "translateY(-50%)",
+                      width: "10px",
+                      height: "10px",
+                      backgroundColor: LocationColors(1)[index],
+                    }}
+                  ></div>
+                  {location.data.location_data.location}
+                </StyledTableCell>
+
+                {filteredMonthlyDataArr[index].map(
+                  (value: number, i: number) => (
+                    <StyledTableCell key={i}>
+                      {value % 1 === 0 ? 0 : value.toFixed(decimalTrunc)}
+                    </StyledTableCell>
+                  )
+                )}
+                <StyledTableCell style={{ whiteSpace: "nowrap" }}>
+                  {filteredAnnualDataArr[index].toFixed(decimalTrunc) + units}
+                </StyledTableCell>
+              </TableRow>
+            ))}
+          </TableBody>
+        </Table>
+      </TableContainer>
+      <br />
     </div>
   );
 };

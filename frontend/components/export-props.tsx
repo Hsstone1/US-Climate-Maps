@@ -6,14 +6,14 @@ export type MarkerType = {
 };
 
 export const LocationColors = (alpha: number): string[] => [
-  `rgba(255, 0, 0, ${alpha})`,
-  `rgba(0, 158, 43, ${alpha})`,
-  `rgba(0, 0, 255, ${alpha})`,
-  `rgba(252, 186, 3, ${alpha})`,
-  `rgba(255, 0, 255, ${alpha})`,
-  `rgba(0, 255, 255, ${alpha})`,
-  `rgba(123, 45, 67, ${alpha})`,
-  `rgba(89, 234, 78, ${alpha})`,
-  `rgba(12, 56, 178, ${alpha})`,
-  `rgba(201, 89, 145, ${alpha})`,
+  `rgba(255, 65, 54, ${alpha})`,
+  `rgba(46, 204, 64, ${alpha})`,
+  `rgba(125, 60, 152, ${alpha})`,
+  `rgba(57, 204, 204, ${alpha})`,
+  `rgba(1, 63, 0, ${alpha})`,
+  `rgba(255, 220, 0, ${alpha})`,
+  `rgba(61, 90, 128, ${alpha})`,
+  `rgba(220, 20, 60, ${alpha})`,
+  `rgba(61, 153, 112, ${alpha})`,
+  `rgba(128, 0, 0, ${alpha})`,
 ];

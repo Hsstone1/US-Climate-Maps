@@ -116,14 +116,13 @@ export default function ClimateChart({ datasetProp }: ClimateChartProps) {
       filler: {
         propagate: true,
       },
-      hover: {
-        mode: "x",
-        delay: 100, // delay 100 milliseconds
-      },
+
       tooltip: {
-        mode: "x", // Set the tooltips mode to 'index' to display values for all datasets at the same index
-        intersect: true, // Allow tooltips to display values even if not at the center point
+        mode: "nearest",
+        axis: "x",
+        intersect: false,
       },
+
       datalabels: {
         align: "bottom",
         anchor: "center",

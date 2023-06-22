@@ -4,6 +4,7 @@ import { MarkerType, LocationColors } from "../export-props";
 import ClimateChart from "./climatechart";
 import Table from "./comparepagetable";
 import ClimateTablePaginate from "../climate-table/climatetablepaginate";
+import Typography from "@mui/material/Typography";
 
 type ComparisonPageProps = {
   locations: MarkerType[];
@@ -12,6 +13,8 @@ type ComparisonPageProps = {
 export default function ComparisonPage({ locations }: ComparisonPageProps) {
   const CHART_BORDER_WIDTH = 2;
   const LINE_TENSION = 0.35;
+  const LINE_ALPHA = 1;
+  const HEADING_VARIANT = "h5";
 
   // Append first index to end of array for chart
   function appendFirstIndexToEnd(data: number[]): number[] {
@@ -26,7 +29,7 @@ export default function ComparisonPage({ locations }: ComparisonPageProps) {
     const datasets: ClimateChartDataset[] = [];
 
     locations.forEach((location: MarkerType, index) => {
-      const color = LocationColors(0.7)[index];
+      const color = LocationColors(LINE_ALPHA)[index];
       const high_dataset: ClimateChartDataset = {
         type: "line",
         label: location.data.location_data.location,
@@ -49,8 +52,8 @@ export default function ComparisonPage({ locations }: ComparisonPageProps) {
         data: appendFirstIndexToEnd(
           location.data.monthly_data.monthly_apparent_high
         ),
-        backgroundColor: LocationColors(0.3)[index],
-        borderColor: LocationColors(0.3)[index],
+        backgroundColor: LocationColors(0.4)[index],
+        borderColor: LocationColors(0.4)[index],
         borderWidth: 1,
         pointRadius: 0,
         pointHoverRadius: 5,
@@ -79,8 +82,8 @@ export default function ComparisonPage({ locations }: ComparisonPageProps) {
         data: appendFirstIndexToEnd(
           location.data.monthly_data.monthly_apparent_low
         ),
-        backgroundColor: LocationColors(0.3)[index],
-        borderColor: LocationColors(0.3)[index],
+        backgroundColor: LocationColors(0.4)[index],
+        borderColor: LocationColors(0.4)[index],
         borderWidth: 1,
         pointRadius: 0,
         pointHoverRadius: 5,
@@ -100,7 +103,7 @@ export default function ComparisonPage({ locations }: ComparisonPageProps) {
   const precip_dataset = (locations: MarkerType[]): ClimateChartDataset[] => {
     const datasets: ClimateChartDataset[] = [];
     locations.forEach((location: MarkerType, index) => {
-      const color = LocationColors(0.7)[index];
+      const color = LocationColors(LINE_ALPHA)[index];
       const precip: ClimateChartDataset = {
         type: "line",
         label: location.data.location_data.location,
@@ -126,7 +129,7 @@ export default function ComparisonPage({ locations }: ComparisonPageProps) {
   const snow_dataset = (locations: MarkerType[]): ClimateChartDataset[] => {
     const datasets: ClimateChartDataset[] = [];
     locations.forEach((location: MarkerType, index) => {
-      const color = LocationColors(0.7)[index];
+      const color = LocationColors(LINE_ALPHA)[index];
       const snow_dataset: ClimateChartDataset = {
         type: "line",
         label: location.data.location_data.location,
@@ -152,7 +155,7 @@ export default function ComparisonPage({ locations }: ComparisonPageProps) {
   const sunshine_dataset = (locations: MarkerType[]): ClimateChartDataset[] => {
     const datasets: ClimateChartDataset[] = [];
     locations.forEach((location: MarkerType, index) => {
-      const color = LocationColors(0.7)[index];
+      const color = LocationColors(LINE_ALPHA)[index];
       const sunshine_dataset: ClimateChartDataset = {
         type: "line",
         label: location.data.location_data.location,
@@ -180,7 +183,7 @@ export default function ComparisonPage({ locations }: ComparisonPageProps) {
   ): ClimateChartDataset[] => {
     const datasets: ClimateChartDataset[] = [];
     locations.forEach((location: MarkerType, index) => {
-      const color = LocationColors(0.7)[index];
+      const color = LocationColors(LINE_ALPHA)[index];
       const sun_angle: ClimateChartDataset = {
         type: "line",
         label: location.data.location_data.location,
@@ -206,7 +209,7 @@ export default function ComparisonPage({ locations }: ComparisonPageProps) {
   const humidityDataset = (locations: MarkerType[]): ClimateChartDataset[] => {
     const datasets: ClimateChartDataset[] = [];
     locations.forEach((location: MarkerType, index) => {
-      const color = LocationColors(0.7)[index];
+      const color = LocationColors(LINE_ALPHA)[index];
       const humidity_dataset: ClimateChartDataset = {
         type: "line",
         label: location.data.location_data.location,
@@ -232,7 +235,7 @@ export default function ComparisonPage({ locations }: ComparisonPageProps) {
   const windDataset = (locations: MarkerType[]): ClimateChartDataset[] => {
     const datasets: ClimateChartDataset[] = [];
     locations.forEach((location: MarkerType, index) => {
-      const color = LocationColors(0.7)[index];
+      const color = LocationColors(LINE_ALPHA)[index];
       const wind_dataset: ClimateChartDataset = {
         type: "line",
         label: location.data.location_data.location,
@@ -258,7 +261,7 @@ export default function ComparisonPage({ locations }: ComparisonPageProps) {
   const comfortDataset = (locations: MarkerType[]): ClimateChartDataset[] => {
     const datasets: ClimateChartDataset[] = [];
     locations.forEach((location: MarkerType, index) => {
-      const color = LocationColors(0.7)[index];
+      const color = LocationColors(LINE_ALPHA)[index];
       const comfort_index_dataset: ClimateChartDataset = {
         type: "line",
         label: location.data.location_data.location,
@@ -284,7 +287,7 @@ export default function ComparisonPage({ locations }: ComparisonPageProps) {
   const growingDataset = (locations: MarkerType[]): ClimateChartDataset[] => {
     const datasets: ClimateChartDataset[] = [];
     locations.forEach((location: MarkerType, index) => {
-      const color = LocationColors(0.7)[index];
+      const color = LocationColors(LINE_ALPHA)[index];
       const frostfree_dataset: ClimateChartDataset = {
         type: "line",
         label: location.data.location_data.location,
@@ -316,23 +319,25 @@ export default function ComparisonPage({ locations }: ComparisonPageProps) {
           </h3>
         ) : (
           <div className="compare_chart-div">
-            {
-              <ClimateTablePaginate
-                locations={locations}
-              ></ClimateTablePaginate>
-            }
+            <ClimateTablePaginate locations={locations}></ClimateTablePaginate>
 
-            <h3 style={{ textAlign: "center" }}>
+            <br />
+            <Typography
+              sx={{ flex: "1 1 100%" }}
+              variant={HEADING_VARIANT}
+              component="div"
+              textAlign={"center"}
+            >
               Yearly High and Low Temperatures
-            </h3>
+            </Typography>
+
             <ClimateChart
               datasetProp={temperature_dataset(locations)}
             ></ClimateChart>
             <p style={{ textAlign: "center" }}>
-              Average high and low temperatures for each month. The average
-              expected maximumum and miniminum temperaturees for each month are
-              displayed in the table. The record high and low is provided in the
-              annual column.
+              Average monthly high and low temperatures for each location. The
+              thinner line represents the average monthly apparent temperature,
+              which can change based on humidity and wind speed.
             </p>
             <div>
               <Table
@@ -344,8 +349,6 @@ export default function ComparisonPage({ locations }: ComparisonPageProps) {
                 units={" °F"}
               ></Table>
 
-              <br />
-
               <Table
                 locations={locations}
                 heading="Mean Minimum Temperature (°F)"
@@ -356,9 +359,20 @@ export default function ComparisonPage({ locations }: ComparisonPageProps) {
               ></Table>
             </div>
             <br />
+            <br />
             <hr />
             <br />
-            <h3 style={{ textAlign: "center" }}>Yearly Rainfall</h3>
+            <br />
+
+            <Typography
+              sx={{ flex: "1 1 100%" }}
+              variant={HEADING_VARIANT}
+              component="div"
+              textAlign={"center"}
+            >
+              Yearly Rainfall
+            </Typography>
+
             <ClimateChart
               datasetProp={precip_dataset(locations)}
             ></ClimateChart>
@@ -378,11 +392,19 @@ export default function ComparisonPage({ locations }: ComparisonPageProps) {
                 units={" days"}
               ></Table>
             </div>
-
+            <br />
             <br />
             <hr />
             <br />
-            <h3 style={{ textAlign: "center" }}>Yearly Snowfall</h3>
+            <br />
+            <Typography
+              sx={{ flex: "1 1 100%" }}
+              variant={HEADING_VARIANT}
+              component="div"
+              textAlign={"center"}
+            >
+              Yearly Snowfall
+            </Typography>
             <ClimateChart datasetProp={snow_dataset(locations)}></ClimateChart>
             <p style={{ textAlign: "center" }}>
               Snowfall in inches for each month. The total number of snowy days
@@ -403,9 +425,18 @@ export default function ComparisonPage({ locations }: ComparisonPageProps) {
             </div>
 
             <br />
+            <br />
             <hr />
             <br />
-            <h3 style={{ textAlign: "center" }}>Yearly Sunshine</h3>
+            <br />
+            <Typography
+              sx={{ flex: "1 1 100%" }}
+              variant={HEADING_VARIANT}
+              component="div"
+              textAlign={"center"}
+            >
+              Yearly Sunshine
+            </Typography>
             <ClimateChart
               datasetProp={sunshine_dataset(locations)}
             ></ClimateChart>
@@ -428,9 +459,18 @@ export default function ComparisonPage({ locations }: ComparisonPageProps) {
             </div>
 
             <br />
+            <br />
             <hr />
             <br />
-            <h3 style={{ textAlign: "center" }}>Yearly Sun Angle</h3>
+            <br />
+            <Typography
+              sx={{ flex: "1 1 100%" }}
+              variant={HEADING_VARIANT}
+              component="div"
+              textAlign={"center"}
+            >
+              Yearly Sun Angle
+            </Typography>
             <ClimateChart
               datasetProp={sun_angle_dataset(locations)}
             ></ClimateChart>
@@ -453,11 +493,19 @@ export default function ComparisonPage({ locations }: ComparisonPageProps) {
             </div>
 
             <br />
+            <br />
             <hr />
             <br />
-            <h3 style={{ textAlign: "center" }}>
+            <br />
+            <Typography
+              sx={{ flex: "1 1 100%" }}
+              variant={HEADING_VARIANT}
+              component="div"
+              textAlign={"center"}
+            >
               Yearly Dewpoint and Humidity
-            </h3>
+            </Typography>
+
             <ClimateChart
               datasetProp={humidityDataset(locations)}
             ></ClimateChart>
@@ -482,9 +530,18 @@ export default function ComparisonPage({ locations }: ComparisonPageProps) {
             </div>
 
             <br />
+            <br />
             <hr />
             <br />
-            <h3 style={{ textAlign: "center" }}>Yearly Wind Speed</h3>
+            <br />
+            <Typography
+              sx={{ flex: "1 1 100%" }}
+              variant={HEADING_VARIANT}
+              component="div"
+              textAlign={"center"}
+            >
+              Yearly Wind Speed
+            </Typography>
             <ClimateChart datasetProp={windDataset(locations)}></ClimateChart>
             <p style={{ textAlign: "center" }}>
               Average wind speed for each month. The table contains the average
@@ -504,10 +561,18 @@ export default function ComparisonPage({ locations }: ComparisonPageProps) {
             </div>
 
             <br />
+            <br />
             <hr />
             <br />
-
-            <h3 style={{ textAlign: "center" }}>Yearly Comfort Rating</h3>
+            <br />
+            <Typography
+              sx={{ flex: "1 1 100%" }}
+              variant={HEADING_VARIANT}
+              component="div"
+              textAlign={"center"}
+            >
+              Yearly Comfort Rating
+            </Typography>
             <ClimateChart
               datasetProp={comfortDataset(locations)}
             ></ClimateChart>
@@ -531,10 +596,18 @@ export default function ComparisonPage({ locations }: ComparisonPageProps) {
             </div>
 
             <br />
+            <br />
             <hr />
             <br />
-
-            <h3 style={{ textAlign: "center" }}>Yearly Growing Season</h3>
+            <br />
+            <Typography
+              sx={{ flex: "1 1 100%" }}
+              variant={HEADING_VARIANT}
+              component="div"
+              textAlign={"center"}
+            >
+              Yearly Growing Season
+            </Typography>
             <ClimateChart
               datasetProp={growingDataset(locations)}
             ></ClimateChart>

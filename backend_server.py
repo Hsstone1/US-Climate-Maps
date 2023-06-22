@@ -1,5 +1,5 @@
 from flask import Flask, request, jsonify
-from climate_point_interpolation import get_climate_avg_at_point
+from climate_point_interpolation import get_climate_avg_at_point, get_climate_data_daily
 from read_from_csv_to_dataframe import put_NOAA_csvs_name_into_df
 import pandas as pd
 import time
@@ -9,8 +9,8 @@ from geopy.geocoders import Nominatim
 app = Flask(__name__) 
 CORS(app)
 
-df_stations_NWS = pd.read_csv('lat_lon_identifier_elev_name.csv')
-df_stations_NOAA = put_NOAA_csvs_name_into_df()
+df_stations_NWS_names = pd.read_csv('lat_lon_identifier_elev_name.csv')
+df_stations_NOAA_names = put_NOAA_csvs_name_into_df()
 
 @app.route('/climate_data', methods=["POST"])
 def climate_data():
@@ -25,7 +25,7 @@ def climate_data():
     # Process the latitude and longitude values and retrieve the necessary data
     start_time = time.time()  # Start timer
 
-    annual_data, monthly_data, location_data = get_climate_avg_at_point(latitude, longitude, elevation, df_stations_NWS, df_stations_NOAA)
+    annual_data, monthly_data, location_data = get_climate_avg_at_point(latitude, longitude, elevation, df_stations_NWS_names, df_stations_NOAA_names)
     print("Backend Server Elapsed Time:", time.time() - start_time, "seconds")
     
 
@@ -115,6 +115,32 @@ def climate_data():
     #print(data)
     return jsonify(data)
 
+
+@app.route('/climate_data_daily', methods=["POST"])
+def climate_data_daily():
+    # Get the data from the POST request.
+    data = request.get_json()
+    if 'latitude' in data and 'longitude' in data and 'elevation' in data and 'start_date' in data and 'end_date' in data:
+        latitude = data['latitude']
+        longitude = data['longitude']
+        elevation = data['elevation']
+        start_date = data['start_date']
+        end_date = data['end_date']
+
+    #print(lat, lng, start_date, end_date)
+
+    # Get the climate data
+    climate_data = get_climate_data_daily(latitude, longitude, elevation, df_stations_NOAA_names, start_date, end_date)
+    #print(climate_data)
+
+    # Create a response containing the data to be sent back to the JavaScript code
+    data = {
+        'climate_data': climate_data,
+    }
+
+    # Return the response as JSON
+    #print(data)
+    return jsonify(data)
 
 
 if __name__ == '__main__':
