@@ -15,6 +15,8 @@ The NWS stations are used largely to get sunlight data.
 '''
 def get_climate_avg_at_point(target_lat, target_lon, target_elevation, df_stations_NWS, df_stations_NOAA):
     
+
+
     # Get closest points to coordinate
     closest_points_NWS = nearest_coordinates_to_point_NWS(target_lat, target_lon, df_stations_NWS)
     closest_points_NOAA = nearest_coordinates_to_point_NOAA(target_lat, target_lon, df_stations_NOAA)
@@ -95,8 +97,8 @@ def get_climate_avg_at_point(target_lat, target_lon, target_elevation, df_statio
     for station in closest_points_NOAA:
         # Correctly reassemble file name from closest points parameters
         file_name = station[2] + "_" + str(station[0]) + "_" + str(station[1]) + "_" + str(round(station[3])) + "_" + station[4] + ".csv"
-        df = get_NOAA_csv_content(file_name, '1980-01-01', '2022-12-31')
-
+        df = get_NOAA_csv_content(file_name, '1980-01-01', '2023-01-01')
+        
         #Units are in tenths of degrees C, so divide by 9/50 instead of 9/5
         
         months_arr = {
@@ -135,8 +137,7 @@ def get_climate_avg_at_point(target_lat, target_lon, target_elevation, df_statio
             months_arr['snow_avg'].append((month_df["SNOW"].mean() / 25.4 * num_days) if not pd.isna(month_df["SNOW"].mean()) else 0)
             months_arr['precip_days_avg'].append(round((month_df.loc[month_df['PRCP'] > 25.4, 'PRCP'].count() / num_days),0))
             months_arr['snow_days_avg'].append(round((month_df.loc[month_df['SNOW'] > 0.1, 'SNOW'].count() / num_days),0))
-
-
+            
 
             # Value is squared to simulate the increased risk of frost when the value count
             # has some values bellow 0
@@ -144,6 +145,14 @@ def get_climate_avg_at_point(target_lat, target_lon, target_elevation, df_statio
             frost_free_days = num_days_above_freezing = 0 if num_days_above_freezing < 0.15 else 1 if num_days_above_freezing > 0.85 else num_days_above_freezing
             frost_free_days = frost_free_days ** 2 
             months_arr['frost_free_days_avg'].append(frost_free_days)
+
+            #TODO this is where I can add the daily data for each month
+            #print(month_df['DATE'])
+            #for day in range(1, num_days + 1):
+                #day_df = month_df[month_df['DATE'].dt.day == day]
+                #print(day_df)
+            
+
         
 
     
