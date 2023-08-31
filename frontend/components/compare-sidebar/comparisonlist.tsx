@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React from "react";
 import { makeStyles } from "@material-ui/core/styles";
 import { Card, CardContent, Typography, IconButton } from "@material-ui/core";
 import { MarkerType, LocationColors } from "../export-props";
@@ -10,19 +10,26 @@ type LocationListProps = {
 };
 
 const useStyles = makeStyles({
-  root: {
-    margin: "0 auto",
-    //border: "1px solid #000000",
-  },
   card: {
-    display: "flex",
-    justifyContent: "space-between",
-    alignItems: "center",
-    height: "50px",
+    display: "inline-block", // Display cards inline
+    marginRight: "10px", // Add some spacing between cards
+    borderBottom: "4px solid", // Add border to the card
+    width: "200px", // Set the max-width of the card
+    height: "40px", // Set the max-height of the card
+    padding: 0, // Remove internal padding
+    borderRadius: 0, // Remove border radius
   },
-  scrollableList: {
-    height: "60vh",
-    overflow: "auto",
+  cardContent: {
+    display: "flex",
+    alignItems: "center",
+    padding: "4px 8px", // Adjust padding as needed
+  },
+  typography: {
+    margin: 0, // Remove margin from Typography
+    flexGrow: 1, // Allow text to take available space
+  },
+  iconButton: {
+    padding: "4px", // Adjust padding as needed
   },
 });
 
@@ -32,64 +39,34 @@ export default function CompareLocationsList({
 }: LocationListProps) {
   const classes = useStyles();
 
-  // Round to a specific number of decimal places
-  const truncDec = (location: number, numDec: number = 0): string => {
-    return location.toFixed(numDec);
-  };
-
   const handleRemoveLocation = (marker: MarkerType) => {
     onRemoveLocation(marker);
   };
 
   return (
-    <div className={classes.root}>
-      <div className={classes.scrollableList}>
-        {locations.map((card, index) => (
-          <Card
-            key={card.id}
-            style={{
-              marginBottom: 4,
-              border: `4px solid ${LocationColors(1)[index]}`,
-              padding: 0,
-            }}
-          >
-            <CardContent>
-              <div style={{ display: "flex", alignItems: "center" }}>
-                <div
-                  style={{
-                    flex: 1,
-                    overflow: "hidden",
-                    whiteSpace: "nowrap", // Prevent line breaks
-                    textOverflow: "ellipsis",
-                  }}
-                >
-                  <Typography
-                    variant="body2"
-                    style={{
-                      overflow: "hidden",
-                      whiteSpace: "nowrap", // Prevent line breaks
-                      textOverflow: "ellipsis", // Display ellipsis (...) for overflow
-                    }}
-                  >
-                    {card.data.location_data.location}
-                  </Typography>
-                  <Typography variant="body2">{`${truncDec(
-                    card.data.location_data.elevation
-                  )} ft`}</Typography>
-                </div>
-                <IconButton
-                  aria-label="Remove"
-                  size="small"
-                  onClick={() => handleRemoveLocation(card)}
-                  style={{ margin: "auto" }}
-                >
-                  <CloseIcon />
-                </IconButton>
-              </div>
-            </CardContent>
-          </Card>
-        ))}
-      </div>
+    <div>
+      {locations.map((card, index) => (
+        <Card
+          key={card.id}
+          className={classes.card}
+          style={{ borderColor: LocationColors(1)[index] }}
+        >
+          <CardContent className={classes.cardContent}>
+            <Typography variant="body2" noWrap className={classes.typography}>
+              {card.data.location_data.location}
+            </Typography>
+
+            <IconButton
+              aria-label="Remove"
+              size="small"
+              onClick={() => handleRemoveLocation(card)}
+              className={classes.iconButton}
+            >
+              <CloseIcon />
+            </IconButton>
+          </CardContent>
+        </Card>
+      ))}
     </div>
   );
 }

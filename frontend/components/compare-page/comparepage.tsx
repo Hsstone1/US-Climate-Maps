@@ -327,341 +327,348 @@ export default function ComparisonPage({ locations }: ComparisonPageProps) {
             Add a location to view a comparison.
           </h3>
         ) : (
-          <div className="compare_chart-div">
-            <ClimateTablePaginate locations={locations}></ClimateTablePaginate>
-
-            <br />
-            <Typography
-              sx={{ flex: "1 1 100%" }}
-              variant={HEADING_VARIANT}
-              component="div"
-              textAlign={"center"}
-            >
-              Yearly High and Low Temperatures
-            </Typography>
-
-            <ClimateChart
-              datasetProp={temperature_dataset(locations)}
-              units={"°F"}
-            ></ClimateChart>
-            <p style={{ textAlign: "center" }}>
-              Average monthly high and low temperatures for each location. The
-              dashed line represents the average monthly apparent temperature,
-              which can change based on humidity and wind speed.
-            </p>
-            <div>
-              <Table
+          <div>
+            <div className="compare_climate_table-div">
+              <ClimateTablePaginate
                 locations={locations}
-                heading="Mean Maximum Temperature (°F)"
-                monthlyDataStr={"monthly_mean_maximum"}
-                annualDataStr={"annual_record_high"}
-                decimalTrunc={0}
-                units={" °F"}
-              ></Table>
-
-              <Table
-                locations={locations}
-                heading="Mean Minimum Temperature (°F)"
-                monthlyDataStr={"monthly_mean_minimum"}
-                annualDataStr={"annual_record_low"}
-                decimalTrunc={0}
-                units={" °F"}
-              ></Table>
-            </div>
-            <br />
-            <br />
-            <hr />
-            <br />
-            <br />
-
-            <Typography
-              sx={{ flex: "1 1 100%" }}
-              variant={HEADING_VARIANT}
-              component="div"
-              textAlign={"center"}
-            >
-              Yearly Rainfall
-            </Typography>
-
-            <ClimateChart
-              datasetProp={precip_dataset(locations)}
-              units={"in"}
-            ></ClimateChart>
-            <p style={{ textAlign: "center" }}>
-              Rainfall in inches for each month. The total number of rainy days
-              expected for each month, along with the annual total are displayed
-              in the table. A rainy day is counted if there is more than 0.01
-              inches of accumulation.
-            </p>
-            <div>
-              <Table
-                locations={locations}
-                heading="Total Rainy Days"
-                monthlyDataStr={"monthly_precip_days_avg"}
-                annualDataStr={"annual_precip_days_avg"}
-                decimalTrunc={1}
-                units={" days"}
-              ></Table>
-            </div>
-            <br />
-            <br />
-            <hr />
-            <br />
-            <br />
-            <Typography
-              sx={{ flex: "1 1 100%" }}
-              variant={HEADING_VARIANT}
-              component="div"
-              textAlign={"center"}
-            >
-              Yearly Snowfall
-            </Typography>
-            <ClimateChart
-              datasetProp={snow_dataset(locations)}
-              units={"in"}
-            ></ClimateChart>
-            <p style={{ textAlign: "center" }}>
-              Snowfall in inches for each month. The total number of snowy days
-              expected for each month, along with the annual total are displayed
-              in the table. A snowy day is counted if there is more than 0.1
-              inches of accumulation.
-            </p>
-
-            <div>
-              <Table
-                locations={locations}
-                heading="Total Snowy Days"
-                monthlyDataStr={"monthly_snow_days_avg"}
-                annualDataStr={"annual_snow_days_avg"}
-                decimalTrunc={1}
-                units={" days"}
-              ></Table>
+              ></ClimateTablePaginate>
             </div>
 
-            <br />
-            <br />
-            <hr />
-            <br />
-            <br />
-            <Typography
-              sx={{ flex: "1 1 100%" }}
-              variant={HEADING_VARIANT}
-              component="div"
-              textAlign={"center"}
-            >
-              Yearly Sunshine
-            </Typography>
-            <ClimateChart
-              datasetProp={sunshine_dataset(locations)}
-              units={"%"}
-              adjustUnitsByVal={100}
-            ></ClimateChart>
-            <p style={{ textAlign: "center" }}>
-              Percent possible sunshine for each month. The total number of
-              sunny days expected for each month, along with the annual total
-              are displayed in the table. A sunny day is counted if the sun is
-              out more than 30% of each day.
-            </p>
+            <div className="compare_chart-div">
+              <br />
+              <Typography
+                sx={{ flex: "1 1 100%" }}
+                variant={HEADING_VARIANT}
+                component="div"
+                textAlign={"center"}
+              >
+                Yearly High and Low Temperatures
+              </Typography>
 
-            <div>
-              <Table
-                locations={locations}
-                heading="Total Sunny Days"
-                monthlyDataStr={"monthly_sunshine_days_avg"}
-                annualDataStr={"annual_sunshine_days_avg"}
-                decimalTrunc={0}
-                units={" days"}
-              ></Table>
-            </div>
+              <ClimateChart
+                datasetProp={temperature_dataset(locations)}
+                units={"°F"}
+              ></ClimateChart>
+              <p style={{ textAlign: "center" }}>
+                Average monthly high and low temperatures for each location. The
+                dashed line represents the average monthly apparent temperature,
+                which can change based on humidity and wind speed.
+              </p>
+              <div>
+                <Table
+                  locations={locations}
+                  heading="Mean Maximum Temperature (°F)"
+                  monthlyDataStr={"monthly_mean_maximum"}
+                  annualDataStr={"annual_record_high"}
+                  decimalTrunc={0}
+                  units={" °F"}
+                ></Table>
 
-            <br />
-            <br />
-            <hr />
-            <br />
-            <br />
-            <Typography
-              sx={{ flex: "1 1 100%" }}
-              variant={HEADING_VARIANT}
-              component="div"
-              textAlign={"center"}
-            >
-              Yearly Sun Angle
-            </Typography>
-            <ClimateChart
-              datasetProp={sun_angle_dataset(locations)}
-              units={"°"}
-            ></ClimateChart>
-            <p style={{ textAlign: "center" }}>
-              Average sun angle for each month. The sun angle is the angle of
-              the sun above the horizon, measured at the highest point in the
-              day. The table contains the average sun angle for each month. The
-              sun angle is highest in the summer and lowest in the winter.
-            </p>
+                <Table
+                  locations={locations}
+                  heading="Mean Minimum Temperature (°F)"
+                  monthlyDataStr={"monthly_mean_minimum"}
+                  annualDataStr={"annual_record_low"}
+                  decimalTrunc={0}
+                  units={" °F"}
+                ></Table>
+              </div>
+              <br />
+              <br />
+              <hr />
+              <br />
+              <br />
 
-            <div>
-              <Table
-                locations={locations}
-                heading="Monthly Sun Angle"
-                monthlyDataStr={"monthly_sun_angle"}
-                annualDataStr={"annual_sun_angle_avg"}
-                decimalTrunc={1}
+              <Typography
+                sx={{ flex: "1 1 100%" }}
+                variant={HEADING_VARIANT}
+                component="div"
+                textAlign={"center"}
+              >
+                Yearly Rainfall
+              </Typography>
+
+              <ClimateChart
+                datasetProp={precip_dataset(locations)}
+                units={"in"}
+              ></ClimateChart>
+              <p style={{ textAlign: "center" }}>
+                Rainfall in inches for each month. The total number of rainy
+                days expected for each month, along with the annual total are
+                displayed in the table. A rainy day is counted if there is more
+                than 0.01 inches of accumulation.
+              </p>
+              <div>
+                <Table
+                  locations={locations}
+                  heading="Total Rainy Days"
+                  monthlyDataStr={"monthly_precip_days_avg"}
+                  annualDataStr={"annual_precip_days_avg"}
+                  decimalTrunc={1}
+                  units={" days"}
+                ></Table>
+              </div>
+              <br />
+              <br />
+              <hr />
+              <br />
+              <br />
+              <Typography
+                sx={{ flex: "1 1 100%" }}
+                variant={HEADING_VARIANT}
+                component="div"
+                textAlign={"center"}
+              >
+                Yearly Snowfall
+              </Typography>
+              <ClimateChart
+                datasetProp={snow_dataset(locations)}
+                units={"in"}
+              ></ClimateChart>
+              <p style={{ textAlign: "center" }}>
+                Snowfall in inches for each month. The total number of snowy
+                days expected for each month, along with the annual total are
+                displayed in the table. A snowy day is counted if there is more
+                than 0.1 inches of accumulation.
+              </p>
+
+              <div>
+                <Table
+                  locations={locations}
+                  heading="Total Snowy Days"
+                  monthlyDataStr={"monthly_snow_days_avg"}
+                  annualDataStr={"annual_snow_days_avg"}
+                  decimalTrunc={1}
+                  units={" days"}
+                ></Table>
+              </div>
+
+              <br />
+              <br />
+              <hr />
+              <br />
+              <br />
+              <Typography
+                sx={{ flex: "1 1 100%" }}
+                variant={HEADING_VARIANT}
+                component="div"
+                textAlign={"center"}
+              >
+                Yearly Sunshine
+              </Typography>
+              <ClimateChart
+                datasetProp={sunshine_dataset(locations)}
+                units={"%"}
+                adjustUnitsByVal={100}
+              ></ClimateChart>
+              <p style={{ textAlign: "center" }}>
+                Percent possible sunshine for each month. The total number of
+                sunny days expected for each month, along with the annual total
+                are displayed in the table. A sunny day is counted if the sun is
+                out more than 30% of each day.
+              </p>
+
+              <div>
+                <Table
+                  locations={locations}
+                  heading="Total Sunny Days"
+                  monthlyDataStr={"monthly_sunshine_days_avg"}
+                  annualDataStr={"annual_sunshine_days_avg"}
+                  decimalTrunc={0}
+                  units={" days"}
+                ></Table>
+              </div>
+
+              <br />
+              <br />
+              <hr />
+              <br />
+              <br />
+              <Typography
+                sx={{ flex: "1 1 100%" }}
+                variant={HEADING_VARIANT}
+                component="div"
+                textAlign={"center"}
+              >
+                Yearly Sun Angle
+              </Typography>
+              <ClimateChart
+                datasetProp={sun_angle_dataset(locations)}
                 units={"°"}
-              ></Table>
+              ></ClimateChart>
+              <p style={{ textAlign: "center" }}>
+                Average sun angle for each month. The sun angle is the angle of
+                the sun above the horizon, measured at the highest point in the
+                day. The table contains the average sun angle for each month.
+                The sun angle is highest in the summer and lowest in the winter.
+              </p>
+
+              <div>
+                <Table
+                  locations={locations}
+                  heading="Monthly Sun Angle"
+                  monthlyDataStr={"monthly_sun_angle"}
+                  annualDataStr={"annual_sun_angle_avg"}
+                  decimalTrunc={1}
+                  units={"°"}
+                ></Table>
+              </div>
+
+              <br />
+              <br />
+              <hr />
+              <br />
+              <br />
+              <Typography
+                sx={{ flex: "1 1 100%" }}
+                variant={HEADING_VARIANT}
+                component="div"
+                textAlign={"center"}
+              >
+                Yearly Dewpoint and Humidity
+              </Typography>
+
+              <ClimateChart
+                datasetProp={humidityDataset(locations)}
+                units={"%"}
+              ></ClimateChart>
+              <p style={{ textAlign: "center" }}>
+                Average humidity percentage for each month. The table contains
+                the average dewpoint for each month. The dewpoint is a measure
+                of absolute humidity in the air, rather than the relative
+                humidity percentage which changes with temperature. Dewpoint
+                values bellow 50 degrees are plesant, around 60 degrees begins
+                to feel humid, 70 degrees is very muggy, and above 75 is
+                extremely humid.
+              </p>
+
+              <div>
+                <Table
+                  locations={locations}
+                  heading="Average Dewpoint (°F)"
+                  monthlyDataStr={"monthly_dewpoint_avg"}
+                  annualDataStr={"annual_dewpoint_avg"}
+                  decimalTrunc={0}
+                  units={" °F"}
+                ></Table>
+              </div>
+
+              <br />
+              <br />
+              <hr />
+              <br />
+              <br />
+              <Typography
+                sx={{ flex: "1 1 100%" }}
+                variant={HEADING_VARIANT}
+                component="div"
+                textAlign={"center"}
+              >
+                Yearly Wind Speed
+              </Typography>
+              <ClimateChart
+                datasetProp={windDataset(locations)}
+                units={"mph"}
+              ></ClimateChart>
+              <p style={{ textAlign: "center" }}>
+                Average wind speed for each month. The table contains the
+                average wind speed for each month. The wind speed is measured in
+                miles per hour.
+              </p>
+
+              <div>
+                <Table
+                  locations={locations}
+                  heading="Highest Expected Daily Wind Speed"
+                  monthlyDataStr={"monthly_wind_gust_peak"}
+                  annualDataStr={"annual_wind_gust_peak"}
+                  decimalTrunc={0}
+                  units={" mph"}
+                ></Table>
+              </div>
+
+              <br />
+              <br />
+              <hr />
+              <br />
+              <br />
+              <Typography
+                sx={{ flex: "1 1 100%" }}
+                variant={HEADING_VARIANT}
+                component="div"
+                textAlign={"center"}
+              >
+                Yearly Comfort Rating
+              </Typography>
+              <ClimateChart
+                datasetProp={comfortDataset(locations)}
+              ></ClimateChart>
+              <p style={{ textAlign: "center" }}>
+                Average comfort rating for each month. The table contains the
+                average comfort rating for each month. The comfort rating is a
+                function of temperature, humidity, cloudiness, UV index, and
+                wind speed. The higher the comfort rating, the more comfortable
+                the weather is. A comfort rating lower than 30 is very harsh,
+                and largely unsuitable for human life.
+              </p>
+
+              <div>
+                <Table
+                  locations={locations}
+                  heading="Monthly Comfort Rating"
+                  monthlyDataStr={"monthly_comfort_index"}
+                  annualDataStr={"annual_comfort_index"}
+                  decimalTrunc={0}
+                ></Table>
+              </div>
+
+              <br />
+              <br />
+              <hr />
+              <br />
+              <br />
+              <Typography
+                sx={{ flex: "1 1 100%" }}
+                variant={HEADING_VARIANT}
+                component="div"
+                textAlign={"center"}
+              >
+                Yearly Growing Season
+              </Typography>
+              <ClimateChart
+                datasetProp={growingDataset(locations)}
+                units={"%"}
+                adjustUnitsByVal={100}
+              ></ClimateChart>
+              <p style={{ textAlign: "center" }}>
+                Average frost free growing season. The table contains the
+                monthly Cooling Degree Days (CDD) and Heating Degree Days (HDD),
+                which is a function of average temperatures for the day bellow
+                and above 65 degrees, respectively.
+              </p>
+
+              <div>
+                <Table
+                  locations={locations}
+                  heading="Cooling Degree Days (CDD)"
+                  monthlyDataStr={"monthly_CDD_avg"}
+                  annualDataStr={"annual_CDD_avg"}
+                  decimalTrunc={0}
+                  units={""}
+                ></Table>
+
+                <Table
+                  locations={locations}
+                  heading="Heating Degree Days (HDD)"
+                  monthlyDataStr={"monthly_HDD_avg"}
+                  annualDataStr={"annual_HDD_avg"}
+                  decimalTrunc={0}
+                  units={""}
+                ></Table>
+              </div>
+              <br />
+              <br />
             </div>
-
-            <br />
-            <br />
-            <hr />
-            <br />
-            <br />
-            <Typography
-              sx={{ flex: "1 1 100%" }}
-              variant={HEADING_VARIANT}
-              component="div"
-              textAlign={"center"}
-            >
-              Yearly Dewpoint and Humidity
-            </Typography>
-
-            <ClimateChart
-              datasetProp={humidityDataset(locations)}
-              units={"%"}
-            ></ClimateChart>
-            <p style={{ textAlign: "center" }}>
-              Average humidity percentage for each month. The table contains the
-              average dewpoint for each month. The dewpoint is a measure of
-              absolute humidity in the air, rather than the relative humidity
-              percentage which changes with temperature. Dewpoint values bellow
-              50 degrees are plesant, around 60 degrees begins to feel humid, 70
-              degrees is very muggy, and above 75 is extremely humid.
-            </p>
-
-            <div>
-              <Table
-                locations={locations}
-                heading="Average Dewpoint (°F)"
-                monthlyDataStr={"monthly_dewpoint_avg"}
-                annualDataStr={"annual_dewpoint_avg"}
-                decimalTrunc={0}
-                units={" °F"}
-              ></Table>
-            </div>
-
-            <br />
-            <br />
-            <hr />
-            <br />
-            <br />
-            <Typography
-              sx={{ flex: "1 1 100%" }}
-              variant={HEADING_VARIANT}
-              component="div"
-              textAlign={"center"}
-            >
-              Yearly Wind Speed
-            </Typography>
-            <ClimateChart
-              datasetProp={windDataset(locations)}
-              units={"mph"}
-            ></ClimateChart>
-            <p style={{ textAlign: "center" }}>
-              Average wind speed for each month. The table contains the average
-              wind speed for each month. The wind speed is measured in miles per
-              hour.
-            </p>
-
-            <div>
-              <Table
-                locations={locations}
-                heading="Highest Expected Daily Wind Speed"
-                monthlyDataStr={"monthly_wind_gust_peak"}
-                annualDataStr={"annual_wind_gust_peak"}
-                decimalTrunc={0}
-                units={" mph"}
-              ></Table>
-            </div>
-
-            <br />
-            <br />
-            <hr />
-            <br />
-            <br />
-            <Typography
-              sx={{ flex: "1 1 100%" }}
-              variant={HEADING_VARIANT}
-              component="div"
-              textAlign={"center"}
-            >
-              Yearly Comfort Rating
-            </Typography>
-            <ClimateChart
-              datasetProp={comfortDataset(locations)}
-            ></ClimateChart>
-            <p style={{ textAlign: "center" }}>
-              Average comfort rating for each month. The table contains the
-              average comfort rating for each month. The comfort rating is a
-              function of temperature, humidity, cloudiness, UV index, and wind
-              speed. The higher the comfort rating, the more comfortable the
-              weather is. A comfort rating lower than 30 is very harsh, and
-              largely unsuitable for human life.
-            </p>
-
-            <div>
-              <Table
-                locations={locations}
-                heading="Monthly Comfort Rating"
-                monthlyDataStr={"monthly_comfort_index"}
-                annualDataStr={"annual_comfort_index"}
-                decimalTrunc={0}
-              ></Table>
-            </div>
-
-            <br />
-            <br />
-            <hr />
-            <br />
-            <br />
-            <Typography
-              sx={{ flex: "1 1 100%" }}
-              variant={HEADING_VARIANT}
-              component="div"
-              textAlign={"center"}
-            >
-              Yearly Growing Season
-            </Typography>
-            <ClimateChart
-              datasetProp={growingDataset(locations)}
-              units={"%"}
-              adjustUnitsByVal={100}
-            ></ClimateChart>
-            <p style={{ textAlign: "center" }}>
-              Average frost free growing season. The table contains the monthly
-              Cooling Degree Days (CDD) and Heating Degree Days (HDD), which is
-              a function of average temperatures for the day bellow and above 65
-              degrees, respectively.
-            </p>
-
-            <div>
-              <Table
-                locations={locations}
-                heading="Cooling Degree Days (CDD)"
-                monthlyDataStr={"monthly_CDD_avg"}
-                annualDataStr={"annual_CDD_avg"}
-                decimalTrunc={0}
-                units={""}
-              ></Table>
-
-              <Table
-                locations={locations}
-                heading="Heating Degree Days (HDD)"
-                monthlyDataStr={"monthly_HDD_avg"}
-                annualDataStr={"annual_HDD_avg"}
-                decimalTrunc={0}
-                units={""}
-              ></Table>
-            </div>
-            <br />
-            <br />
           </div>
         )}
       </div>

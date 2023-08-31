@@ -270,8 +270,13 @@ def get_climate_avg_at_point(target_lat, target_lon, target_elevation, df_statio
     monthly_values['weighted_monthly_frost_free_days_avg'] = [.7 *frost_free_normal[i] + .2 *frost_free_maxima[i] + .01 *frost_free_extreme[i] + .05 *frost_free_normal_maxima[i] + .04*frost_free_maxima_extreme[i] for i in range(12)]
     monthly_values['weighted_monthly_frost_free_days_avg'] = [1 if value > 0.95 else value**1.5 for value in monthly_values['weighted_monthly_frost_free_days_avg']]
     values = monthly_values['weighted_monthly_frost_free_days_avg']
-    monthly_values['weighted_monthly_frost_free_days_avg'] = [1 if values[i] > 0.8 and values[i - 1] > 0.8 and values[i + 1] > 0.8 else values[i] for i in range(0, len(values))]
 
+    #TODO error index out of range
+    print("FROST FREE DAYS: ", len(values), values)
+    monthly_values['weighted_monthly_frost_free_days_avg'] = [
+        1 if i > 0 and i < len(values) - 1 and values[i] > 0.8 and values[i - 1] > 0.8 and values[i + 1] > 0.8 else values[i]
+        for i in range(len(values))
+    ]
 
     monthly_values['weighted_monthly_humidity_avg'] = noaa_monthly_weighted_metrics['monthly_humidity_avg']
     
@@ -296,7 +301,16 @@ def get_climate_avg_at_point(target_lat, target_lon, target_elevation, df_statio
         monthly_values['weighted_monthly_snow_avg'][i] = rain_to_snow_days * snow_per_snow_day
 
     #This adjusts for summer weather. A ramping linear interpolation function calculates the ratio of snow
-    average_snowfall_day_annualized = sum(monthly_values['weighted_monthly_snow_avg']) / sum(monthly_values['weighted_monthly_snow_days_avg'])
+    total_weighted_snow_avg = sum(monthly_values['weighted_monthly_snow_avg'])
+    total_weighted_snow_days = sum(monthly_values['weighted_monthly_snow_days_avg'])
+
+    #Checks for divide by zero error in the event there are no snow days
+    if total_weighted_snow_days != 0:
+        average_snowfall_day_annualized = total_weighted_snow_avg / total_weighted_snow_days
+    else:
+        average_snowfall_day_annualized = 0  # or any appropriate default value
+    #average_snowfall_day_annualized = sum(monthly_values['weighted_monthly_snow_avg']) / sum(monthly_values['weighted_monthly_snow_days_avg'])
+    
     for i in range(12):
         if monthly_values['weighted_monthly_snow_avg'][i] == 0 and monthly_values['weighted_monthly_snow_days_avg'][i] > 0:
             monthly_values['weighted_monthly_snow_avg'][i] = average_snowfall_day_annualized * monthly_values['weighted_monthly_snow_days_avg'][i]

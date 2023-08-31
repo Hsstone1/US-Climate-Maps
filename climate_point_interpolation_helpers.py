@@ -327,12 +327,12 @@ def calc_comfort_index(temp, dewpoint, precip, windspeed, uv_index, sunshine_per
 
     hourlyTempIndex = max((((math.exp(-(math.pow((temp - 70), 2) / 1500)))) - math.pow((0.007 * temp), 11)) + .01, 0) * 100
     hourlyDewIndex = max(((-0.5 * dewpoint) + 165) - (math.exp(0.06 * dewpoint)), 0)
+
     hourlyPrecipIndex = min(-math.pow(10000 * precip, 1/3) - math.exp(0.045 * precip) + 150, 100)
     hourlyWindSpeedIndex = min(-(math.pow(280000 * windspeed, 1/3)) - math.exp(0.05 * windspeed) - (math.pow((-0.005 * windspeed - 6), 3) + 5), 100)
     hourlyUVIndexIndex = min(-math.pow(15000 * uv_index, 1/3) - math.exp(0.43 * uv_index) + 150, 100)
     hourlyCloudCoverIndex = max(((-0.05 * cloud_cover) + 101) - (math.exp(0.046 * cloud_cover)), 0)
     hourlyFeelLikeIndex = 100 * (math.exp((-((math.pow((apparent - 70), 2) / 2800)))) - (math.pow((0.0005 * apparent), 2)) - (0.07 * math.exp(-0.05 * apparent)) - (math.pow((0.008 * apparent), 11)) + 0.01)
-    
     
     temp_weight = 50
     apparent_weight = 100

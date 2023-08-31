@@ -10,7 +10,7 @@ export const LocationColors = (alpha: number): string[] => [
   `rgba(46, 204, 64, ${alpha})`,
   `rgba(125, 60, 152, ${alpha})`,
   `rgba(57, 204, 204, ${alpha})`,
-  `rgba(1, 63, 0, ${alpha})`,
+  `rgba(245, 242, 49, ${alpha})`,
   `rgba(255, 220, 0, ${alpha})`,
   `rgba(61, 90, 128, ${alpha})`,
   `rgba(220, 20, 60, ${alpha})`,

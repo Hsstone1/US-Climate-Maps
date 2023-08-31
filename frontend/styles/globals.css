@@ -25,7 +25,8 @@ a {
 
 .nav{
   width: 100%;
-  height: 5vh;
+  height: 3vh;
+  padding: 0.5rem;
   background-color: #303030;
   color: #ffffff;
   display: flex;
@@ -33,17 +34,17 @@ a {
   align-items: center;
   position: fixed;
   text-align: center;
+  z-index: 100;
   
 }
 .nav h2{
-  padding-left: 4rem;
   color: #ffffff;
   display: inline;
   text-align: center;
 }
 
 .nav ul{
-  padding-left: 50px;
+  padding-left: 1rem;
   color: #ffffff;
   display: inline;
   text-align: center;
@@ -54,9 +55,67 @@ a {
   color: #ffffff;
   display: inline;
   border-left: 0.5px solid #ffffff;
+  font-weight: bold;
   /* border: 0.5px solid #ffffff; */
   
 }
+
+.nav_locations{
+  width: 100%;
+  height: 7vh;
+  top: 3vh;
+  padding-left: 1rem;
+  background-color: #303030;
+  color: #ffffff;
+  display: flex;
+  justify-content: left;
+  align-items: center;
+  position: fixed;
+  text-align: center;
+  z-index: 100;
+}
+
+.nav_locations-items{
+  list-style: none;
+  align-items: center;
+  padding-left: 0rem;
+  display: flex;
+  text-align: center;
+}
+
+
+.nav_locations-list {
+  list-style: none;
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.historical_year-dropdown {
+  padding-top: 0rem;
+  width: 100%;
+  position: relative;
+
+  /*
+  //q: how to make this component not opaque behind the nav bar
+  //a: z-index: 1000;
+  //q: that did not work, but other mui components work fine when nested in the nav bar?
+  //a: 
+  //
+  */
+  
+  
+  
+  
+  
+}
+
+
+
+
+
+
 
 .footer {
   width: 100%;
@@ -70,40 +129,21 @@ a {
 
 .container {
   display: flex;
-  height: 100vh;
-  top: 5vh;
-  margin-top: 5vh;
-}
-
-
-.side-pannel {
-  width: 20%;
   height: 100%;
-  padding: 1rem;
-  background: #303030;
-  color: #ffffff;
-  justify-content: center;
-  position: fixed;
-  text-align: center;
-  
+  width: auto;
+  margin-top: 10vh;
+  top: 10vh;
 }
 
-.side-pannel-list {
-  width: 100%;
-  height: 75%;
-  justify-content: center;
-}
 
 .map-container {
   width: 100%;
   height: 100%;
-  
 }
 
 .map {
   width: 100%;
-  height: 100%;
-  margin-left: 20%;
+  height: 100%;  
 }
 
 
@@ -121,15 +161,14 @@ a {
 
 .clear-locations-button {
   padding: 1rem;
-  width: 50%;
+  width: 100%;
 }
 
 .compare-page {
   width: 100%;
   height: 100%;
   background-color: #fbfbfb;
-  margin-left: 20%;
-  
+  margin-left: 0%;
 
 }
 
@@ -139,6 +178,13 @@ a {
 }
 
 .compare_chart-div {
+  width: 50%;
+  margin: auto;
+  align-items: center;
+  display: block;
+}
+
+.compare_climate_table-div {
   width: 70%;
   margin: auto;
   align-items: center;

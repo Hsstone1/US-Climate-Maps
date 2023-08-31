@@ -26,11 +26,13 @@ export default function ClimateTable({ data }: TableProps) {
         <tr>
           <th colSpan={20}>
             <div>
-              <p style={{ margin: 1 }}>{`${
+              <p
+                style={{ margin: 1, fontSize: "20px", fontWeight: "bold" }}
+              >{`${
                 data.location_data.location
               } (${data.location_data.elevation.toFixed(0)} ft)`}</p>
               <p
-                style={{ margin: 2 }}
+                style={{ margin: 1, fontSize: "16px", fontWeight: "lighter" }}
               >{`${data.location_data.koppen}, ${data.location_data.plant_hardiness}`}</p>
             </div>
           </th>

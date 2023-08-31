@@ -60,6 +60,7 @@ const labelUnitMapping: { [key: string]: string } = {
 };
 
 export default function IndowWindowChart({ marker }: InfoWindowChartProps) {
+  const numDecimal = 0; // Number of decimal places to display for tooltip
   const createChartData = (marker: MarkerType) => {
     return {
       labels,
@@ -178,13 +179,23 @@ export default function IndowWindowChart({ marker }: InfoWindowChartProps) {
 
             if (context.parsed.y !== null) {
               const unit = labelUnitMapping[label] || ""; // Retrieve the unit based on the label
-              label += context.parsed.y.toFixed(1) + " " + unit;
+              let value: number = context.parsed.y; // Ensure the value is typed as number
+
+              // Check if the label corresponds to a temperature value
+              if (label.includes("Precip")) {
+                value = parseFloat(value.toFixed(1)); // Round temperature to 0 decimal places
+              } else {
+                value = parseFloat(value.toFixed(0)); // Round precipitation to 1 decimal place
+              }
+
+              label += value + " " + unit;
             }
 
             return label;
           },
         },
       },
+
       datalabels: {
         display: false,
       },

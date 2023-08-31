@@ -6,6 +6,7 @@ import ComparePage from "../compare-page/comparepage";
 import { MarkerType } from "../export-props";
 import { getGeolocate, getElevation } from "./geolocate";
 import CustomInfoWindow from "./custominfowindow";
+import YearDropdown from "../historical-weather/datepicker";
 
 type LatLngLiteral = google.maps.LatLngLiteral;
 type MapOptions = google.maps.MapOptions;
@@ -19,7 +20,8 @@ export default function Map() {
     "map" | "compare" | "historical_weather" | "route_planning" | "about"
   >("map");
 
-  const NUM_LOCATIONS = 8;
+  //max number of locations that can be compared at once
+  const NUM_LOCATIONS = 5;
 
   const mapOptions = useMemo<MapOptions>(
     () => ({
@@ -177,6 +179,20 @@ export default function Map() {
     });
   }, []);
 
+  const handleSelectYear = (selectedYear: string) => {
+    if (selectedYear === "annual") {
+      console.log("Average Data");
+      // You can perform further actions based on the selected year
+    } else {
+      console.log("Selected year:", selectedYear);
+    }
+    // You can perform further actions based on the selected year
+  };
+
+  const handleTabChange = (event: any, page: any) => {
+    setActiveComponent(page);
+  };
+
   return (
     <div className="app-container">
       <nav className="nav">
@@ -207,26 +223,7 @@ export default function Map() {
               Compare
             </a>
           </li>
-          <li>
-            <a
-              href="#"
-              onClick={() => {
-                setActiveComponent("historical_weather");
-              }}
-            >
-              Historical Weather
-            </a>
-          </li>
-          <li>
-            <a
-              href="#"
-              onClick={() => {
-                setActiveComponent("route_planning");
-              }}
-            >
-              Route Planning
-            </a>
-          </li>
+
           <li>
             <a
               href="#"
@@ -240,48 +237,46 @@ export default function Map() {
         </ul>
       </nav>
 
-      <div className="container">
-        <div className="side-pannel">
-          <SearchBar
-            setMarker={(position) => {
-              handleBackendMarkerData(position);
-              mapRef.current?.panTo(position);
-            }}
-          />
-          <hr style={{ marginTop: "1rem" }} />
-          <div className="side-pannel-list">
-            <div>
-              <h5>Location List</h5>
-              <CompareLocationsList
-                locations={locationsCompare}
-                onRemoveLocation={handleRemoveMarker}
-              />
-            </div>
-          </div>
-
-          <div>
-            {locationsCompare.length === 0 ? (
-              <>
-                <p>
-                  Click a location on the map, then navigate to the comparison
-                  tab. Up to {NUM_LOCATIONS} locations can be compared at once.
-                </p>
-              </>
-            ) : (
-              <button
-                className="clear-locations-button"
-                onClick={() => {
-                  setLocationsCompare([]);
-                  setSelectedMarker([]);
-                  setActiveComponent("map");
+      <nav>
+        <div className="nav_locations">
+          <ul className="nav_locations-items">
+            <li>
+              <SearchBar
+                setMarker={(position) => {
+                  handleBackendMarkerData(position);
+                  mapRef.current?.panTo(position);
                 }}
-              >
-                Clear Locations
-              </button>
-            )}
-          </div>
-        </div>
+              />
+            </li>
+          </ul>
 
+          <ul className="nav_locations-list">
+            <li>
+              {locationsCompare.length === 0 ? (
+                <>
+                  <p>
+                    Click a location on the map, then navigate to the comparison
+                    tab. Up to {NUM_LOCATIONS} locations can be compared at
+                    once.
+                  </p>
+                </>
+              ) : (
+                <CompareLocationsList
+                  locations={locationsCompare}
+                  onRemoveLocation={handleRemoveMarker}
+                />
+              )}
+            </li>
+          </ul>
+          <ul className="nav_locations-items">
+            <li className="historical_year-dropdown">
+              <YearDropdown onSelectYear={handleSelectYear} />
+            </li>
+          </ul>
+        </div>
+      </nav>
+
+      <div className="container">
         {activeComponent === "compare" && (
           <ComparePage locations={locationsCompare} />
         )}

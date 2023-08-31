@@ -28,11 +28,9 @@ export default function CustomInfoWindow({
         {!expanded && (
           <p style={{ margin: 0 }}>
             {marker.data.location_data.location}
-            {marker.data.location_data.elevation > 1000
-              ? ` (${Math.round(
-                  marker.data.location_data.elevation
-                ).toLocaleString()} ft)`
-              : ""}
+            {` (${Math.round(
+              marker.data.location_data.elevation
+            ).toLocaleString()} ft)`}
           </p>
         )}
 
@@ -41,11 +39,9 @@ export default function CustomInfoWindow({
             <div style={{ textAlign: "center" }}>
               <p style={{ margin: 0 }}>
                 {marker.data.location_data.location}
-                {marker.data.location_data.elevation > 1000
-                  ? ` (${Math.round(
-                      marker.data.location_data.elevation
-                    ).toLocaleString()} ft)`
-                  : ""}
+                {` (${Math.round(
+                  marker.data.location_data.elevation
+                ).toLocaleString()} ft)`}
               </p>
 
               <p style={{ margin: 5, fontSize: "10px" }}>

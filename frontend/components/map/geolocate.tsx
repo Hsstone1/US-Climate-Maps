@@ -4,6 +4,7 @@ export const getGeolocate = async (
 ): Promise<string> => {
   const geocoder = new google.maps.Geocoder();
   const latlng = { lat: latitude, lng: longitude };
+  const numDecimals = 2; // Number of decimal places to display for lat/long
 
   try {
     const response = await geocoder.geocode({ location: latlng });
@@ -26,12 +27,16 @@ export const getGeolocate = async (
         .join(", ");
 
       if (formattedAddress.length === 0) {
-        return `${latitude.toFixed(5)}, ${longitude.toFixed(5)}`;
+        return `${latitude.toFixed(numDecimals)}, ${longitude.toFixed(
+          numDecimals
+        )}`;
       }
 
       return formattedAddress;
     } else {
-      return `${latitude.toFixed(5)}, ${longitude.toFixed(5)}`;
+      return `${latitude.toFixed(numDecimals)}, ${longitude.toFixed(
+        numDecimals
+      )}`;
     }
   } catch (error) {
     console.log("Geocoder failed due to: " + error);
