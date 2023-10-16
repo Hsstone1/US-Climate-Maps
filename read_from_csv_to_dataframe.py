@@ -84,6 +84,49 @@ def humidity_regr_from_temp_max_min(Tmax, Tmin, totalPrcp):
 
     return (dewpoint + rf_predicted_dewpoint) / 2
 
+
+def dewpoint_regr_calc(Tmax, Tmin, totalPrcp):
+    # Read the CSV file with temperature and dewpoint data
+    df = pd.read_csv("temperature-humidity-data.csv")
+
+    # Calculate TDiurinal (TMax - TMin)
+    df["TDiurinal"] = df["TMax"] - df["TMin"]
+
+    # Define your input features and target variables
+    X = df[['TMax', 'TMin', 'TDiurinal', 'Total']]
+    y = df[['DAvg']]
+
+    # Split the data into training and testing sets (if needed)
+    # X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.5, random_state=42)
+
+    # Scale the features using StandardScaler
+    scaler = StandardScaler()
+    X_scaled = scaler.fit_transform(X)
+
+    # Initialize the Random Forest Regressor
+    rf_model = RandomForestRegressor(n_estimators=5, random_state=42)
+    rf_model.fit(X_scaled, y.values.ravel())
+
+    # Calculate Tdiurinal and TAvg from your input data
+    Tdiurinal = [x - y for x, y in zip(Tmax, Tmin)]  # Element-wise subtraction
+    TAvg = [(x + y) / 2 for x, y in zip(Tmax, Tmin)]
+
+    # Create a new DataFrame with your input data
+    new_data = pd.DataFrame({'TMax': Tmax, 'TMin': Tmin, 'TDiurinal': Tdiurinal, 'Total': totalPrcp})
+
+    # Scale the new input data
+    new_data_scaled = scaler.transform(new_data)
+
+    # Predict dewpoint using the regression model
+    rf_predicted_dewpoint = rf_model.predict(new_data_scaled)
+
+    # Calculate and return dewpoint
+    # dewpoint = compute_dew_point(rf_predicted_dewpoint, TAvg)
+
+    return rf_predicted_dewpoint
+
+
+
 def compute_dew_point(RH, T):
     TD = []
     for i in range(len(T)):

@@ -90,30 +90,17 @@ a {
   display: flex;
   align-items: center;
   justify-content: center;
+  white-space: nowrap; /* Prevent wrapping to the next line */
+
 }
+
+
 
 .historical_year-dropdown {
   padding-top: 0rem;
   width: 100%;
   position: relative;
-
-  /*
-  //q: how to make this component not opaque behind the nav bar
-  //a: z-index: 1000;
-  //q: that did not work, but other mui components work fine when nested in the nav bar?
-  //a: 
-  //
-  */
-  
-  
-  
-  
-  
 }
-
-
-
-
 
 
 
@@ -190,5 +177,3 @@ a {
   align-items: center;
   display: block;
 }
-
-

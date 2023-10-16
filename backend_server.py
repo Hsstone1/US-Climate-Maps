@@ -1,10 +1,12 @@
 from flask import Flask, request, jsonify
-from climate_point_interpolation import get_climate_avg_at_point, get_climate_data_daily
+from climate_data import WeatherDataEncoder
+from climate_point_interpolation import get_climate_avg_at_point, get_climate_data_year
 from read_from_csv_to_dataframe import put_NOAA_csvs_name_into_df
 import pandas as pd
 import time
 from flask_cors import CORS
 from geopy.geocoders import Nominatim
+import json
 
 app = Flask(__name__) 
 CORS(app)
@@ -103,12 +105,17 @@ def climate_data():
         'koppen': location_data['koppen'],
         'plant_hardiness': location_data['plant_hardiness'],
     }
-
+    start_time = time.time()  # Start timer
+    historical_data, historical_location_data = get_climate_data_year(latitude, longitude, elevation, df_stations_NWS_names, df_stations_NOAA_names)
+    print("Historical Backend Server Elapsed Time:", time.time() - start_time, "seconds")
     data = {
         'annual_data': annual_data_dict,
         'monthly_data': monthly_data_dict,
         'location_data': location_data_dict,
+        'data': json.loads(json.dumps(historical_data, cls=WeatherDataEncoder)),
+        'historical_location_data': json.loads(json.dumps(historical_location_data, cls=WeatherDataEncoder))
     }
+
 
     
     # Return the response as JSON
@@ -116,21 +123,18 @@ def climate_data():
     return jsonify(data)
 
 
-@app.route('/climate_data_daily', methods=["POST"])
-def climate_data_daily():
+@app.route('/climate_data_year', methods=["POST"])
+def climate_data_year():
     # Get the data from the POST request.
     data = request.get_json()
-    if 'latitude' in data and 'longitude' in data and 'elevation' in data and 'start_date' in data and 'end_date' in data:
+    if 'latitude' in data and 'longitude' in data and 'elevation' in data and 'year' in data:
         latitude = data['latitude']
         longitude = data['longitude']
         elevation = data['elevation']
-        start_date = data['start_date']
-        end_date = data['end_date']
-
-    #print(lat, lng, start_date, end_date)
+        year = data['year']
 
     # Get the climate data
-    climate_data = get_climate_data_daily(latitude, longitude, elevation, df_stations_NOAA_names, start_date, end_date)
+    climate_data = get_climate_data_year(latitude, longitude, elevation, df_stations_NWS_names, df_stations_NOAA_names)
     #print(climate_data)
 
     # Create a response containing the data to be sent back to the JavaScript code
@@ -145,3 +149,5 @@ def climate_data_daily():
 
 if __name__ == '__main__':
     app.run(debug=True) 
+    
+

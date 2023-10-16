@@ -5,8 +5,18 @@ import urllib
 from math import radians, sin, cos, sqrt, atan2
 import ephem
 import datetime
+import calendar
+import numpy as np
+from scipy.stats import norm
+
+
 
 DAYS_IN_MONTH = 30.417
+DAYS_IN_YEAR = 365.25
+
+#These are default values, can be overloaded in the get_climate_avg_at_point function
+NUM_NEAREST_STATIONS_NWS = 3
+NUM_NEAREST_STATIONS_NOAA = 3
     
 
 #https://en.wikipedia.org/wiki/K%C3%B6ppen_climate_classification#Overview
@@ -29,7 +39,7 @@ def calc_koppen_climate(temp_f, precip_in):
 
     # Koppen type A, Tropical
     if min(avg_month_temp_c) >= 18:
-        print("TYPE A")
+        #print("TYPE A")
         if driest_month_precip_mm >= 60:
             return 'Tropical rainforest climate (Af)'
         elif driest_month_precip_mm < 60 and driest_month_precip_mm >= 100 - (annual_precipitation_mm / 25):
@@ -41,7 +51,7 @@ def calc_koppen_climate(temp_f, precip_in):
 
     # Koppen type C, Temperate
     elif min(avg_month_temp_c) > 0 and min(avg_month_temp_c) < 18 and max(avg_month_temp_c) > 10 and annual_precipitation_mm > 0.5 * threshold_mm:
-        print("TYPE C")
+        #print("TYPE C")
         # Subtropical
         if percent_precip_warm > 0.7:
             if max(avg_month_temp_c) > 22 and max(get_highest_N_values(avg_month_temp_c, 4)) > 10:
@@ -77,7 +87,7 @@ def calc_koppen_climate(temp_f, precip_in):
 
     # Koppen type D, Continental
     elif max(avg_month_temp_c) > 10 and min(avg_month_temp_c) < 0 and annual_precipitation_mm > 0.5 * threshold_mm:
-        print("TYPE D")
+        #print("TYPE D")
         # Monsoon
         if percent_precip_warm > 0.7:
             if max(avg_month_temp_c) > 22 and min(get_highest_N_values(avg_month_temp_c, 4)) > 10:
@@ -117,7 +127,7 @@ def calc_koppen_climate(temp_f, precip_in):
 
     # Koppen type B, Semi-arid
     elif max(avg_month_temp_c) > 10:
-        print("TYPE B")
+        #print("TYPE B")
 
         if annual_precipitation_mm < 0.5 * threshold_mm:
             if min(avg_month_temp_c) > 0:
@@ -133,7 +143,7 @@ def calc_koppen_climate(temp_f, precip_in):
 
     # Koppen type E, Tundra
     elif max(avg_month_temp_c) < 10:
-        print("TYPE E")
+        #print("TYPE E")
         if max(avg_month_temp_c) > 0:
             return 'Alpine tundra climate (ET)'
         else:
@@ -174,6 +184,101 @@ def get_highest_N_values(values, numValues):
     return sorted(values, reverse=True)[:numValues]
 
 
+
+def is_number(value):
+    try:
+        # Check if the value can be converted to a float and is not None
+        return value is not None and not isinstance(value, str) and not np.isnan(float(value)) and not np.isinf(float(value))
+    except (ValueError, TypeError):
+        return False
+
+# Check if the year, month, and day together form a valid date
+def is_valid_date(year, month, day):
+    if 1 <= month <= 12 and 1 <= day <= calendar.monthrange(year, month)[1]:
+        return True
+    else:
+        return False
+    
+def calc_precip_days_from_list(precip_list, threshold=0.01):
+    precip_days = [1 if precip > threshold else 0 for precip in precip_list]
+    return precip_days
+
+
+def calc_growing_chance(data):
+    # Extract 'low_temp' values from the data
+    low_temp_values = [values['low_temp'] for _, _, _, values in data if 'low_temp' in values]
+
+    if not low_temp_values:
+        return None
+    
+    # Calculate the mean and standard deviation of 'low_temp' values
+    mean_low_temp = np.mean(low_temp_values)
+    std_dev_low_temp = np.std(low_temp_values)
+
+    # Calculate the z-score for 32 degrees
+    z_score = (32 - mean_low_temp) / std_dev_low_temp
+
+    # Calculate the cumulative probability using the CDF
+    cumulative_prob = norm.cdf(z_score)
+
+    # Calculate the percentile
+    percentile_below_32 = (1 - cumulative_prob) * 100
+    if percentile_below_32 <= 50:
+        percentile_below_32 = 0
+    elif percentile_below_32 >= 80:
+        percentile_below_32 = 100
+    return 100 * ((percentile_below_32/100) ** 2)
+
+def calculate_rolling_average(data, window_size):
+    rolling_averages = []
+
+    for i in range(len(data)):
+        # Calculate the start and end indices for the window
+        start_index = i - window_size
+        end_index = i + 1  # Include the current data point
+
+        if start_index < 0:
+            # Wrap around to the end of the data list if start_index is negative
+            valid_window_data = data[start_index:] + data[:end_index]
+        else:
+            valid_window_data = data[start_index:end_index]
+
+        valid_values = [entry[2] for entry in valid_window_data if entry[2] is not None]
+
+        # Check if there are valid values to calculate the average
+        if valid_values:
+            avg = sum(valid_values) / len(valid_values)
+            month = valid_window_data[-1][0]  # Get the month of the last entry in the window
+            day = valid_window_data[-1][1]    # Get the day of the last entry in the window
+            rolling_averages.append((month, day, avg))
+        else:
+            rolling_averages.append((data[i][0], data[i][1], None))
+
+    return rolling_averages
+
+#This is used to get the index of the first and last growing season days
+#Along with the total number of days to grow
+def first_last_freeze_date(data):
+    data_np = np.array(data)
+    max_val = np.max(data_np[:,2])
+    min_val = np.min(data_np[:,2])
+    mid_val = (max_val + min_val)/2
+
+    #This is used to find the index of the last and first frost free days
+    last_freeze = np.where(data_np[:,2] >= mid_val)[0][0]
+    data_after_last_freeze = data_np[last_freeze:]
+
+    #The index of first freeze represents how many index's after the last freeze, not the actual index in the data
+    first_freeze = np.where(data_after_last_freeze[:,2] <= mid_val)[0][0]
+    last_freeze_month, last_freeze_day = data_np[last_freeze, 0], data_np[last_freeze, 1]
+    first_freeze_month, first_freeze_day = data_after_last_freeze[first_freeze, 0], data_after_last_freeze[first_freeze, 1]
+    #print("MAX: ", max_val, "MIN: ", min_val, "MID: ", mid_val, "LAST FREEZE: ", last_freeze, "FIRST FREEZE: ", first_freeze, "LAST FREEZE DATE: ", last_freeze_month, last_freeze_day, "FIRST FREEZE DATE: ", first_freeze_month, first_freeze_day)
+    return ((int(last_freeze_month), int(last_freeze_day)), (int(first_freeze_month), int(first_freeze_day)), int(first_freeze))
+
+
+
+
+
 '''
 This function calculates the sunrise and sunset times for a given latitude, month, and year.
 sunrise and sunset return times are days since janurary 1 1900
@@ -212,6 +317,34 @@ def calc_sun_info(latitude, year, month, day):
         sunset = None
     return sunrise, sunset, daylight_hours
 
+def calculate_sun_info_batch(latitude, dates):
+    # Create an observer once
+    observer = ephem.Observer()
+    observer.lat = str(latitude)
+    sun = ephem.Sun()
+    
+    sun_info = []
+    
+    for year, month, day in dates:
+        date_str = f"{year}/{month}/{day}"
+        observer.date = ephem.Date(date_str)
+        
+        # Check if the sun is always up or never rises
+        if observer.previous_setting(sun) > observer.next_rising(sun):
+            sunrise = None
+            sunset = None
+            daylight_hours = 0
+        else:
+            sunrise = ephem.localtime(observer.previous_rising(sun))
+            sunset = ephem.localtime(observer.next_setting(sun))
+            daylight_length = (sunset - sunrise).total_seconds()
+            daylight_hours = daylight_length / 3600  # Convert to hours
+        
+        
+        sun_info.append((sunrise, sunset, daylight_hours))
+    
+    return sun_info
+
 
 def calc_daylight_length(latitude, year):
     daylight_lengths = []
@@ -220,6 +353,8 @@ def calc_daylight_length(latitude, year):
         daylight_lengths.append(calc_sun_info(latitude, year, month, 21)[2] * DAYS_IN_MONTH )
 
     return daylight_lengths
+
+
 
 
 def calc_frost_free_chance(value):
@@ -255,6 +390,8 @@ def calc_humidity_percentage(dew_points_F, temperatures_F):
 #https://www.weather.gov/epz/wxcalc_windchill
 #https://www.wpc.ncep.noaa.gov/html/heatindex_equation.shtml
 def calc_aparent_temp (T, DP, V):
+    if not V:
+        V = 3
 
     RH = 100*(math.exp((17.625*DP)/(243.04+DP))/math.exp((17.625*T)/(243.04+T)))
     #print(RH)
@@ -280,29 +417,33 @@ This function calculates the angle the sun is above the horizon for a given lati
 date is a datetime object datetime.date(2023, 1, 21)
 '''
 def calc_sun_angle (latitude, year, month, day):
-    sun_angles = []
-    for hour in range(0, 24):
-        datetime_obj = datetime.datetime(year, month, day, hour, 0, 0)
-        
-        # Create an observer object for the specified latitude
-        observer = ephem.Observer()
-        observer.lat = str(latitude)
-
-        # Set the observer's date and time
-        observer.date = datetime_obj
-
-        # Calculate the position of the sun
-        sun = ephem.Sun()
-        sun.compute(observer)
-
-        # Get the altitude of the sun (elevation angle)
-        sun_angles.append(math.degrees(sun.alt))
     
-    #Returns the value at noon
-    return sun_angles[12]
+    try:
+        datetime_obj = datetime.datetime(year, month, day, 12, 0, 0)
+    except ValueError as e:
+        # Handle the error, e.g., by setting datetime_obj to a default value
+        return None    
+    # Create an observer object for the specified latitude
+    observer = ephem.Observer()
+    observer.lat = str(latitude)
+    observer.date = datetime_obj
+
+    # Calculate the position of the sun
+    sun = ephem.Sun()
+    sun.compute(observer)
+
+    # Get the altitude of the sun (elevation angle)
+    return math.degrees(sun.alt)
+    
+
 
 
 def calc_uv_index(sun_angle, altitude, sunshine_percentage):
+    if not sunshine_percentage:
+        sunshine_percentage = 0
+    #adjusts for percentage vs numerical value 0-100
+    if sunshine_percentage > 1:
+        sunshine_percentage /= 100
     # Calculate the UV index based on the sun angle, where 90 degrees is the maximum returning 12
     uv_index = (sun_angle / 90) * 12
     
@@ -312,6 +453,9 @@ def calc_uv_index(sun_angle, altitude, sunshine_percentage):
 
     # Adjust the UV index based on sunshine percentage
     # The sunshine effect is multiplied by the square root to better reflect the effect of clouds
+
+    #TODO error when clicking on friday harbor, WA. 
+    #RuntimeWarning: invalid value encountered in double_scalars 
     uv_index_adjusted = uv_index_adjusted * min(sunshine_percentage ** 0.5,1)
 
     return max(uv_index_adjusted, 0)
@@ -403,7 +547,7 @@ def haversine_distance(lat1, lon1, lat2, lon2):
     return R * c / 1.6
 
 
-def nearest_coordinates_to_point_NWS(target_lat, target_lon, df, num_results=5):
+def nearest_coordinates_to_point_NWS(target_lat, target_lon, df, num_results=NUM_NEAREST_STATIONS_NWS):
     """
     Find the closest coordinates to a target point using NWS CF6 stations(NWS, CITY_CODE).
     """
@@ -422,7 +566,7 @@ def nearest_coordinates_to_point_NWS(target_lat, target_lon, df, num_results=5):
     return closest
 
 
-def nearest_coordinates_to_point_NOAA(target_lat, target_lon, df, num_results=3):
+def nearest_coordinates_to_point_NOAA(target_lat, target_lon, df, num_results=NUM_NEAREST_STATIONS_NOAA):
     """
     Find the closest coordinates to a target point using NOAA stations (USCxxxxxxxxx.csv).
     """

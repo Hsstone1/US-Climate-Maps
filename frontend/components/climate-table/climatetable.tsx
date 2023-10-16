@@ -167,6 +167,13 @@ export default function ClimateTable({ data }: TableProps) {
           rowTitle="UV Index"
           dataType="UV Index"
         ></ClimateTableRow>
+        <ClimateTableRow
+          monthly_data={data.monthly_data.monthly_sun_angle}
+          annual_data={data.annual_data.annual_sun_angle_avg}
+          rowTitle="Max Sun Angle"
+          dataType="SunPercent"
+          annual_units="°"
+        ></ClimateTableRow>
       </tbody>
     </table>
   );

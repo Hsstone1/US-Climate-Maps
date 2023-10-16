@@ -46,7 +46,7 @@ export default function ComparisonPage({ locations }: ComparisonPageProps) {
         pointRadius: 0,
         pointHoverRadius: 0,
         lineTension: LINE_TENSION,
-        fill: (locations.length % 4) * locations.length,
+        fill: "+1",
         yAxisID: "Temperature",
       };
 
@@ -60,7 +60,7 @@ export default function ComparisonPage({ locations }: ComparisonPageProps) {
         pointRadius: 0,
         pointHoverRadius: 0,
         lineTension: LINE_TENSION,
-        fill: (locations.length % 4) * locations.length,
+        fill: "-1",
         yAxisID: "Temperature",
       };
 
@@ -373,6 +373,52 @@ export default function ComparisonPage({ locations }: ComparisonPageProps) {
                   units={" °F"}
                 ></Table>
               </div>
+
+              <br />
+              <br />
+              <hr />
+              <br />
+              <br />
+              <Typography
+                sx={{ flex: "1 1 100%" }}
+                variant={HEADING_VARIANT}
+                component="div"
+                textAlign={"center"}
+              >
+                Yearly Growing Season
+              </Typography>
+              <ClimateChart
+                datasetProp={growingDataset(locations)}
+                units={"%"}
+                adjustUnitsByVal={100}
+              ></ClimateChart>
+              <p style={{ textAlign: "center" }}>
+                Average frost free growing season. The table contains the
+                monthly Cooling Degree Days (CDD) and Heating Degree Days (HDD),
+                which is a function of average temperatures for the day bellow
+                and above 65 degrees, respectively.
+              </p>
+
+              <div>
+                <Table
+                  locations={locations}
+                  heading="Cooling Degree Days (CDD)"
+                  monthlyDataStr={"monthly_CDD_avg"}
+                  annualDataStr={"annual_CDD_avg"}
+                  decimalTrunc={0}
+                  units={""}
+                ></Table>
+
+                <Table
+                  locations={locations}
+                  heading="Heating Degree Days (HDD)"
+                  monthlyDataStr={"monthly_HDD_avg"}
+                  annualDataStr={"annual_HDD_avg"}
+                  decimalTrunc={0}
+                  units={""}
+                ></Table>
+              </div>
+
               <br />
               <br />
               <hr />
@@ -621,53 +667,6 @@ export default function ComparisonPage({ locations }: ComparisonPageProps) {
                   decimalTrunc={0}
                 ></Table>
               </div>
-
-              <br />
-              <br />
-              <hr />
-              <br />
-              <br />
-              <Typography
-                sx={{ flex: "1 1 100%" }}
-                variant={HEADING_VARIANT}
-                component="div"
-                textAlign={"center"}
-              >
-                Yearly Growing Season
-              </Typography>
-              <ClimateChart
-                datasetProp={growingDataset(locations)}
-                units={"%"}
-                adjustUnitsByVal={100}
-              ></ClimateChart>
-              <p style={{ textAlign: "center" }}>
-                Average frost free growing season. The table contains the
-                monthly Cooling Degree Days (CDD) and Heating Degree Days (HDD),
-                which is a function of average temperatures for the day bellow
-                and above 65 degrees, respectively.
-              </p>
-
-              <div>
-                <Table
-                  locations={locations}
-                  heading="Cooling Degree Days (CDD)"
-                  monthlyDataStr={"monthly_CDD_avg"}
-                  annualDataStr={"annual_CDD_avg"}
-                  decimalTrunc={0}
-                  units={""}
-                ></Table>
-
-                <Table
-                  locations={locations}
-                  heading="Heating Degree Days (HDD)"
-                  monthlyDataStr={"monthly_HDD_avg"}
-                  annualDataStr={"annual_HDD_avg"}
-                  decimalTrunc={0}
-                  units={""}
-                ></Table>
-              </div>
-              <br />
-              <br />
             </div>
           </div>
         )}

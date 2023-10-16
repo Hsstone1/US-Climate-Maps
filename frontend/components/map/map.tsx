@@ -1,7 +1,7 @@
 import { useState, useMemo, useCallback, useRef, useEffect } from "react";
 import { GoogleMap, Marker } from "@react-google-maps/api";
-import SearchBar from "../compare-sidebar/searchbar";
-import CompareLocationsList from "../compare-sidebar/comparisonlist";
+import SearchBar from "../app-bar/searchbar";
+import CompareLocationsList from "../app-bar/comparisonlist";
 import ComparePage from "../compare-page/comparepage";
 import { MarkerType } from "../export-props";
 import { getGeolocate, getElevation } from "./geolocate";
@@ -17,7 +17,7 @@ export default function Map() {
   const [selectedMarker, setSelectedMarker] = useState<MarkerType[]>([]);
   const [locationsCompare, setLocationsCompare] = useState<MarkerType[]>([]);
   const [activeComponent, setActiveComponent] = useState<
-    "map" | "compare" | "historical_weather" | "route_planning" | "about"
+    "map" | "compare" | "about"
   >("map");
 
   //max number of locations that can be compared at once
@@ -57,7 +57,7 @@ export default function Map() {
   const handleMapClick = useCallback((ev: google.maps.MapMouseEvent): void => {
     const latitude = ev.latLng?.lat();
     const longitude = ev.latLng?.lng();
-    console.log("CLICKED MAP");
+    //console.log("CLICKED MAP");
 
     if (latitude && longitude) {
       handleBackendMarkerData({ lat: latitude, lng: longitude });
@@ -76,7 +76,7 @@ export default function Map() {
       );
 
       if (markerExists) {
-        console.log("Marker already exists");
+        //console.log("Marker already exists");
         return;
       }
 
@@ -105,7 +105,7 @@ export default function Map() {
                 data: data,
               };
 
-              console.log("MARKER CREATED");
+              //console.log("MARKER CREATED");
 
               getGeolocate(latitude, longitude)
                 .then((locationData) => {
@@ -119,14 +119,14 @@ export default function Map() {
                   handleCompareMarker(newMarker);
 
                   console.log(data);
-                  console.log(
-                    "Time difference:",
-                    performance.now() - startTime,
-                    "ms"
-                  );
+                  //console.log(
+                  //  "Time difference:",
+                  //  performance.now() - startTime,
+                  //  "ms"
+                  //);
                 })
                 .catch((error) => {
-                  console.log("Error Cannot Retrieve Address: " + error);
+                  console.error("Error Cannot Retrieve Address: " + error);
                 });
             })
             .catch((error) => {
@@ -134,7 +134,7 @@ export default function Map() {
             });
         })
         .catch((error) => {
-          console.log("Error Cannot Retrieve Elevation: " + error);
+          console.error("Error Cannot Retrieve Elevation: " + error);
         });
     },
     [selectedMarker]
@@ -180,17 +180,15 @@ export default function Map() {
   }, []);
 
   const handleSelectYear = (selectedYear: string) => {
-    if (selectedYear === "annual") {
+    if (selectedYear === "Average") {
       console.log("Average Data");
       // You can perform further actions based on the selected year
     } else {
       console.log("Selected year:", selectedYear);
+
+      // api call to get data for the selected year
     }
     // You can perform further actions based on the selected year
-  };
-
-  const handleTabChange = (event: any, page: any) => {
-    setActiveComponent(page);
   };
 
   return (
@@ -268,11 +266,14 @@ export default function Map() {
               )}
             </li>
           </ul>
+
+          {/*
           <ul className="nav_locations-items">
             <li className="historical_year-dropdown">
               <YearDropdown onSelectYear={handleSelectYear} />
             </li>
           </ul>
+            */}
         </div>
       </nav>
 
