@@ -7,11 +7,6 @@ import time
 import calendar
 
 
-#This is for the historical data, earliest validated year in the CSV's is 1980
-#The furthest back the NWS stations go is april of 2019
-START_NOAA_YEAR = 1980
-START_NWS_YEAR = 2019
-CURRENT_YEAR = datetime.datetime.now().year
 
 
 
@@ -418,7 +413,7 @@ def get_climate_data_year(target_lat, target_lon, target_elevation, df_stations_
     for station in closest_points_NOAA:
         #This is for the NOAA stations, format of (LAT, LON, STATION_ID, ELEVATION, NAME, DISTANCE)
         file_name = station[2] + "_" + str(station[0]) + "_" + str(station[1]) + "_" + str(round(station[3])) + "_" + station[4] + ".csv"
-        df = get_NOAA_csv_content(file_name, f'{START_NOAA_YEAR}-01-01', f'{CURRENT_YEAR}-12-31')
+        df = get_NOAA_csv_content(file_name, f'{START_NOAA_YEAR}-01-01', f'{CURRENT_YEAR}-3-20')
 
          # Vectorized temperature and precipitation conversions
         df['DAILY_HIGH_AVG'] = (df['TMAX'] * 9 / 50 + 32).fillna(0)
@@ -643,9 +638,21 @@ def get_climate_data_year(target_lat, target_lon, target_elevation, df_stations_
                 break
             sun_angle = calc_sun_angle(target_lat, 2020, month, day) 
             daylight = calc_sun_info(target_lat, 2020, month, day)[2]
-                    
-            mean_max,record_high = np.percentile(np.array(noaa_data_weighted.get_all_day_values_of_key("high_temp", month=month, day=day)) - temperature_elev_adjust, [90, 100])
-            mean_min, record_low = np.percentile(np.array(noaa_data_weighted.get_all_day_values_of_key("low_temp", month=month, day=day)) - temperature_elev_adjust, [10, 0])
+            high_temp_values = np.array(noaa_data_weighted.get_all_day_values_of_key("high_temp", month=month, day=day))
+            low_temp_values = np.array(noaa_data_weighted.get_all_day_values_of_key("low_temp", month=month, day=day))
+
+            if high_temp_values.size > 0:
+                mean_max, record_high = np.percentile(high_temp_values - temperature_elev_adjust, [90, 100])   
+            else:
+                #print(f"No high temperature data available for {month}/{day}")
+                pass
+            if low_temp_values.size > 0:
+                mean_min, record_low = np.percentile(low_temp_values - temperature_elev_adjust, [10, 0])
+            else:
+                #print(f"No low temperature data available for {month}/{day}")
+                pass
+            #mean_max,record_high = np.percentile(np.array(noaa_data_weighted.get_all_day_values_of_key("high_temp", month=month, day=day)) - temperature_elev_adjust, [90, 100])
+            #mean_min, record_low = np.percentile(np.array(noaa_data_weighted.get_all_day_values_of_key("low_temp", month=month, day=day)) - temperature_elev_adjust, [10, 0])
             
             if sun_angle is not None:
                 sun_angle_list.append(sun_angle)
@@ -714,16 +721,17 @@ def get_climate_data_year(target_lat, target_lon, target_elevation, df_stations_
     #for index, (month, day, value) in enumerate(filtered_growing_chance_SMA):
     #    print(f"Index {index}: Month {month}, Day {day}, Growing Chance SMA: {value}")
 
+
+    #TODO this is broken 
     growing_season = first_last_freeze_date(filtered_growing_chance_SMA)
-    #print("GROWING SEASON: ", growing_season)
             
 
 
 
 
 
+    '''
 
-    
     print("\n\nWEIGHTED DATA:")
     for i in range(1, 13):
         data = noaa_data_weighted.get_avg_monthly_data(i)
@@ -744,10 +752,11 @@ def get_climate_data_year(target_lat, target_lon, target_elevation, df_stations_
         ))
     else:
         print("ANNUAL: No data available")
-    
+   ''' 
 
     weather_data = HistoricalWeatherData()
     noaa_annual_data = noaa_data_weighted.get_avg_annual_data()
+    index = 0
 
     avg_annual_data_dict = {
         'high_temp': noaa_annual_data["high_temp"],
@@ -765,7 +774,6 @@ def get_climate_data_year(target_lat, target_lon, target_elevation, df_stations_
         'snow_in': noaa_annual_data["snow_in"] * DAYS_IN_YEAR,
         'precip_days': noaa_annual_data["precip_days"] * DAYS_IN_YEAR,
         'snow_days': noaa_annual_data["snow_days"] * DAYS_IN_YEAR,
-        'frost_free_days': growing_season[2],
         'dewpoint_temp': noaa_annual_data["dewpoint_temp"],
         'humidity_percent': noaa_annual_data["humidity_percent"],
         'wind_spd': noaa_annual_data["wind_spd"],
@@ -777,7 +785,10 @@ def get_climate_data_year(target_lat, target_lon, target_elevation, df_stations_
         'sun_angle': noaa_annual_data["sun_angle"],
         'uv_index': noaa_annual_data["uv_index"],
         'comfort_index': noaa_annual_data["comfort_index"],
-        'growing_season': (growing_season[0], growing_season[1]),
+        'first_freeze': growing_season[0],
+        'last_freeze': growing_season[1],
+        'frost_free_days': growing_season[2],
+
     }
 
     weather_data.avg_annual = avg_annual_data_dict
@@ -801,7 +812,6 @@ def get_climate_data_year(target_lat, target_lon, target_elevation, df_stations_
             'snow_in': noaa_monthly_data["snow_in"] * DAYS_IN_MONTH,
             'precip_days': noaa_monthly_data["precip_days"] * DAYS_IN_MONTH,
             'snow_days': noaa_monthly_data["snow_days"] * DAYS_IN_MONTH,
-            'frost_free_days': growing_season[2],
             'dewpoint_temp': noaa_monthly_data["dewpoint_temp"],
             'humidity_percent': noaa_monthly_data["humidity_percent"],
             'wind_spd': noaa_monthly_data["wind_spd"],
@@ -813,14 +823,16 @@ def get_climate_data_year(target_lat, target_lon, target_elevation, df_stations_
             'sun_angle': noaa_monthly_data["sun_angle"],
             'uv_index': noaa_monthly_data["uv_index"],
             'comfort_index': noaa_monthly_data["comfort_index"],
-            'growing_season': (growing_season[0], growing_season[1]),
+            'growing_season': growing_chance_SMA[index][2],
+
         }
         weather_data.avg_monthly.append(avg_monthly_data_dict)
         for day in range (1, 32):
             if not is_valid_date(2020, month, day):
                 break
             noaa_daily_data = noaa_data_weighted.get_avg_daily_data(month=month, day=day)
-
+            if noaa_daily_data is None:
+                continue
             avg_daily_data_dict = {
                 'high_temp': noaa_daily_data["high_temp"],
                 'mean_temp': noaa_daily_data["mean_temp"],
@@ -837,7 +849,6 @@ def get_climate_data_year(target_lat, target_lon, target_elevation, df_stations_
                 'snow_in': noaa_daily_data["snow_in"],
                 'precip_days': noaa_daily_data["precip_days"],
                 'snow_days': noaa_daily_data["snow_days"],
-                'frost_free_days': growing_season[2],
                 'dewpoint_temp': noaa_daily_data["dewpoint_temp"],
                 'humidity_percent': noaa_daily_data["humidity_percent"],
                 'wind_spd': noaa_daily_data["wind_spd"],
@@ -849,18 +860,12 @@ def get_climate_data_year(target_lat, target_lon, target_elevation, df_stations_
                 'sun_angle': noaa_daily_data["sun_angle"],
                 'uv_index': noaa_daily_data["uv_index"],
                 'comfort_index': noaa_daily_data["comfort_index"],
-                'growing_season': (growing_season[0], growing_season[1]),
+                'growing_season': growing_chance_SMA[index][2],
+
             }
+            index += 1
             weather_data.avg_daily.append(avg_daily_data_dict)
 
-
-
-
-
-
-    #print("ANNUAL AVG", weather_data.avg_annual)
-    #print("MONTHLY AVG", weather_data.avg_monthly)
-    #print("ANNUAL AVG", weather_data.avg_annual)
 
     # Add annual data averages to the HistoricalWeatherData
     for year in range(START_NOAA_YEAR, CURRENT_YEAR+1):
@@ -882,7 +887,6 @@ def get_climate_data_year(target_lat, target_lon, target_elevation, df_stations_
             'snow_in': data["snow_in"] * DAYS_IN_YEAR,
             'precip_days': data["precip_days"] * DAYS_IN_YEAR,
             'snow_days': data["snow_days"] * DAYS_IN_YEAR,
-            'frost_free_days': growing_season[2],
             'dewpoint_temp': data["dewpoint_temp"],
             'humidity_percent': data["humidity_percent"],
             'wind_spd': data["wind_spd"],
@@ -894,7 +898,6 @@ def get_climate_data_year(target_lat, target_lon, target_elevation, df_stations_
             'sun_angle': data["sun_angle"],
             'uv_index': data["uv_index"],
             'comfort_index': data["comfort_index"],
-            'growing_season': (growing_season[0], growing_season[1]),
         }
         for month in range(1,13):
             month_data = noaa_data_weighted.get_avg_monthly_data(month, year)
@@ -918,7 +921,6 @@ def get_climate_data_year(target_lat, target_lon, target_elevation, df_stations_
                 'snow_in': month_data["snow_in"] * DAYS_IN_MONTH,
                 'precip_days': month_data["precip_days"] * DAYS_IN_MONTH,
                 'snow_days': month_data["snow_days"] * DAYS_IN_MONTH,
-                'frost_free_days': growing_season[2],
                 'dewpoint_temp': month_data["dewpoint_temp"],
                 'humidity_percent': month_data["humidity_percent"],
                 'wind_spd': month_data["wind_spd"],
@@ -930,7 +932,6 @@ def get_climate_data_year(target_lat, target_lon, target_elevation, df_stations_
                 'sun_angle': month_data["sun_angle"],
                 'uv_index': month_data["uv_index"],
                 'comfort_index': month_data["comfort_index"],
-                'growing_season': (growing_season[0], growing_season[1]),
             }
             for day in range(1,32):
                 day_data = noaa_data_weighted.get_avg_daily_data(month, day, year)
@@ -955,7 +956,6 @@ def get_climate_data_year(target_lat, target_lon, target_elevation, df_stations_
                     'snow_in': day_data["snow_in"],
                     'precip_days': day_data["precip_days"],
                     'snow_days': day_data["snow_days"],
-                    'frost_free_days': growing_season[2],
                     'dewpoint_temp': day_data["dewpoint_temp"],
                     'humidity_percent': day_data["humidity_percent"],
                     'wind_spd': day_data["wind_spd"],
@@ -967,7 +967,6 @@ def get_climate_data_year(target_lat, target_lon, target_elevation, df_stations_
                     'sun_angle': day_data["sun_angle"],
                     'uv_index': day_data["uv_index"],
                     'comfort_index': day_data["comfort_index"],
-                    'growing_season': (growing_season[0], growing_season[1]),
                 }
             
                 weather_data.years[year].months[month].days[day].day = historical_day_data_dict

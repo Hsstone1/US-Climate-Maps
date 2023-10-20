@@ -10,6 +10,12 @@ import numpy as np
 from scipy.stats import norm
 
 
+#This is for the historical data, earliest validated year in the CSV's is 1980
+#The furthest back the NWS stations go is april of 2019
+START_NOAA_YEAR = 2000
+START_NWS_YEAR = 2019
+CURRENT_YEAR = datetime.datetime.now().year
+DAYS_IN_MONTH_INDEX = [31,29,31,30,31,30,31,31,30,31,30,31]
 
 DAYS_IN_MONTH = 30.417
 DAYS_IN_YEAR = 365.25
@@ -215,8 +221,11 @@ def calc_growing_chance(data):
     mean_low_temp = np.mean(low_temp_values)
     std_dev_low_temp = np.std(low_temp_values)
 
-    # Calculate the z-score for 32 degrees
-    z_score = (32 - mean_low_temp) / std_dev_low_temp
+    if std_dev_low_temp == 0:
+    # Handle the case when standard deviation is zero
+        z_score = 0  # or some default value or exception
+    else:
+        z_score = (32 - mean_low_temp) / std_dev_low_temp
 
     # Calculate the cumulative probability using the CDF
     cumulative_prob = norm.cdf(z_score)
@@ -444,6 +453,8 @@ def calc_uv_index(sun_angle, altitude, sunshine_percentage):
     #adjusts for percentage vs numerical value 0-100
     if sunshine_percentage > 1:
         sunshine_percentage /= 100
+    sunshine_percentage = max(0, min(sunshine_percentage, 1))
+
     # Calculate the UV index based on the sun angle, where 90 degrees is the maximum returning 12
     uv_index = (sun_angle / 90) * 12
     

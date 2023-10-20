@@ -17,7 +17,7 @@ export default function Map() {
   const [selectedMarker, setSelectedMarker] = useState<MarkerType[]>([]);
   const [locationsCompare, setLocationsCompare] = useState<MarkerType[]>([]);
   const [activeComponent, setActiveComponent] = useState<
-    "map" | "compare" | "about"
+    "map" | "compare" | "climate change"
   >("map");
 
   //max number of locations that can be compared at once
@@ -226,10 +226,10 @@ export default function Map() {
             <a
               href="#"
               onClick={() => {
-                setActiveComponent("about");
+                setActiveComponent("climate change");
               }}
             >
-              About
+              Climate Change
             </a>
           </li>
         </ul>

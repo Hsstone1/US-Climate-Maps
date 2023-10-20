@@ -35,30 +35,76 @@ type ClimateChartProps = {
   datasetProp: ClimateChartDataset[];
   units?: string;
   adjustUnitsByVal?: number;
+  isLeapYear?: boolean;
 };
+
+// Define month names
+const MONTHS = [
+  "Jan",
+  "Feb",
+  "Mar",
+  "Apr",
+  "May",
+  "Jun",
+  "Jul",
+  "Aug",
+  "Sep",
+  "Oct",
+  "Nov",
+  "Dec",
+];
 
 export default function ClimateChart({
   datasetProp,
   units = "",
   adjustUnitsByVal = 1,
+  isLeapYear = false,
 }: ClimateChartProps) {
+  // This function generates labels with month names at the correct indices
+  const generateMonthLabels = () => {
+    // Days in months (non-leap year by default)
+    const daysInMonths = [31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31];
+
+    // Adjust for leap year
+    if (isLeapYear) {
+      daysInMonths[1] = 29; // February
+    }
+
+    // Generate labels
+    const labels = new Array(isLeapYear ? 366 : 365).fill("");
+    let dayCounter = 0;
+
+    for (let i = 0; i < daysInMonths.length; i++) {
+      labels[dayCounter] = MONTHS[i]; // Set the month label
+      dayCounter += daysInMonths[i]; // Move to the next month position
+    }
+
+    return labels;
+  };
+
+  //This function generates labels with day and month names at the correct indices
+  const generateDateLabels = () => {
+    const daysInMonths = [31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31];
+    if (isLeapYear) {
+      daysInMonths[1] = 29; // February in leap year
+    }
+
+    const dateLabels = [];
+    let totalDays = 0;
+
+    for (let month = 0; month < daysInMonths.length; month++) {
+      for (let day = 1; day <= daysInMonths[month]; day++) {
+        dateLabels.push({ day, month: month + 1, totalDays });
+        totalDays++;
+      }
+    }
+
+    return dateLabels;
+  };
+
   const createChartData = () => {
     return {
-      labels: [
-        "Jan",
-        "Feb",
-        "Mar",
-        "Apr",
-        "May",
-        "Jun",
-        "Jul",
-        "Aug",
-        "Sep",
-        "Oct",
-        "Nov",
-        "Dec",
-        "",
-      ],
+      labels: generateMonthLabels(),
       datasets: datasetProp.map((dataset) => ({
         type: dataset.type,
         label: dataset.label,
@@ -75,25 +121,31 @@ export default function ClimateChart({
         datalabels: {
           formatter: (value: any, context: any) => {
             const yAxisID = context.dataset.yAxisID;
-            const skippedIndexes = [1, 2, 4, 5, 7, 8, 10, 11];
 
-            if (skippedIndexes.includes(context.dataIndex)) {
-              return "";
-            }
             if (yAxisID === "Temperature") {
               return value.toFixed(0) + " °F";
-            } else if (yAxisID === "Precip") {
+            } else if (yAxisID === "Precip" && value !== 0) {
               return value.toFixed(1) + " in";
-            } else if (yAxisID === "Sunshine_Percentage") {
+            } else if (
+              yAxisID === "Sunshine_Percentage" &&
+              value !== 0 &&
+              value !== 1
+            ) {
               return (value * 100).toFixed(0) + " %";
-            } else if (yAxisID === "Humidity_Percentage") {
+            } else if (
+              yAxisID === "Humidity_Percentage" &&
+              value !== 0 &&
+              value !== 1
+            ) {
               return value.toFixed(0) + " %";
             } else if (yAxisID === "Wind") {
               return value.toFixed(0) + " mph";
             } else if (yAxisID === "Sun_Angle") {
               return value.toFixed(1) + " °";
-            } else {
+            } else if (value !== 1 && value !== 0) {
               return value.toFixed(0);
+            } else {
+              return "";
             }
           },
         },
@@ -129,6 +181,21 @@ export default function ClimateChart({
         axis: "x",
         intersect: false,
         callbacks: {
+          title: function (context) {
+            // Get the first tooltip item assuming there is one dataset, otherwise, might need to choose the appropriate one
+            const tooltipItem = context.length ? context[0] : null;
+
+            if (tooltipItem) {
+              const dateLabels = generateDateLabels();
+              const date = dateLabels[tooltipItem.dataIndex];
+
+              // Return the string to be displayed at the top of the tooltip
+              return `${MONTHS[date.month - 1]} ${date.day}`;
+            }
+
+            return "";
+          },
+
           label: (context) => {
             let label = context.dataset.label || "";
 
@@ -149,10 +216,15 @@ export default function ClimateChart({
       datalabels: {
         align: "bottom",
         anchor: "center",
-        offset: -18,
-
+        offset: -20,
         display: "auto",
         color: "#808080",
+        padding: {
+          top: 10,
+          right: 20,
+          bottom: 10,
+          left: 20,
+        },
 
         font: {
           size: 10,
@@ -165,6 +237,7 @@ export default function ClimateChart({
       x: {
         ticks: {
           autoSkip: false,
+          maxTicksLimit: 12,
           minRotation: 0,
           maxRotation: 0,
           font: {
@@ -203,7 +276,7 @@ export default function ClimateChart({
             return value + " in ";
           },
           maxTicksLimit: 10,
-          stepSize: 0.2,
+          stepSize: 0.1,
           font: {
             size: 10,
           },

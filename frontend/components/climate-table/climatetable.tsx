@@ -20,6 +20,13 @@ export default function ClimateTable({ data }: TableProps) {
     "Year",
   ];
 
+  const mapClimateData = (key: string) =>
+    data.climate_data.avg_monthly.map(
+      (month: { [key: string]: any }) => month[key]
+    );
+
+  const climateData = data.climate_data.avg_annual;
+
   return (
     <table style={{ borderCollapse: "collapse" }}>
       <thead>
@@ -48,58 +55,58 @@ export default function ClimateTable({ data }: TableProps) {
       </thead>
       <tbody>
         <ClimateTableRow
-          monthly_data={data.monthly_data.monthly_record_high}
-          annual_data={data.annual_data.annual_record_high}
+          monthly_data={mapClimateData("record_high_temp")}
+          annual_data={climateData.record_high_temp}
           rowTitle="Record High (°F)"
           dataType="Temperature"
           annual_units="°F"
         ></ClimateTableRow>
         <ClimateTableRow
-          monthly_data={data.monthly_data.monthly_mean_maximum}
-          annual_data={data.annual_data.annual_mean_maximum}
-          rowTitle="Mean Maximum (°F)"
+          monthly_data={mapClimateData("mean_max_temp")}
+          annual_data={climateData.mean_max_temp}
+          rowTitle="Expected Max (°F)"
           dataType="Temperature"
           annual_units="°F"
         ></ClimateTableRow>
         <ClimateTableRow
-          monthly_data={data.monthly_data.monthly_high_avg}
-          annual_data={data.annual_data.annual_high_avg}
+          monthly_data={mapClimateData("high_temp")}
+          annual_data={climateData.high_temp}
           rowTitle="Average High (°F)"
           dataType="Temperature"
           annual_units="°F"
         ></ClimateTableRow>
         <ClimateTableRow
-          monthly_data={data.monthly_data.monthly_mean_avg}
-          annual_data={data.annual_data.annual_mean_avg}
+          monthly_data={mapClimateData("mean_temp")}
+          annual_data={climateData.mean_temp}
           rowTitle="Daily Average (°F)"
           dataType="Temperature"
           annual_units="°F"
         ></ClimateTableRow>
         <ClimateTableRow
-          monthly_data={data.monthly_data.monthly_low_avg}
-          annual_data={data.annual_data.annual_low_avg}
+          monthly_data={mapClimateData("low_temp")}
+          annual_data={climateData.low_temp}
           rowTitle="Average Low (°F)"
           dataType="Temperature"
           annual_units="°F"
         ></ClimateTableRow>
         <ClimateTableRow
-          monthly_data={data.monthly_data.monthly_mean_minimum}
-          annual_data={data.annual_data.annual_mean_minimum}
-          rowTitle="Mean Minimum (°F)"
+          monthly_data={mapClimateData("mean_min_temp")}
+          annual_data={climateData.mean_min_temp}
+          rowTitle="Expected Min (°F)"
           dataType="Temperature"
           annual_units="°F"
         ></ClimateTableRow>
         <ClimateTableRow
-          monthly_data={data.monthly_data.monthly_record_low}
-          annual_data={data.annual_data.annual_record_low}
+          monthly_data={mapClimateData("record_low_temp")}
+          annual_data={climateData.record_low_temp}
           rowTitle="Record Low (°F)"
           dataType="Temperature"
           annual_units="°F"
         ></ClimateTableRow>
 
         <ClimateTableRow
-          monthly_data={data.monthly_data.monthly_precip_avg}
-          annual_data={data.annual_data.annual_precip_avg}
+          monthly_data={mapClimateData("precip_in")}
+          annual_data={climateData.precip_in}
           rowTitle="Rainfall (in)"
           dataType="Precip"
           numDec={1}
@@ -107,16 +114,16 @@ export default function ClimateTable({ data }: TableProps) {
           annual_units=" in"
         ></ClimateTableRow>
         <ClimateTableRow
-          monthly_data={data.monthly_data.monthly_precip_days_avg}
-          annual_data={data.annual_data.annual_precip_days_avg}
+          monthly_data={mapClimateData("precip_days")}
+          annual_data={climateData.precip_days}
           rowTitle="Rainy Days"
           dataType="Precip"
           divideAnnualBackground={12}
           annual_units=" days"
         ></ClimateTableRow>
         <ClimateTableRow
-          monthly_data={data.monthly_data.monthly_snow_avg}
-          annual_data={data.annual_data.annual_snow_avg}
+          monthly_data={mapClimateData("snow_in")}
+          annual_data={climateData.snow_in}
           rowTitle="Snowfall (in)"
           dataType="Precip"
           numDec={1}
@@ -124,55 +131,53 @@ export default function ClimateTable({ data }: TableProps) {
           annual_units=" in"
         ></ClimateTableRow>
         <ClimateTableRow
-          monthly_data={data.monthly_data.monthly_snow_days_avg}
-          annual_data={data.annual_data.annual_snow_days_avg}
+          monthly_data={mapClimateData("snow_days")}
+          annual_data={climateData.snow_days}
           rowTitle="Snowy Days"
           dataType="Precip"
           divideAnnualBackground={12}
           annual_units=" days"
         ></ClimateTableRow>
         <ClimateTableRow
-          monthly_data={data.monthly_data.monthly_humidity_avg}
-          annual_data={data.annual_data.annual_humidity_avg}
+          monthly_data={mapClimateData("wind_spd")}
+          annual_data={climateData.wind_spd}
+          rowTitle="Wind (mph)"
+          dataType="Precip"
+          annual_units=" mph"
+        ></ClimateTableRow>
+        <ClimateTableRow
+          monthly_data={mapClimateData("humidity_percent")}
+          annual_data={climateData.humidity_percent}
           rowTitle="Humidity (%)"
           dataType="Humidity"
           annual_units="%"
         ></ClimateTableRow>
         <ClimateTableRow
-          monthly_data={data.monthly_data.monthly_dewpoint_avg}
-          annual_data={data.annual_data.annual_dewpoint_avg}
+          monthly_data={mapClimateData("dewpoint_temp")}
+          annual_data={climateData.dewpoint_temp}
           rowTitle="Dewpoint (°F)"
           dataType="Temperature"
           annual_units="°F"
         ></ClimateTableRow>
         <ClimateTableRow
-          monthly_data={data.monthly_data.monthly_sunshine_hours_avg}
-          annual_data={data.annual_data.annual_sunshine_hours_avg}
+          monthly_data={mapClimateData("uv_index")}
+          annual_data={climateData.uv_index}
+          rowTitle="UV Index"
+          dataType="UV Index"
+        ></ClimateTableRow>
+        <ClimateTableRow
+          monthly_data={mapClimateData("sunshine_hours")}
+          annual_data={climateData.sunshine_hours}
           rowTitle="Sunshine Hours"
           dataType="SunHours"
           divideAnnualBackground={12}
         ></ClimateTableRow>
         <ClimateTableRow
-          monthly_data={data.monthly_data.monthly_sunshine_avg.map(
-            (value: number) => value * 100
-          )}
-          annual_data={data.annual_data.annual_sunshine_avg * 100}
+          monthly_data={mapClimateData("sunshine_percent")}
+          annual_data={climateData.sunshine_percent}
           rowTitle="Percent Sunshine"
           dataType="SunPercent"
           annual_units="%"
-        ></ClimateTableRow>
-        <ClimateTableRow
-          monthly_data={data.monthly_data.monthly_uv_index}
-          annual_data={data.annual_data.annual_uv_index_avg}
-          rowTitle="UV Index"
-          dataType="UV Index"
-        ></ClimateTableRow>
-        <ClimateTableRow
-          monthly_data={data.monthly_data.monthly_sun_angle}
-          annual_data={data.annual_data.annual_sun_angle_avg}
-          rowTitle="Max Sun Angle"
-          dataType="SunPercent"
-          annual_units="°"
         ></ClimateTableRow>
       </tbody>
     </table>

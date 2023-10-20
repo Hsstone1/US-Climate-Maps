@@ -16,6 +16,7 @@ export default function ComparisonPage({ locations }: ComparisonPageProps) {
   const LINE_ALPHA = 1;
   const BACKGROUND_ALPHA = 0.05;
   const HEADING_VARIANT = "h5";
+  const SMA_SMOOTH_DAYS = 30;
 
   // Append first index to end of array for chart
   function appendFirstIndexToEnd(data: number[]): number[] {
@@ -23,6 +24,62 @@ export default function ComparisonPage({ locations }: ComparisonPageProps) {
     newData.push(data[0]);
     return newData;
   }
+
+  const mapClimateData = (
+    location: any,
+    key: string,
+    options: { multiplyByVal?: number; windowSize?: number } = {}
+  ) => {
+    const { multiplyByVal = 1, windowSize } = options;
+
+    const rawData = location.data.climate_data.avg_daily.map(
+      (day: { [key: string]: any }) => day[key] * multiplyByVal
+    );
+
+    if (windowSize === undefined) {
+      return rawData;
+    }
+
+    // SMA calculation to smooth the data
+    const calculateSMA = (data: number[], window_size: number) => {
+      let rollingAverages = [];
+
+      // Determine how many data points should be taken before and after the current point
+      let beforeAfterCount = Math.floor(window_size / 2);
+
+      for (let i = 0; i < data.length; i++) {
+        let start_index = i - beforeAfterCount;
+        let end_index = i + beforeAfterCount + 1; // Include the current data point
+
+        let validWindowData;
+        if (start_index < 0 || end_index > data.length) {
+          // If the window exceeds array bounds, we handle it by slicing the array differently
+          // This step will depend on how you want to handle the boundaries (e.g., repeat, use available data, etc.)
+          // Here's an example of using available data:
+          validWindowData = data.slice(
+            Math.max(0, start_index),
+            Math.min(data.length, end_index)
+          );
+        } else {
+          validWindowData = data.slice(start_index, end_index);
+        }
+
+        let validValues = validWindowData.filter((value) => value != null);
+
+        if (validValues.length > 0) {
+          let sum = validValues.reduce((a, b) => a + b, 0);
+          let avg = sum / validValues.length;
+          rollingAverages.push(avg);
+        } else {
+          rollingAverages.push(null); // No valid values in the window
+        }
+      }
+
+      return rollingAverages;
+    };
+
+    return calculateSMA(rawData, windowSize);
+  };
 
   const temperature_dataset = (
     locations: MarkerType[]
@@ -37,7 +94,10 @@ export default function ComparisonPage({ locations }: ComparisonPageProps) {
         type: "line",
         label: location.data.location_data.location,
         data: appendFirstIndexToEnd(
-          location.data.monthly_data.monthly_high_avg
+          mapClimateData(location, "high_temp", {
+            multiplyByVal: 1,
+            windowSize: SMA_SMOOTH_DAYS,
+          })
         ),
         backgroundColor: background_color,
         borderColor: color,
@@ -53,7 +113,12 @@ export default function ComparisonPage({ locations }: ComparisonPageProps) {
       const low_dataset: ClimateChartDataset = {
         type: "line",
         label: location.data.location_data.location,
-        data: appendFirstIndexToEnd(location.data.monthly_data.monthly_low_avg),
+        data: appendFirstIndexToEnd(
+          mapClimateData(location, "low_temp", {
+            multiplyByVal: 1,
+            windowSize: SMA_SMOOTH_DAYS,
+          })
+        ),
         backgroundColor: background_color,
         borderColor: color,
         borderWidth: CHART_BORDER_WIDTH,
@@ -68,7 +133,10 @@ export default function ComparisonPage({ locations }: ComparisonPageProps) {
         type: "line",
         label: location.data.location_data.location,
         data: appendFirstIndexToEnd(
-          location.data.monthly_data.monthly_apparent_high
+          mapClimateData(location, "apparent_high_temp", {
+            multiplyByVal: 1,
+            windowSize: SMA_SMOOTH_DAYS,
+          })
         ),
         backgroundColor: LocationColors(0.4)[index],
         borderColor: LocationColors(0.4)[index],
@@ -85,7 +153,10 @@ export default function ComparisonPage({ locations }: ComparisonPageProps) {
         type: "line",
         label: location.data.location_data.location,
         data: appendFirstIndexToEnd(
-          location.data.monthly_data.monthly_apparent_low
+          mapClimateData(location, "apparent_low_temp", {
+            multiplyByVal: 1,
+            windowSize: SMA_SMOOTH_DAYS,
+          })
         ),
         backgroundColor: LocationColors(0.4)[index],
         borderColor: LocationColors(0.4)[index],
@@ -117,7 +188,10 @@ export default function ComparisonPage({ locations }: ComparisonPageProps) {
         type: "line",
         label: location.data.location_data.location,
         data: appendFirstIndexToEnd(
-          location.data.monthly_data.monthly_precip_avg
+          mapClimateData(location, "precip_in", {
+            multiplyByVal: 30,
+            windowSize: SMA_SMOOTH_DAYS * 2,
+          })
         ),
 
         backgroundColor: color,
@@ -143,7 +217,10 @@ export default function ComparisonPage({ locations }: ComparisonPageProps) {
         type: "line",
         label: location.data.location_data.location,
         data: appendFirstIndexToEnd(
-          location.data.monthly_data.monthly_snow_avg
+          mapClimateData(location, "snow_in", {
+            multiplyByVal: 30,
+            windowSize: SMA_SMOOTH_DAYS * 2,
+          })
         ),
 
         backgroundColor: color,
@@ -169,7 +246,10 @@ export default function ComparisonPage({ locations }: ComparisonPageProps) {
         type: "line",
         label: location.data.location_data.location,
         data: appendFirstIndexToEnd(
-          location.data.monthly_data.monthly_sunshine_avg
+          mapClimateData(location, "sunshine_percent", {
+            multiplyByVal: 0.01,
+            windowSize: SMA_SMOOTH_DAYS,
+          })
         ),
 
         backgroundColor: color,
@@ -197,7 +277,10 @@ export default function ComparisonPage({ locations }: ComparisonPageProps) {
         type: "line",
         label: location.data.location_data.location,
         data: appendFirstIndexToEnd(
-          location.data.monthly_data.monthly_sun_angle
+          mapClimateData(location, "sun_angle", {
+            multiplyByVal: 1,
+            windowSize: SMA_SMOOTH_DAYS,
+          })
         ),
 
         backgroundColor: color,
@@ -223,7 +306,10 @@ export default function ComparisonPage({ locations }: ComparisonPageProps) {
         type: "line",
         label: location.data.location_data.location,
         data: appendFirstIndexToEnd(
-          location.data.monthly_data.monthly_humidity_avg
+          mapClimateData(location, "humidity_percent", {
+            multiplyByVal: 1,
+            windowSize: SMA_SMOOTH_DAYS,
+          })
         ),
 
         backgroundColor: color,
@@ -241,6 +327,35 @@ export default function ComparisonPage({ locations }: ComparisonPageProps) {
     return datasets;
   };
 
+  const dewpointDataset = (locations: MarkerType[]): ClimateChartDataset[] => {
+    const datasets: ClimateChartDataset[] = [];
+    locations.forEach((location: MarkerType, index) => {
+      const color = LocationColors(LINE_ALPHA)[index];
+      const humidity_dataset: ClimateChartDataset = {
+        type: "line",
+        label: location.data.location_data.location,
+        data: appendFirstIndexToEnd(
+          mapClimateData(location, "dewpoint_temp", {
+            multiplyByVal: 1,
+            windowSize: SMA_SMOOTH_DAYS,
+          })
+        ),
+
+        backgroundColor: color,
+        borderColor: color,
+        borderWidth: CHART_BORDER_WIDTH,
+        pointRadius: 0,
+        pointHoverRadius: 0,
+        lineTension: LINE_TENSION,
+        fill: false,
+        yAxisID: "Temperature",
+      };
+
+      datasets.push(humidity_dataset);
+    });
+    return datasets;
+  };
+
   const windDataset = (locations: MarkerType[]): ClimateChartDataset[] => {
     const datasets: ClimateChartDataset[] = [];
     locations.forEach((location: MarkerType, index) => {
@@ -249,7 +364,10 @@ export default function ComparisonPage({ locations }: ComparisonPageProps) {
         type: "line",
         label: location.data.location_data.location,
         data: appendFirstIndexToEnd(
-          location.data.monthly_data.monthly_wind_gust_avg
+          mapClimateData(location, "wind_spd", {
+            multiplyByVal: 1,
+            windowSize: SMA_SMOOTH_DAYS,
+          })
         ),
 
         backgroundColor: color,
@@ -275,7 +393,10 @@ export default function ComparisonPage({ locations }: ComparisonPageProps) {
         type: "line",
         label: location.data.location_data.location,
         data: appendFirstIndexToEnd(
-          location.data.monthly_data.monthly_comfort_index
+          mapClimateData(location, "comfort_index", {
+            multiplyByVal: 1,
+            windowSize: SMA_SMOOTH_DAYS,
+          })
         ),
 
         backgroundColor: color,
@@ -301,9 +422,11 @@ export default function ComparisonPage({ locations }: ComparisonPageProps) {
         type: "line",
         label: location.data.location_data.location,
         data: appendFirstIndexToEnd(
-          location.data.monthly_data.monthly_frost_free_days_avg
+          mapClimateData(location, "growing_season", {
+            multiplyByVal: 0.01,
+            windowSize: SMA_SMOOTH_DAYS,
+          })
         ),
-
         backgroundColor: color,
         borderColor: color,
         borderWidth: CHART_BORDER_WIDTH,
@@ -355,6 +478,7 @@ export default function ComparisonPage({ locations }: ComparisonPageProps) {
                 which can change based on humidity and wind speed.
               </p>
               <div>
+                {/* Change this to be the difference between the aparent temperature and normal between high and low*/}
                 <Table
                   locations={locations}
                   heading="Mean Maximum Temperature (°F)"
@@ -571,7 +695,7 @@ export default function ComparisonPage({ locations }: ComparisonPageProps) {
                 component="div"
                 textAlign={"center"}
               >
-                Yearly Dewpoint and Humidity
+                Yearly Humidity
               </Typography>
 
               <ClimateChart
@@ -579,25 +703,36 @@ export default function ComparisonPage({ locations }: ComparisonPageProps) {
                 units={"%"}
               ></ClimateChart>
               <p style={{ textAlign: "center" }}>
-                Average humidity percentage for each month. The table contains
-                the average dewpoint for each month. The dewpoint is a measure
-                of absolute humidity in the air, rather than the relative
-                humidity percentage which changes with temperature. Dewpoint
-                values bellow 50 degrees are plesant, around 60 degrees begins
-                to feel humid, 70 degrees is very muggy, and above 75 is
-                extremely humid.
+                Average humidity for each month. The humidity is measured in
+                percentage. A humidity level below 30 percent is considered
+                comfortable, and above 70 percent is considered very humid.
               </p>
 
-              <div>
-                <Table
-                  locations={locations}
-                  heading="Average Dewpoint (°F)"
-                  monthlyDataStr={"monthly_dewpoint_avg"}
-                  annualDataStr={"annual_dewpoint_avg"}
-                  decimalTrunc={0}
-                  units={" °F"}
-                ></Table>
-              </div>
+              <br />
+              <br />
+              <hr />
+              <br />
+              <br />
+              <Typography
+                sx={{ flex: "1 1 100%" }}
+                variant={HEADING_VARIANT}
+                component="div"
+                textAlign={"center"}
+              >
+                Yearly Dewpoint
+              </Typography>
+
+              <ClimateChart
+                datasetProp={dewpointDataset(locations)}
+                units={"°F"}
+              ></ClimateChart>
+              <p style={{ textAlign: "center" }}>
+                The dewpoint is a measure of absolute humidity in the air,
+                rather than the relative humidity percentage which changes with
+                temperature. Dewpoint values bellow 50 degrees are plesant,
+                around 60 degrees begins to feel humid, 70 degrees is very
+                muggy, and above 75 is extremely humid.
+              </p>
 
               <br />
               <br />
@@ -650,23 +785,14 @@ export default function ComparisonPage({ locations }: ComparisonPageProps) {
                 datasetProp={comfortDataset(locations)}
               ></ClimateChart>
               <p style={{ textAlign: "center" }}>
-                Average comfort rating for each month. The table contains the
-                average comfort rating for each month. The comfort rating is a
+                Average comfort rating for each month. The comfort rating is a
                 function of temperature, humidity, cloudiness, UV index, and
                 wind speed. The higher the comfort rating, the more comfortable
-                the weather is. A comfort rating lower than 30 is very harsh,
-                and largely unsuitable for human life.
+                the weather is. A comfort rating lower than 50 is very harsh,
+                and largely unsuitable for normal life. A rating over 90 is
+                considered very ideal, usally accompanied with sunshine and warm
+                temperatures.
               </p>
-
-              <div>
-                <Table
-                  locations={locations}
-                  heading="Monthly Comfort Rating"
-                  monthlyDataStr={"monthly_comfort_index"}
-                  annualDataStr={"annual_comfort_index"}
-                  decimalTrunc={0}
-                ></Table>
-              </div>
             </div>
           </div>
         )}

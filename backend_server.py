@@ -111,9 +111,9 @@ def climate_data():
     data = {
         'annual_data': annual_data_dict,
         'monthly_data': monthly_data_dict,
-        'location_data': location_data_dict,
-        'data': json.loads(json.dumps(historical_data, cls=WeatherDataEncoder)),
-        'historical_location_data': json.loads(json.dumps(historical_location_data, cls=WeatherDataEncoder))
+        #'location_data': location_data_dict,
+        'climate_data': json.loads(json.dumps(historical_data, cls=WeatherDataEncoder)),
+        'location_data': json.loads(json.dumps(historical_location_data, cls=WeatherDataEncoder))
     }
 
 

@@ -34,6 +34,7 @@ class WeatherData:
             'sun_angle': None,
             'uv_index': None,
             'comfort_index': None,
+            'growing_chance_SMA': None,
             # Add more keys here as needed
 
         }
@@ -270,6 +271,7 @@ class LocationData:
         self.elevation = 0
         self.koppen = ''
         self.plant_hardiness = ''
+        self.location = ''
 
 
 
@@ -289,6 +291,7 @@ class WeatherDataEncoder(json.JSONEncoder):
                 'elevation': obj.elevation,
                 'koppen': obj.koppen,
                 'plant_hardiness': obj.plant_hardiness,
+                'location': obj.location,
             }
         elif isinstance(obj, YearlyWeatherData):
             # Convert YearlyWeatherData to a serializable dictionary
