@@ -15,8 +15,8 @@ import Typography from "@mui/material/Typography";
 type ComparisonPageProps = {
   locations: MarkerType[];
   heading: string; //'Mean Maximum'
-  monthlyDataStr: string; //'monthly_mean_maximum'
-  annualDataStr: string; //'annual_record_high'
+  monthlyDataKey: string; //'monthly_mean_maximum'
+  annualDataKey: string; //'annual_record_high'
   decimalTrunc: number;
   units?: string;
 };
@@ -42,19 +42,23 @@ const StyledTableCell = styled(TableCell)(() => ({
 const ClimateTable = ({
   locations,
   heading,
-  monthlyDataStr,
-  annualDataStr,
+  monthlyDataKey: monthlyDataStr,
+  annualDataKey: annualDataStr,
   decimalTrunc,
   units = "",
 }: ComparisonPageProps) => {
-  const monthlyDataArr = locations.map(
-    (location) => location.data.monthly_data
-  );
-  const filteredMonthlyDataArr = monthlyDataArr.map(
-    (data) => data[monthlyDataStr]
+  const mapClimateData = (location: any, key: string) =>
+    location.data.climate_data.avg_monthly.map(
+      (month: { [key: string]: any }) => month[key]
+    );
+
+  const monthlyDataArr = locations.map((location) =>
+    mapClimateData(location, monthlyDataStr)
   );
 
-  const annualDataArr = locations.map((location) => location.data.annual_data);
+  const annualDataArr = locations.map(
+    (location) => location.data.climate_data.avg_annual
+  );
   const filteredAnnualDataArr = annualDataArr.map(
     (data) => data[annualDataStr]
   );
@@ -91,6 +95,7 @@ const ClimateTable = ({
                     paddingLeft: "10px",
                   }}
                 >
+                  {/* This creates a box next to the location name with the location color*/}
                   <div
                     style={{
                       position: "absolute",
@@ -104,13 +109,11 @@ const ClimateTable = ({
                   {location.data.location_data.location}
                 </StyledTableCell>
 
-                {filteredMonthlyDataArr[index].map(
-                  (value: number, i: number) => (
-                    <StyledTableCell key={i}>
-                      {value % 1 === 0 ? 0 : value.toFixed(decimalTrunc)}
-                    </StyledTableCell>
-                  )
-                )}
+                {monthlyDataArr[index].map((value: number, i: number) => (
+                  <StyledTableCell key={i}>
+                    {value % 1 === 0 ? 0 : value.toFixed(decimalTrunc)}
+                  </StyledTableCell>
+                ))}
                 <StyledTableCell style={{ whiteSpace: "nowrap" }}>
                   {filteredAnnualDataArr[index].toFixed(decimalTrunc) + units}
                 </StyledTableCell>

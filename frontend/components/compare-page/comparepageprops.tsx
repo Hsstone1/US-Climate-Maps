@@ -17,7 +17,8 @@ export type ClimateChartDataset = {
     | "Sun_Angle"
     | "Humidity_Percentage"
     | "Wind"
-    | "Comfort_Index";
+    | "Comfort_Index"
+    | "UV_Index";
 };
 
 export const MonthLabels = [

@@ -216,16 +216,16 @@ export default function ClimateChart({
       datalabels: {
         align: "bottom",
         anchor: "center",
-        offset: -20,
+        offset: -25,
         display: "auto",
         color: "#808080",
+
         padding: {
           top: 10,
           right: 20,
           bottom: 10,
           left: 20,
         },
-
         font: {
           size: 10,
           weight: "bolder",
@@ -283,6 +283,44 @@ export default function ClimateChart({
         },
       },
 
+      Humidity_Percentage: {
+        type: "linear",
+        position: "left",
+        display: "auto",
+        max: 100,
+        min: 0,
+        ticks: {
+          beginAtZero: true,
+          callback: function (value: number) {
+            return value.toFixed(0) + " % "; // Multiply by 100 and append "%"
+          },
+          maxTicksLimit: 10,
+          stepSize: 10,
+          font: {
+            size: 10,
+          },
+        },
+      },
+
+      Wind: {
+        type: "linear",
+        position: "left",
+        display: "auto",
+        suggestedMin: 0,
+        suggestedMax: 10,
+        ticks: {
+          beginAtZero: true,
+          callback: function (value) {
+            return value + " mph ";
+          },
+          maxTicksLimit: 10,
+
+          stepSize: 1,
+          font: {
+            size: 10,
+          },
+        },
+      },
       Sunshine_Percentage: {
         type: "linear",
         position: "left",
@@ -319,34 +357,15 @@ export default function ClimateChart({
         },
       },
 
-      Humidity_Percentage: {
+      UV_Index: {
         type: "linear",
         position: "left",
         display: "auto",
-        max: 100,
+        suggestedMax: 10,
         min: 0,
         ticks: {
           beginAtZero: true,
-          callback: function (value: number) {
-            return value.toFixed(0) + " % "; // Multiply by 100 and append "%"
-          },
-          maxTicksLimit: 10,
-          stepSize: 10,
-          font: {
-            size: 10,
-          },
-        },
-      },
 
-      Wind: {
-        type: "linear",
-        position: "left",
-        display: "auto",
-        ticks: {
-          beginAtZero: true,
-          callback: function (value) {
-            return value + " mph ";
-          },
           maxTicksLimit: 10,
           stepSize: 1,
           font: {

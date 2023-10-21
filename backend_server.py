@@ -23,7 +23,7 @@ def climate_data():
         elevation = data['elevation']
 
     
-
+    '''
     # Process the latitude and longitude values and retrieve the necessary data
     start_time = time.time()  # Start timer
 
@@ -105,46 +105,24 @@ def climate_data():
         'koppen': location_data['koppen'],
         'plant_hardiness': location_data['plant_hardiness'],
     }
+
+    '''
     start_time = time.time()  # Start timer
     historical_data, historical_location_data = get_climate_data_year(latitude, longitude, elevation, df_stations_NWS_names, df_stations_NOAA_names)
     print("Historical Backend Server Elapsed Time:", time.time() - start_time, "seconds")
     data = {
-        'annual_data': annual_data_dict,
-        'monthly_data': monthly_data_dict,
+        #'annual_data': annual_data_dict,
+        #'monthly_data': monthly_data_dict,
         #'location_data': location_data_dict,
         'climate_data': json.loads(json.dumps(historical_data, cls=WeatherDataEncoder)),
         'location_data': json.loads(json.dumps(historical_location_data, cls=WeatherDataEncoder))
     }
 
-
-    
     # Return the response as JSON
     #print(data)
     return jsonify(data)
 
 
-@app.route('/climate_data_year', methods=["POST"])
-def climate_data_year():
-    # Get the data from the POST request.
-    data = request.get_json()
-    if 'latitude' in data and 'longitude' in data and 'elevation' in data and 'year' in data:
-        latitude = data['latitude']
-        longitude = data['longitude']
-        elevation = data['elevation']
-        year = data['year']
-
-    # Get the climate data
-    climate_data = get_climate_data_year(latitude, longitude, elevation, df_stations_NWS_names, df_stations_NOAA_names)
-    #print(climate_data)
-
-    # Create a response containing the data to be sent back to the JavaScript code
-    data = {
-        'climate_data': climate_data,
-    }
-
-    # Return the response as JSON
-    #print(data)
-    return jsonify(data)
 
 
 if __name__ == '__main__':

@@ -1,3 +1,6 @@
+import { TableRow, TableCell } from "@mui/material";
+import { styled } from "@mui/system";
+
 import {
   TemperatureColors,
   PrecipColors,
@@ -21,6 +24,14 @@ type ClimateTableRowProps = {
   divideAnnualBackground?: 1 | 12;
   annual_units?: string;
 };
+
+const StyledTableCell = styled(TableCell)(({ theme }) => ({
+  border: "1px solid black",
+  whiteSpace: "nowrap",
+  padding: "2px",
+  textAlign: "right",
+  fontSize: "12px",
+}));
 
 export default function ClimateTableRow({
   monthly_data,
@@ -145,51 +156,33 @@ export default function ClimateTableRow({
   };
 
   return (
-    <tr>
-      <td
-        style={{
-          border: "1px solid black",
-          padding: 4,
-          marginRight: 8,
-          whiteSpace: "nowrap",
-        }}
-      >
-        {rowTitle}
-      </td>
+    <TableRow>
+      <StyledTableCell align="right">{rowTitle}</StyledTableCell>
       {monthly_data.map((value: any, index: any) => (
-        <td
+        <StyledTableCell
           key={index}
           style={{
             backgroundColor: getBackgroundColor(value, dataType),
             color: getTextColor(value, dataType),
             textAlign: "center",
-            border: "1px solid black",
-            width: 50,
-            padding: 4,
           }}
         >
           {value.toFixed(numDec)}
-        </td>
+        </StyledTableCell>
       ))}
 
-      <td
+      <StyledTableCell
         style={{
-          //sometimes the annual value and monthly value represent two different colors,
-          //so the annual value is divided by 12 to match the monthly value background.
-          //Precipitation values are a good example of this
           backgroundColor: getBackgroundColor(
             annual_data / divideAnnualBackground,
             dataType
           ),
           color: getTextColor(annual_data / divideAnnualBackground, dataType),
           textAlign: "center",
-          border: "1px solid black",
-          padding: 4,
-          width: 100,
         }}
       >
         {`${annual_data.toFixed(numDec)}${annual_units}`}
-      </td>
-    </tr>
+      </StyledTableCell>
+    </TableRow>
   );
 }

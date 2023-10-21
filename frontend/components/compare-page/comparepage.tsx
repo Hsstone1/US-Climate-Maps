@@ -129,52 +129,61 @@ export default function ComparisonPage({ locations }: ComparisonPageProps) {
         yAxisID: "Temperature",
       };
 
-      const apparent_high_dataset: ClimateChartDataset = {
+      datasets.push(high_dataset, low_dataset);
+    });
+
+    return datasets;
+  };
+
+  const temperature_range_dataset = (
+    locations: MarkerType[]
+  ): ClimateChartDataset[] => {
+    const datasets: ClimateChartDataset[] = [];
+
+    locations.forEach((location: MarkerType, index) => {
+      const color = LocationColors(LINE_ALPHA)[index];
+      const background_color = LocationColors(BACKGROUND_ALPHA)[index];
+
+      const max_dataset: ClimateChartDataset = {
         type: "line",
         label: location.data.location_data.location,
         data: appendFirstIndexToEnd(
-          mapClimateData(location, "apparent_high_temp", {
+          mapClimateData(location, "mean_max_temp", {
             multiplyByVal: 1,
             windowSize: SMA_SMOOTH_DAYS,
           })
         ),
-        backgroundColor: LocationColors(0.4)[index],
-        borderColor: LocationColors(0.4)[index],
-        borderWidth: 1,
-        borderDash: [3, 3],
+        backgroundColor: background_color,
+        borderColor: color,
+        borderWidth: CHART_BORDER_WIDTH,
+
         pointRadius: 0,
         pointHoverRadius: 0,
         lineTension: LINE_TENSION,
-        fill: false,
+        fill: "+1",
         yAxisID: "Temperature",
       };
 
-      const apparent_low_dataset: ClimateChartDataset = {
+      const min_dataset: ClimateChartDataset = {
         type: "line",
         label: location.data.location_data.location,
         data: appendFirstIndexToEnd(
-          mapClimateData(location, "apparent_low_temp", {
+          mapClimateData(location, "mean_min_temp", {
             multiplyByVal: 1,
             windowSize: SMA_SMOOTH_DAYS,
           })
         ),
-        backgroundColor: LocationColors(0.4)[index],
-        borderColor: LocationColors(0.4)[index],
-        borderWidth: 1,
-        borderDash: [3, 3],
+        backgroundColor: background_color,
+        borderColor: color,
+        borderWidth: CHART_BORDER_WIDTH,
         pointRadius: 0,
         pointHoverRadius: 0,
         lineTension: LINE_TENSION,
-        fill: false,
+        fill: "-1",
         yAxisID: "Temperature",
       };
 
-      datasets.push(
-        high_dataset,
-        low_dataset,
-        apparent_high_dataset,
-        apparent_low_dataset
-      );
+      datasets.push(max_dataset, min_dataset);
     });
 
     return datasets;
@@ -234,66 +243,6 @@ export default function ComparisonPage({ locations }: ComparisonPageProps) {
       };
 
       datasets.push(snow_dataset);
-    });
-    return datasets;
-  };
-
-  const sunshine_dataset = (locations: MarkerType[]): ClimateChartDataset[] => {
-    const datasets: ClimateChartDataset[] = [];
-    locations.forEach((location: MarkerType, index) => {
-      const color = LocationColors(LINE_ALPHA)[index];
-      const sunshine_dataset: ClimateChartDataset = {
-        type: "line",
-        label: location.data.location_data.location,
-        data: appendFirstIndexToEnd(
-          mapClimateData(location, "sunshine_percent", {
-            multiplyByVal: 0.01,
-            windowSize: SMA_SMOOTH_DAYS,
-          })
-        ),
-
-        backgroundColor: color,
-        borderColor: color,
-        borderWidth: CHART_BORDER_WIDTH,
-        pointRadius: 0,
-        pointHoverRadius: 0,
-        lineTension: LINE_TENSION,
-        fill: false,
-        yAxisID: "Sunshine_Percentage",
-      };
-
-      datasets.push(sunshine_dataset);
-    });
-    return datasets;
-  };
-
-  const sun_angle_dataset = (
-    locations: MarkerType[]
-  ): ClimateChartDataset[] => {
-    const datasets: ClimateChartDataset[] = [];
-    locations.forEach((location: MarkerType, index) => {
-      const color = LocationColors(LINE_ALPHA)[index];
-      const sun_angle: ClimateChartDataset = {
-        type: "line",
-        label: location.data.location_data.location,
-        data: appendFirstIndexToEnd(
-          mapClimateData(location, "sun_angle", {
-            multiplyByVal: 1,
-            windowSize: SMA_SMOOTH_DAYS,
-          })
-        ),
-
-        backgroundColor: color,
-        borderColor: color,
-        borderWidth: CHART_BORDER_WIDTH,
-        pointRadius: 0,
-        pointHoverRadius: 0,
-        lineTension: LINE_TENSION,
-        fill: false,
-        yAxisID: "Sun_Angle",
-      };
-
-      datasets.push(sun_angle);
     });
     return datasets;
   };
@@ -385,6 +334,95 @@ export default function ComparisonPage({ locations }: ComparisonPageProps) {
     return datasets;
   };
 
+  const sunshine_dataset = (locations: MarkerType[]): ClimateChartDataset[] => {
+    const datasets: ClimateChartDataset[] = [];
+    locations.forEach((location: MarkerType, index) => {
+      const color = LocationColors(LINE_ALPHA)[index];
+      const sunshine_dataset: ClimateChartDataset = {
+        type: "line",
+        label: location.data.location_data.location,
+        data: appendFirstIndexToEnd(
+          mapClimateData(location, "sunshine_percent", {
+            multiplyByVal: 0.01,
+            windowSize: SMA_SMOOTH_DAYS,
+          })
+        ),
+
+        backgroundColor: color,
+        borderColor: color,
+        borderWidth: CHART_BORDER_WIDTH,
+        pointRadius: 0,
+        pointHoverRadius: 0,
+        lineTension: LINE_TENSION,
+        fill: false,
+        yAxisID: "Sunshine_Percentage",
+      };
+
+      datasets.push(sunshine_dataset);
+    });
+    return datasets;
+  };
+
+  const sun_angle_dataset = (
+    locations: MarkerType[]
+  ): ClimateChartDataset[] => {
+    const datasets: ClimateChartDataset[] = [];
+    locations.forEach((location: MarkerType, index) => {
+      const color = LocationColors(LINE_ALPHA)[index];
+      const sun_angle: ClimateChartDataset = {
+        type: "line",
+        label: location.data.location_data.location,
+        data: appendFirstIndexToEnd(
+          mapClimateData(location, "sun_angle", {
+            multiplyByVal: 1,
+            windowSize: SMA_SMOOTH_DAYS,
+          })
+        ),
+
+        backgroundColor: color,
+        borderColor: color,
+        borderWidth: CHART_BORDER_WIDTH,
+        pointRadius: 0,
+        pointHoverRadius: 0,
+        lineTension: LINE_TENSION,
+        fill: false,
+        yAxisID: "Sun_Angle",
+      };
+
+      datasets.push(sun_angle);
+    });
+    return datasets;
+  };
+
+  const uv_index_dataset = (locations: MarkerType[]): ClimateChartDataset[] => {
+    const datasets: ClimateChartDataset[] = [];
+    locations.forEach((location: MarkerType, index) => {
+      const color = LocationColors(LINE_ALPHA)[index];
+      const uv_index: ClimateChartDataset = {
+        type: "line",
+        label: location.data.location_data.location,
+        data: appendFirstIndexToEnd(
+          mapClimateData(location, "uv_index", {
+            multiplyByVal: 1,
+            windowSize: SMA_SMOOTH_DAYS,
+          })
+        ),
+
+        backgroundColor: color,
+        borderColor: color,
+        borderWidth: CHART_BORDER_WIDTH,
+        pointRadius: 0,
+        pointHoverRadius: 0,
+        lineTension: LINE_TENSION,
+        fill: false,
+        yAxisID: "UV_Index",
+      };
+
+      datasets.push(uv_index);
+    });
+    return datasets;
+  };
+
   const comfortDataset = (locations: MarkerType[]): ClimateChartDataset[] => {
     const datasets: ClimateChartDataset[] = [];
     locations.forEach((location: MarkerType, index) => {
@@ -451,12 +489,6 @@ export default function ComparisonPage({ locations }: ComparisonPageProps) {
           </h3>
         ) : (
           <div>
-            <div className="compare_climate_table-div">
-              <ClimateTablePaginate
-                locations={locations}
-              ></ClimateTablePaginate>
-            </div>
-
             <div className="compare_chart-div">
               <br />
               <Typography
@@ -481,18 +513,18 @@ export default function ComparisonPage({ locations }: ComparisonPageProps) {
                 {/* Change this to be the difference between the aparent temperature and normal between high and low*/}
                 <Table
                   locations={locations}
-                  heading="Mean Maximum Temperature (°F)"
-                  monthlyDataStr={"monthly_mean_maximum"}
-                  annualDataStr={"annual_record_high"}
+                  heading="Average High (°F)"
+                  monthlyDataKey={"high_temp"}
+                  annualDataKey={"high_temp"}
                   decimalTrunc={0}
                   units={" °F"}
                 ></Table>
 
                 <Table
                   locations={locations}
-                  heading="Mean Minimum Temperature (°F)"
-                  monthlyDataStr={"monthly_mean_minimum"}
-                  annualDataStr={"annual_record_low"}
+                  heading="Average Low (°F)"
+                  monthlyDataKey={"low_temp"}
+                  annualDataKey={"low_temp"}
                   decimalTrunc={0}
                   units={" °F"}
                 ></Table>
@@ -503,6 +535,53 @@ export default function ComparisonPage({ locations }: ComparisonPageProps) {
               <hr />
               <br />
               <br />
+
+              <Typography
+                sx={{ flex: "1 1 100%" }}
+                variant={HEADING_VARIANT}
+                component="div"
+                textAlign={"center"}
+              >
+                Yearly Temperature Ranges
+              </Typography>
+
+              <ClimateChart
+                datasetProp={temperature_range_dataset(locations)}
+                units={"°F"}
+              ></ClimateChart>
+              <p style={{ textAlign: "center" }}>
+                Average monthly high and low temperature ranges for each
+                location. This is the expected maximum and minimum for each day
+                of the year
+              </p>
+
+              <div>
+                {/* Change this to be the difference between the aparent temperature and normal between high and low*/}
+                <Table
+                  locations={locations}
+                  heading="Record High (°F)"
+                  monthlyDataKey={"record_high_temp"}
+                  annualDataKey={"record_high_temp"}
+                  decimalTrunc={0}
+                  units={" °F"}
+                ></Table>
+
+                <Table
+                  locations={locations}
+                  heading="Record Low (°F)"
+                  monthlyDataKey={"record_low_temp"}
+                  annualDataKey={"record_low_temp"}
+                  decimalTrunc={0}
+                  units={" °F"}
+                ></Table>
+              </div>
+
+              <br />
+              <br />
+              <hr />
+              <br />
+              <br />
+
               <Typography
                 sx={{ flex: "1 1 100%" }}
                 variant={HEADING_VARIANT}
@@ -518,17 +597,21 @@ export default function ComparisonPage({ locations }: ComparisonPageProps) {
               ></ClimateChart>
               <p style={{ textAlign: "center" }}>
                 Average frost free growing season. The table contains the
-                monthly Cooling Degree Days (CDD) and Heating Degree Days (HDD),
-                which is a function of average temperatures for the day bellow
-                and above 65 degrees, respectively.
+                monthly Cooling Degree Days (CDD) and Heating Degree Days (HDD).
+                Cooling degree days are the number of degrees that a day's
+                average temperature is above 65°F. Heating degree days are the
+                number of degrees that a day's average temperature is below
+                65°F. The total number of CDD and HDD for each month, along with
+                the annual total are displayed in the table. These values are a
+                metric in how severe a season is.
               </p>
 
               <div>
                 <Table
                   locations={locations}
                   heading="Cooling Degree Days (CDD)"
-                  monthlyDataStr={"monthly_CDD_avg"}
-                  annualDataStr={"annual_CDD_avg"}
+                  monthlyDataKey={"CDD"}
+                  annualDataKey={"CDD"}
                   decimalTrunc={0}
                   units={""}
                 ></Table>
@@ -536,8 +619,8 @@ export default function ComparisonPage({ locations }: ComparisonPageProps) {
                 <Table
                   locations={locations}
                   heading="Heating Degree Days (HDD)"
-                  monthlyDataStr={"monthly_HDD_avg"}
-                  annualDataStr={"annual_HDD_avg"}
+                  monthlyDataKey={"HDD"}
+                  annualDataKey={"HDD"}
                   decimalTrunc={0}
                   units={""}
                 ></Table>
@@ -571,10 +654,19 @@ export default function ComparisonPage({ locations }: ComparisonPageProps) {
               <div>
                 <Table
                   locations={locations}
-                  heading="Total Rainy Days"
-                  monthlyDataStr={"monthly_precip_days_avg"}
-                  annualDataStr={"annual_precip_days_avg"}
+                  heading="Total Rainfall"
+                  monthlyDataKey={"precip_in"}
+                  annualDataKey={"precip_in"}
                   decimalTrunc={1}
+                  units={" in"}
+                ></Table>
+
+                <Table
+                  locations={locations}
+                  heading="Total Rainy Days"
+                  monthlyDataKey={"precip_days"}
+                  annualDataKey={"precip_days"}
+                  decimalTrunc={0}
                   units={" days"}
                 ></Table>
               </div>
@@ -605,9 +697,18 @@ export default function ComparisonPage({ locations }: ComparisonPageProps) {
               <div>
                 <Table
                   locations={locations}
+                  heading="Total Snowfall"
+                  monthlyDataKey={"snow_in"}
+                  annualDataKey={"snow_in"}
+                  decimalTrunc={1}
+                  units={" in"}
+                ></Table>
+
+                <Table
+                  locations={locations}
                   heading="Total Snowy Days"
-                  monthlyDataStr={"monthly_snow_days_avg"}
-                  annualDataStr={"annual_snow_days_avg"}
+                  monthlyDataKey={"snow_days"}
+                  annualDataKey={"snow_days"}
                   decimalTrunc={1}
                   units={" days"}
                 ></Table>
@@ -618,77 +719,7 @@ export default function ComparisonPage({ locations }: ComparisonPageProps) {
               <hr />
               <br />
               <br />
-              <Typography
-                sx={{ flex: "1 1 100%" }}
-                variant={HEADING_VARIANT}
-                component="div"
-                textAlign={"center"}
-              >
-                Yearly Sunshine
-              </Typography>
-              <ClimateChart
-                datasetProp={sunshine_dataset(locations)}
-                units={"%"}
-                adjustUnitsByVal={100}
-              ></ClimateChart>
-              <p style={{ textAlign: "center" }}>
-                Percent possible sunshine for each month. The total number of
-                sunny days expected for each month, along with the annual total
-                are displayed in the table. A sunny day is counted if the sun is
-                out more than 30% of each day.
-              </p>
 
-              <div>
-                <Table
-                  locations={locations}
-                  heading="Total Sunny Days"
-                  monthlyDataStr={"monthly_sunshine_days_avg"}
-                  annualDataStr={"annual_sunshine_days_avg"}
-                  decimalTrunc={0}
-                  units={" days"}
-                ></Table>
-              </div>
-
-              <br />
-              <br />
-              <hr />
-              <br />
-              <br />
-              <Typography
-                sx={{ flex: "1 1 100%" }}
-                variant={HEADING_VARIANT}
-                component="div"
-                textAlign={"center"}
-              >
-                Yearly Sun Angle
-              </Typography>
-              <ClimateChart
-                datasetProp={sun_angle_dataset(locations)}
-                units={"°"}
-              ></ClimateChart>
-              <p style={{ textAlign: "center" }}>
-                Average sun angle for each month. The sun angle is the angle of
-                the sun above the horizon, measured at the highest point in the
-                day. The table contains the average sun angle for each month.
-                The sun angle is highest in the summer and lowest in the winter.
-              </p>
-
-              <div>
-                <Table
-                  locations={locations}
-                  heading="Monthly Sun Angle"
-                  monthlyDataStr={"monthly_sun_angle"}
-                  annualDataStr={"annual_sun_angle_avg"}
-                  decimalTrunc={1}
-                  units={"°"}
-                ></Table>
-              </div>
-
-              <br />
-              <br />
-              <hr />
-              <br />
-              <br />
               <Typography
                 sx={{ flex: "1 1 100%" }}
                 variant={HEADING_VARIANT}
@@ -760,11 +791,117 @@ export default function ComparisonPage({ locations }: ComparisonPageProps) {
               <div>
                 <Table
                   locations={locations}
-                  heading="Highest Expected Daily Wind Speed"
-                  monthlyDataStr={"monthly_wind_gust_peak"}
-                  annualDataStr={"annual_wind_gust_peak"}
+                  heading="Average Wind Speed"
+                  monthlyDataKey={"wind_spd"}
+                  annualDataKey={"wind_spd"}
                   decimalTrunc={0}
                   units={" mph"}
+                ></Table>
+              </div>
+
+              <br />
+              <br />
+              <hr />
+              <br />
+              <br />
+              <Typography
+                sx={{ flex: "1 1 100%" }}
+                variant={HEADING_VARIANT}
+                component="div"
+                textAlign={"center"}
+              >
+                Yearly Sunshine
+              </Typography>
+              <ClimateChart
+                datasetProp={sunshine_dataset(locations)}
+                units={"%"}
+                adjustUnitsByVal={100}
+              ></ClimateChart>
+              <p style={{ textAlign: "center" }}>
+                Percent possible sunshine for each month. The total number of
+                sunny days expected for each month, along with the annual total
+                are displayed in the table. A sunny day is counted if the sun is
+                out more than 30% of each day.
+              </p>
+
+              <div>
+                <Table
+                  locations={locations}
+                  heading="Total Sunny Days"
+                  monthlyDataKey={"sunshine_days"}
+                  annualDataKey={"sunshine_days"}
+                  decimalTrunc={0}
+                  units={" days"}
+                ></Table>
+              </div>
+
+              <br />
+              <br />
+              <hr />
+              <br />
+              <br />
+              <Typography
+                sx={{ flex: "1 1 100%" }}
+                variant={HEADING_VARIANT}
+                component="div"
+                textAlign={"center"}
+              >
+                Yearly Sun Angle
+              </Typography>
+              <ClimateChart
+                datasetProp={sun_angle_dataset(locations)}
+                units={"°"}
+              ></ClimateChart>
+              <p style={{ textAlign: "center" }}>
+                Average sun angle for each month. The sun angle is the angle of
+                the sun above the horizon, measured at the highest point in the
+                day. The table contains the average sun angle for each month.
+                The sun angle is highest in the summer and lowest in the winter.
+              </p>
+
+              <div>
+                <Table
+                  locations={locations}
+                  heading="Monthly Sun Angle"
+                  monthlyDataKey={"sun_angle"}
+                  annualDataKey={"sun_angle"}
+                  decimalTrunc={1}
+                  units={"°"}
+                ></Table>
+              </div>
+
+              <br />
+              <br />
+              <hr />
+              <br />
+              <br />
+              <Typography
+                sx={{ flex: "1 1 100%" }}
+                variant={HEADING_VARIANT}
+                component="div"
+                textAlign={"center"}
+              >
+                Yearly UV Index
+              </Typography>
+              <ClimateChart
+                datasetProp={uv_index_dataset(locations)}
+                units={""}
+              ></ClimateChart>
+              <p style={{ textAlign: "center" }}>
+                Average UV Index. The UV index is a measure of the strength of
+                the sun's ultraviolet rays. The table contains the average UV
+                index for each month. The UV index is highest in the summer and
+                lowest in the winter.
+              </p>
+
+              <div>
+                <Table
+                  locations={locations}
+                  heading="Monthly UV Index"
+                  monthlyDataKey={"uv_index"}
+                  annualDataKey={"uv_index"}
+                  decimalTrunc={0}
+                  units={""}
                 ></Table>
               </div>
 
@@ -793,6 +930,16 @@ export default function ComparisonPage({ locations }: ComparisonPageProps) {
                 considered very ideal, usally accompanied with sunshine and warm
                 temperatures.
               </p>
+              <div>
+                <Table
+                  locations={locations}
+                  heading="Comfort Rating"
+                  monthlyDataKey={"comfort_index"}
+                  annualDataKey={"comfort_index"}
+                  decimalTrunc={0}
+                  units={""}
+                ></Table>
+              </div>
             </div>
           </div>
         )}
