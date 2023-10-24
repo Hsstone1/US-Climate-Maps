@@ -94,7 +94,7 @@ export default function ComparisonPage({ locations }: ComparisonPageProps) {
         type: "line",
         label: location.data.location_data.location,
         data: appendFirstIndexToEnd(
-          mapClimateData(location, "high_temp", {
+          mapClimateData(location, "HIGH_AVG", {
             multiplyByVal: 1,
             windowSize: SMA_SMOOTH_DAYS,
           })
@@ -114,7 +114,7 @@ export default function ComparisonPage({ locations }: ComparisonPageProps) {
         type: "line",
         label: location.data.location_data.location,
         data: appendFirstIndexToEnd(
-          mapClimateData(location, "low_temp", {
+          mapClimateData(location, "LOW_AVG", {
             multiplyByVal: 1,
             windowSize: SMA_SMOOTH_DAYS,
           })
@@ -148,7 +148,7 @@ export default function ComparisonPage({ locations }: ComparisonPageProps) {
         type: "line",
         label: location.data.location_data.location,
         data: appendFirstIndexToEnd(
-          mapClimateData(location, "mean_max_temp", {
+          mapClimateData(location, "EXPECTED_MAX", {
             multiplyByVal: 1,
             windowSize: SMA_SMOOTH_DAYS,
           })
@@ -168,7 +168,7 @@ export default function ComparisonPage({ locations }: ComparisonPageProps) {
         type: "line",
         label: location.data.location_data.location,
         data: appendFirstIndexToEnd(
-          mapClimateData(location, "mean_min_temp", {
+          mapClimateData(location, "EXPECTED_MIN", {
             multiplyByVal: 1,
             windowSize: SMA_SMOOTH_DAYS,
           })
@@ -197,7 +197,7 @@ export default function ComparisonPage({ locations }: ComparisonPageProps) {
         type: "line",
         label: location.data.location_data.location,
         data: appendFirstIndexToEnd(
-          mapClimateData(location, "precip_in", {
+          mapClimateData(location, "PRECIP_AVG", {
             multiplyByVal: 30,
             windowSize: SMA_SMOOTH_DAYS * 2,
           })
@@ -226,7 +226,7 @@ export default function ComparisonPage({ locations }: ComparisonPageProps) {
         type: "line",
         label: location.data.location_data.location,
         data: appendFirstIndexToEnd(
-          mapClimateData(location, "snow_in", {
+          mapClimateData(location, "SNOW_AVG", {
             multiplyByVal: 30,
             windowSize: SMA_SMOOTH_DAYS * 2,
           })
@@ -255,7 +255,7 @@ export default function ComparisonPage({ locations }: ComparisonPageProps) {
         type: "line",
         label: location.data.location_data.location,
         data: appendFirstIndexToEnd(
-          mapClimateData(location, "humidity_percent", {
+          mapClimateData(location, "HUMIDITY_AVG", {
             multiplyByVal: 1,
             windowSize: SMA_SMOOTH_DAYS,
           })
@@ -284,7 +284,7 @@ export default function ComparisonPage({ locations }: ComparisonPageProps) {
         type: "line",
         label: location.data.location_data.location,
         data: appendFirstIndexToEnd(
-          mapClimateData(location, "dewpoint_temp", {
+          mapClimateData(location, "DEWPOINT_AVG", {
             multiplyByVal: 1,
             windowSize: SMA_SMOOTH_DAYS,
           })
@@ -313,7 +313,7 @@ export default function ComparisonPage({ locations }: ComparisonPageProps) {
         type: "line",
         label: location.data.location_data.location,
         data: appendFirstIndexToEnd(
-          mapClimateData(location, "wind_spd", {
+          mapClimateData(location, "WIND_AVG", {
             multiplyByVal: 1,
             windowSize: SMA_SMOOTH_DAYS,
           })
@@ -342,7 +342,7 @@ export default function ComparisonPage({ locations }: ComparisonPageProps) {
         type: "line",
         label: location.data.location_data.location,
         data: appendFirstIndexToEnd(
-          mapClimateData(location, "sunshine_percent", {
+          mapClimateData(location, "SUNSHINE_AVG", {
             multiplyByVal: 0.01,
             windowSize: SMA_SMOOTH_DAYS,
           })
@@ -373,7 +373,7 @@ export default function ComparisonPage({ locations }: ComparisonPageProps) {
         type: "line",
         label: location.data.location_data.location,
         data: appendFirstIndexToEnd(
-          mapClimateData(location, "sun_angle", {
+          mapClimateData(location, "SUN_ANGLE", {
             multiplyByVal: 1,
             windowSize: SMA_SMOOTH_DAYS,
           })
@@ -402,7 +402,7 @@ export default function ComparisonPage({ locations }: ComparisonPageProps) {
         type: "line",
         label: location.data.location_data.location,
         data: appendFirstIndexToEnd(
-          mapClimateData(location, "uv_index", {
+          mapClimateData(location, "UV_INDEX", {
             multiplyByVal: 1,
             windowSize: SMA_SMOOTH_DAYS,
           })
@@ -431,7 +431,7 @@ export default function ComparisonPage({ locations }: ComparisonPageProps) {
         type: "line",
         label: location.data.location_data.location,
         data: appendFirstIndexToEnd(
-          mapClimateData(location, "comfort_index", {
+          mapClimateData(location, "COMFORT_INDEX", {
             multiplyByVal: 1,
             windowSize: SMA_SMOOTH_DAYS,
           })
@@ -460,7 +460,7 @@ export default function ComparisonPage({ locations }: ComparisonPageProps) {
         type: "line",
         label: location.data.location_data.location,
         data: appendFirstIndexToEnd(
-          mapClimateData(location, "growing_season", {
+          mapClimateData(location, "GROWING_CHANCE", {
             multiplyByVal: 0.01,
             windowSize: SMA_SMOOTH_DAYS,
           })
@@ -514,8 +514,8 @@ export default function ComparisonPage({ locations }: ComparisonPageProps) {
                 <Table
                   locations={locations}
                   heading="Average High (°F)"
-                  monthlyDataKey={"high_temp"}
-                  annualDataKey={"high_temp"}
+                  monthlyDataKey={"HIGH_AVG"}
+                  annualDataKey={"HIGH_AVG"}
                   decimalTrunc={0}
                   units={" °F"}
                 ></Table>
@@ -523,8 +523,8 @@ export default function ComparisonPage({ locations }: ComparisonPageProps) {
                 <Table
                   locations={locations}
                   heading="Average Low (°F)"
-                  monthlyDataKey={"low_temp"}
-                  annualDataKey={"low_temp"}
+                  monthlyDataKey={"LOW_AVG"}
+                  annualDataKey={"LOW_AVG"}
                   decimalTrunc={0}
                   units={" °F"}
                 ></Table>
@@ -560,8 +560,8 @@ export default function ComparisonPage({ locations }: ComparisonPageProps) {
                 <Table
                   locations={locations}
                   heading="Record High (°F)"
-                  monthlyDataKey={"record_high_temp"}
-                  annualDataKey={"record_high_temp"}
+                  monthlyDataKey={"RECORD_HIGH"}
+                  annualDataKey={"RECORD_HIGH"}
                   decimalTrunc={0}
                   units={" °F"}
                 ></Table>
@@ -569,8 +569,8 @@ export default function ComparisonPage({ locations }: ComparisonPageProps) {
                 <Table
                   locations={locations}
                   heading="Record Low (°F)"
-                  monthlyDataKey={"record_low_temp"}
-                  annualDataKey={"record_low_temp"}
+                  monthlyDataKey={"RECORD_LOW"}
+                  annualDataKey={"RECORD_LOW"}
                   decimalTrunc={0}
                   units={" °F"}
                 ></Table>
@@ -655,8 +655,8 @@ export default function ComparisonPage({ locations }: ComparisonPageProps) {
                 <Table
                   locations={locations}
                   heading="Total Rainfall"
-                  monthlyDataKey={"precip_in"}
-                  annualDataKey={"precip_in"}
+                  monthlyDataKey={"PRECIP_AVG"}
+                  annualDataKey={"PRECIP_AVG"}
                   decimalTrunc={1}
                   units={" in"}
                 ></Table>
@@ -664,8 +664,8 @@ export default function ComparisonPage({ locations }: ComparisonPageProps) {
                 <Table
                   locations={locations}
                   heading="Total Rainy Days"
-                  monthlyDataKey={"precip_days"}
-                  annualDataKey={"precip_days"}
+                  monthlyDataKey={"PRECIP_DAYS"}
+                  annualDataKey={"PRECIP_DAYS"}
                   decimalTrunc={0}
                   units={" days"}
                 ></Table>
@@ -698,8 +698,8 @@ export default function ComparisonPage({ locations }: ComparisonPageProps) {
                 <Table
                   locations={locations}
                   heading="Total Snowfall"
-                  monthlyDataKey={"snow_in"}
-                  annualDataKey={"snow_in"}
+                  monthlyDataKey={"SNOW_AVG"}
+                  annualDataKey={"SNOW_AVG"}
                   decimalTrunc={1}
                   units={" in"}
                 ></Table>
@@ -707,8 +707,8 @@ export default function ComparisonPage({ locations }: ComparisonPageProps) {
                 <Table
                   locations={locations}
                   heading="Total Snowy Days"
-                  monthlyDataKey={"snow_days"}
-                  annualDataKey={"snow_days"}
+                  monthlyDataKey={"SNOW_DAYS"}
+                  annualDataKey={"SNOW_DAYS"}
                   decimalTrunc={1}
                   units={" days"}
                 ></Table>
@@ -792,8 +792,8 @@ export default function ComparisonPage({ locations }: ComparisonPageProps) {
                 <Table
                   locations={locations}
                   heading="Average Wind Speed"
-                  monthlyDataKey={"wind_spd"}
-                  annualDataKey={"wind_spd"}
+                  monthlyDataKey={"WIND_AVG"}
+                  annualDataKey={"WIND_AVG"}
                   decimalTrunc={0}
                   units={" mph"}
                 ></Table>
@@ -828,8 +828,8 @@ export default function ComparisonPage({ locations }: ComparisonPageProps) {
                 <Table
                   locations={locations}
                   heading="Total Sunny Days"
-                  monthlyDataKey={"sunshine_days"}
-                  annualDataKey={"sunshine_days"}
+                  monthlyDataKey={"SUNNY_DAYS"}
+                  annualDataKey={"SUNNY_DAYS"}
                   decimalTrunc={0}
                   units={" days"}
                 ></Table>
@@ -863,8 +863,8 @@ export default function ComparisonPage({ locations }: ComparisonPageProps) {
                 <Table
                   locations={locations}
                   heading="Monthly Sun Angle"
-                  monthlyDataKey={"sun_angle"}
-                  annualDataKey={"sun_angle"}
+                  monthlyDataKey={"SUN_ANGLE"}
+                  annualDataKey={"SUN_ANGLE"}
                   decimalTrunc={1}
                   units={"°"}
                 ></Table>
@@ -898,8 +898,8 @@ export default function ComparisonPage({ locations }: ComparisonPageProps) {
                 <Table
                   locations={locations}
                   heading="Monthly UV Index"
-                  monthlyDataKey={"uv_index"}
-                  annualDataKey={"uv_index"}
+                  monthlyDataKey={"UV_INDEX"}
+                  annualDataKey={"UV_INDEX"}
                   decimalTrunc={0}
                   units={""}
                 ></Table>
@@ -934,8 +934,8 @@ export default function ComparisonPage({ locations }: ComparisonPageProps) {
                 <Table
                   locations={locations}
                   heading="Comfort Rating"
-                  monthlyDataKey={"comfort_index"}
-                  annualDataKey={"comfort_index"}
+                  monthlyDataKey={"COMFORT_INDEX"}
+                  annualDataKey={"COMFORT_INDEX"}
                   decimalTrunc={0}
                   units={""}
                 ></Table>

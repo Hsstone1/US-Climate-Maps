@@ -54,15 +54,22 @@ export default function Map() {
     mapRef.current = map;
   }, []);
 
-  const handleMapClick = useCallback((ev: google.maps.MapMouseEvent): void => {
-    const latitude = ev.latLng?.lat();
-    const longitude = ev.latLng?.lng();
-    //console.log("CLICKED MAP");
+  const handleMapClick = useCallback(
+    (ev: google.maps.MapMouseEvent): void => {
+      if (selectedMarker.length - 2 >= NUM_LOCATIONS) {
+        console.log("You can only compare up to 5 locations at once");
+        return;
+      }
+      const latitude = ev.latLng?.lat();
+      const longitude = ev.latLng?.lng();
+      //console.log("CLICKED MAP");
 
-    if (latitude && longitude) {
-      handleBackendMarkerData({ lat: latitude, lng: longitude });
-    }
-  }, []);
+      if (latitude && longitude) {
+        handleBackendMarkerData({ lat: latitude, lng: longitude });
+      }
+    },
+    [selectedMarker]
+  );
 
   const handleBackendMarkerData = useCallback(
     (position: LatLngLiteral): void => {

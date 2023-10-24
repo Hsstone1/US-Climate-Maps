@@ -1,29 +1,253 @@
-import datetime
 import math
+import pandas as pd
 import requests
 import urllib
 from math import radians, sin, cos, sqrt, atan2
-import ephem
-import datetime
-import calendar
 import numpy as np
 from scipy.stats import norm
+from sklearn.discriminant_analysis import StandardScaler
+from sklearn.ensemble import RandomForestRegressor
 
 
-#This is for the historical data, earliest validated year in the CSV's is 1980
-#The furthest back the NWS stations go is april of 2019
-START_NOAA_YEAR = 2000
-START_NWS_YEAR = 2019
-CURRENT_YEAR = datetime.datetime.now().year
-DAYS_IN_MONTH_INDEX = [31,29,31,30,31,30,31,31,30,31,30,31]
+def calc_growing_chance_vectorized(noaa_final_data, window_size=14):
+    # Calculate rolling mean and standard deviation
+    rolling_mean = noaa_final_data['DAILY_LOW_AVG'].rolling(window=window_size, min_periods=1).mean()
+    rolling_std = noaa_final_data['DAILY_LOW_AVG'].rolling(window=window_size, min_periods=1).std()
 
-DAYS_IN_MONTH = 30.417
-DAYS_IN_YEAR = 365.25
+    # Avoid division by zero by replacing zero standard deviations with NaN
+    rolling_std = rolling_std.replace(0, np.nan)
 
-#These are default values, can be overloaded in the get_climate_avg_at_point function
-NUM_NEAREST_STATIONS_NWS = 3
-NUM_NEAREST_STATIONS_NOAA = 3
+    # Calculate z-scores; use .fillna(0) to handle NaNs resulting from zero standard deviation
+    z_scores = (32 - rolling_mean) / rolling_std
+    z_scores = z_scores.fillna(0)  # Replace NaNs with 0 (where std_dev was 0)
+
+    # Calculate the cumulative probabilities using the CDF
+    cumulative_probs = norm.cdf(z_scores)
+
+    # Calculate the percentiles
+    percentiles_below_32 = (1 - cumulative_probs) * 100
+
+    # Apply your conditional logic using numpy.where (vectorized conditional operation)
+    percentiles_below_32 = np.where(percentiles_below_32 <= 50, 0, 
+                                    np.where(percentiles_below_32 >= 80, 100, percentiles_below_32))
+
+    # Calculate the final growing chance
+    growing_chance = 100 * ((percentiles_below_32 / 100) ** 2)
+
+    return growing_chance
+
+def fast_percentile(group, percentile):
+    return np.percentile(group, percentile)
+
+def calculate_statistic_by_date(dataframe, temp_col, stat_function, new_col_name, percentile_high=90, percentile_low=10):
+    dataframe = dataframe.copy()
     
+    # Ensure the DataFrame's index is a DatetimeIndex
+    if not isinstance(dataframe.index, pd.DatetimeIndex):
+        dataframe.index = pd.to_datetime(dataframe.index)
+
+    dataframe['MONTH_DAY'] = dataframe.index.strftime('%m-%d')
+    
+
+    if stat_function == 'percentile':
+        if temp_col == 'DAILY_HIGH_AVG':
+            dataframe[new_col_name] = dataframe.groupby('MONTH_DAY')[temp_col].transform(lambda x: fast_percentile(x, percentile_high))
+        else:  # 'DAILY_LOW_AVG'
+            dataframe[new_col_name] = dataframe.groupby('MONTH_DAY')[temp_col].transform(lambda x: fast_percentile(x, percentile_low))
+    else:
+        dataframe[new_col_name] = dataframe.groupby('MONTH_DAY')[temp_col].transform(stat_function)
+
+    dataframe.drop(columns='MONTH_DAY', inplace=True)
+    
+    return dataframe
+
+
+def calc_sun_angle_and_daylight_length(latitude_degrees):
+    results = []
+
+    for day_of_year in range(1, 366):
+        # declination of the sun as a function of the day of the year
+        delta = -23.45 * math.cos(math.radians(360/365 * (day_of_year + 10)))
+        phi = math.radians(latitude_degrees)  # convert latitude to radians
+
+        # calculating the hour angle at which the sun sets/rises
+        omega = math.acos(-math.tan(phi) * math.tan(math.radians(delta)))
+
+        # solar noon elevation
+        elevation_angle = math.degrees(math.asin(math.sin(phi) * math.sin(math.radians(delta)) + 
+                                math.cos(phi) * math.cos(math.radians(delta))))
+        
+        # total daylight length
+        daylight_length = 2 * omega * 24 / (2 * math.pi)  # Convert radians to hours
+        
+        results.append((day_of_year, elevation_angle, daylight_length))
+
+    return results
+
+
+
+def calc_uv_index_vectorized(sun_angle, altitude, sunshine_percentage):
+    # Ensure sunshine_percentage is within [0,1]
+    sunshine_percentage = sunshine_percentage.clip(0, 100) / 100
+
+    # Calculate the basic UV index
+    uv_index = (sun_angle / 90) * 12
+
+    # Adjust for altitude
+    altitude_adjustment = altitude / 1000 * 0.05
+    uv_index_adjusted = uv_index * (1 + altitude_adjustment)
+
+    # Adjust for sunshine percentage, with a sqrt transformation
+    uv_index_adjusted *= np.sqrt(sunshine_percentage).clip(0, 1)
+
+    return uv_index_adjusted.clip(lower=0)
+
+def calc_humidity_percentage_vector(dew_points_F, temperatures_F):
+    # Convert Fahrenheit to Celsius
+    dew_points_C = (dew_points_F - 32) * 5/9
+    temperatures_C = (temperatures_F - 32) * 5/9
+
+    # Calculate actual vapor pressure
+    vapor_pressure = 6.112 * 10 ** (7.5 * dew_points_C / (237.7 + dew_points_C))
+
+    # Calculate saturation vapor pressure
+    saturation_vapor_pressure = 6.112 * 10 ** (7.5 * temperatures_C / (237.7 + temperatures_C))
+
+    # Calculate humidity percentage
+    humidity_percentages = (vapor_pressure / saturation_vapor_pressure) * 100
+
+    return humidity_percentages
+
+
+
+def dewpoint_regr_calc(Tmax, Tmin, totalPrcp):
+    # Read the CSV file with temperature and dewpoint data
+    df = pd.read_csv("temperature-humidity-data.csv")
+
+    # Calculate TDiurinal (TMax - TMin)
+    df["TDiurinal"] = df["TMax"] - df["TMin"]
+
+    # Define your input features and target variables
+    X = df[['TMax', 'TMin', 'TDiurinal', 'Total']]
+    y = df[['DAvg']]
+
+    # Split the data into training and testing sets (if needed)
+    # X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.5, random_state=42)
+
+    # Scale the features using StandardScaler
+    scaler = StandardScaler()
+    X_scaled = scaler.fit_transform(X)
+
+    # Initialize the Random Forest Regressor
+    rf_model = RandomForestRegressor(n_estimators=5, random_state=42)
+    rf_model.fit(X_scaled, y.values.ravel())
+
+    # Calculate Tdiurinal and TAvg from your input data
+    Tdiurinal = [x - y for x, y in zip(Tmax, Tmin)]  # Element-wise subtraction
+    TAvg = [(x + y) / 2 for x, y in zip(Tmax, Tmin)]
+
+    # Create a new DataFrame with your input data
+    new_data = pd.DataFrame({'TMax': Tmax, 'TMin': Tmin, 'TDiurinal': Tdiurinal, 'Total': totalPrcp})
+
+    # Scale the new input data
+    new_data_scaled = scaler.transform(new_data)
+
+    # Predict dewpoint using the regression model
+    rf_predicted_dewpoint = rf_model.predict(new_data_scaled)
+
+    # Calculate and return dewpoint
+    # dewpoint = compute_dew_point(rf_predicted_dewpoint, TAvg)
+
+    return rf_predicted_dewpoint
+
+
+
+#https://www.weather.gov/epz/wxcalc_windchill
+#https://www.wpc.ncep.noaa.gov/html/heatindex_equation.shtml
+def calc_aparent_temp_vector(T, DP, V):
+    # Replace zero values with 3 for wind speed
+    V = np.where(V == 0, 3, V)
+
+    RH = 100 * (np.exp((17.625 * DP) / (243.04 + DP)) / np.exp((17.625 * T) / (243.04 + T)))
+
+    # Conditions for Heat Index calculation
+    condition_heat_index = T > 80
+    HI = np.where(
+        condition_heat_index,
+        -42.379
+        + 2.04901523 * T
+        + 10.14333127 * RH
+        - .22475541 * T * RH
+        - .00683783 * T * T
+        - .05481717 * RH * RH
+        + .00122874 * T * T * RH
+        + .00085282 * T * RH * RH
+        - .00000199 * T * T * RH * RH,
+        T  # default to nan, will be replaced later
+    )
+
+    # Adjustments for Heat Index
+    condition_adjustment1 = (T < 112) & (RH < 13)
+    adjustment1 = np.where(condition_adjustment1,((13 - RH) / 4) * np.sqrt((17 - np.abs(T - 95.)) / 17),0)
+    condition_adjustment2 = (T < 87) & (RH > 85)
+    adjustment2 = np.where(condition_adjustment2, ((RH - 85) / 10) * ((87 - T) / 5), 0)
+    HI = HI - adjustment1 + adjustment2
+
+    # Conditions for Wind Chill calculation
+    condition_wind_chill = (T < 50) & (V >= 3)
+    WC = np.where(
+        condition_wind_chill,
+        35.74 + (0.6215 * T) - 35.75 * (V ** 0.16) + 0.4275 * T * (V ** 0.16),
+        T  # default to nan, will be replaced later
+    )
+
+    # If neither Heat Index nor Wind Chill conditions are met, return the original temperature
+    result = np.where(condition_heat_index | condition_wind_chill, np.where(condition_heat_index, HI, WC), T)
+
+    return result
+
+
+def calc_comfort_index_vector(temperature_df, dewpoint_df, sunshine_df):
+
+    
+    def temperature_score(temp):
+        if temp <= 20 or temp >= 110:
+            return 0
+        elif temp == 70:
+            return 100
+        elif 20 < temp < 70:
+            return (temp - 20) * (100 / 50)  # linearly scale between 20 and 70
+        elif 70 < temp < 110:
+            return (110 - temp) * (100 / 40)  # linearly scale between 70 and 110
+
+    def dewpoint_score(dewpoint):
+        if dewpoint >= 80:
+            return 0
+        elif dewpoint < 55:
+            return 100
+        else:
+            return (80 - dewpoint) * (100 / 25)  # linearly scale between 55 and 80
+
+    def sunlight_score(sunlight):
+        if sunlight >= 60:
+            return 100
+        elif sunlight <= 0:
+            return 0
+        else:
+            return sunlight * (100 / 60)  # linearly scale between 0 and 60
+
+    # Calculate individual component scores
+    df = pd.DataFrame()
+    df['temp_score'] = temperature_df.apply(temperature_score) * 0.3  # 30% weight
+    df['dew_score'] = dewpoint_df.apply(dewpoint_score) * 0.4  # 40% weight
+    df['sun_score'] = sunshine_df.apply(sunlight_score) * 0.3  # 30% weight
+
+    # Calculate the final comfort index
+    df['comfort_index'] = df['temp_score'] + df['dew_score'] + df['sun_score']
+
+    return df['comfort_index']
+
+
 
 #https://en.wikipedia.org/wiki/K%C3%B6ppen_climate_classification#Overview
 def calc_koppen_climate(temp_f, precip_in):
@@ -188,335 +412,6 @@ def calc_plant_hardiness(mean_annual_min):
     
 def get_highest_N_values(values, numValues):
     return sorted(values, reverse=True)[:numValues]
-
-
-
-def is_number(value):
-    try:
-        # Check if the value can be converted to a float and is not None
-        return value is not None and not isinstance(value, str) and not np.isnan(float(value)) and not np.isinf(float(value))
-    except (ValueError, TypeError):
-        return False
-
-# Check if the year, month, and day together form a valid date
-def is_valid_date(year, month, day):
-    if 1 <= month <= 12 and 1 <= day <= calendar.monthrange(year, month)[1]:
-        return True
-    else:
-        return False
-    
-def calc_precip_days_from_list(precip_list, threshold=0.01):
-    precip_days = [1 if precip > threshold else 0 for precip in precip_list]
-    return precip_days
-
-
-def calc_growing_chance(data):
-    # Extract 'low_temp' values from the data
-    low_temp_values = [values['low_temp'] for _, _, _, values in data if 'low_temp' in values]
-
-    if not low_temp_values:
-        return None
-    
-    # Calculate the mean and standard deviation of 'low_temp' values
-    mean_low_temp = np.mean(low_temp_values)
-    std_dev_low_temp = np.std(low_temp_values)
-
-    if std_dev_low_temp == 0:
-    # Handle the case when standard deviation is zero
-        z_score = 0  # or some default value or exception
-    else:
-        z_score = (32 - mean_low_temp) / std_dev_low_temp
-
-    # Calculate the cumulative probability using the CDF
-    cumulative_prob = norm.cdf(z_score)
-
-    # Calculate the percentile
-    percentile_below_32 = (1 - cumulative_prob) * 100
-    if percentile_below_32 <= 50:
-        percentile_below_32 = 0
-    elif percentile_below_32 >= 80:
-        percentile_below_32 = 100
-    return 100 * ((percentile_below_32/100) ** 2)
-
-def calculate_rolling_average(data, window_size):
-    rolling_averages = []
-
-    for i in range(len(data)):
-        # Calculate the start and end indices for the window
-        start_index = i - window_size
-        end_index = i + 1  # Include the current data point
-
-        if start_index < 0:
-            # Wrap around to the end of the data list if start_index is negative
-            valid_window_data = data[start_index:] + data[:end_index]
-        else:
-            valid_window_data = data[start_index:end_index]
-
-        valid_values = [entry[2] for entry in valid_window_data if entry[2] is not None]
-
-        # Check if there are valid values to calculate the average
-        if valid_values:
-            avg = sum(valid_values) / len(valid_values)
-            month = valid_window_data[-1][0]  # Get the month of the last entry in the window
-            day = valid_window_data[-1][1]    # Get the day of the last entry in the window
-            rolling_averages.append((month, day, avg))
-        else:
-            rolling_averages.append((data[i][0], data[i][1], None))
-
-    return rolling_averages
-
-#This is used to get the index of the first and last growing season days
-#Along with the total number of days to grow
-def first_last_freeze_date(data):
-    data_np = np.array(data)
-    max_val = np.max(data_np[:,2])
-    min_val = np.min(data_np[:,2])
-    mid_val = (max_val + min_val)/2
-
-    #This is used to find the index of the last and first frost free days
-    last_freeze = np.where(data_np[:,2] >= mid_val)[0][0]
-    data_after_last_freeze = data_np[last_freeze:]
-
-    #The index of first freeze represents how many index's after the last freeze, not the actual index in the data
-    first_freeze = np.where(data_after_last_freeze[:,2] <= mid_val)[0][0]
-    last_freeze_month, last_freeze_day = data_np[last_freeze, 0], data_np[last_freeze, 1]
-    first_freeze_month, first_freeze_day = data_after_last_freeze[first_freeze, 0], data_after_last_freeze[first_freeze, 1]
-    #print("MAX: ", max_val, "MIN: ", min_val, "MID: ", mid_val, "LAST FREEZE: ", last_freeze, "FIRST FREEZE: ", first_freeze, "LAST FREEZE DATE: ", last_freeze_month, last_freeze_day, "FIRST FREEZE DATE: ", first_freeze_month, first_freeze_day)
-    return ((int(last_freeze_month), int(last_freeze_day)), (int(first_freeze_month), int(first_freeze_day)), int(first_freeze))
-
-
-
-
-
-'''
-This function calculates the sunrise and sunset times for a given latitude, month, and year.
-sunrise and sunset return times are days since janurary 1 1900
-'''
-def calc_sun_info(latitude, year, month, day):
-    try:
-        
-        # Set the observer's latitude
-        observer = ephem.Observer()
-        observer.lat = str(latitude)
-
-        # Set the date to the 21st day of the month
-        date_str = f"{year}/{month}/{day}"
-        observer.date = ephem.Date(date_str)
-
-        # Get the sunrise and sunset times
-        sun = ephem.Sun()
-        sunrise = observer.previous_rising(sun)
-        sunset = observer.next_setting(sun)
-
-        # Calculate the daylight length
-        daylight_length = sunset - sunrise - 1
-
-        # Convert the daylight length to hours, minutes, and seconds
-        daylight_hours = daylight_length * 24
-        daylight_minutes = daylight_hours * 60
-        daylight_seconds = daylight_minutes * 60
-
-    except ephem.AlwaysUpError:
-        daylight_hours = 24
-        sunrise = None
-        sunset = None
-    except ephem.NeverUpError:
-        daylight_hours = 0
-        sunrise = None
-        sunset = None
-    return sunrise, sunset, daylight_hours
-
-def calculate_sun_info_batch(latitude, dates):
-    # Create an observer once
-    observer = ephem.Observer()
-    observer.lat = str(latitude)
-    sun = ephem.Sun()
-    
-    sun_info = []
-    
-    for year, month, day in dates:
-        date_str = f"{year}/{month}/{day}"
-        observer.date = ephem.Date(date_str)
-        
-        # Check if the sun is always up or never rises
-        if observer.previous_setting(sun) > observer.next_rising(sun):
-            sunrise = None
-            sunset = None
-            daylight_hours = 0
-        else:
-            sunrise = ephem.localtime(observer.previous_rising(sun))
-            sunset = ephem.localtime(observer.next_setting(sun))
-            daylight_length = (sunset - sunrise).total_seconds()
-            daylight_hours = daylight_length / 3600  # Convert to hours
-        
-        
-        sun_info.append((sunrise, sunset, daylight_hours))
-    
-    return sun_info
-
-
-def calc_daylight_length(latitude, year):
-    daylight_lengths = []
-
-    for month in range(1, 13):  # Iterate over each month
-        daylight_lengths.append(calc_sun_info(latitude, year, month, 21)[2] * DAYS_IN_MONTH )
-
-    return daylight_lengths
-
-
-
-
-def calc_frost_free_chance(value):
-    maxVal = 40
-    if value >= maxVal:
-        return 1
-    elif value <= 32:
-        return 0
-    else:
-        return (value - 32) / (maxVal - 32) * 1
-    
-
-
-def calc_humidity_percentage(dew_points_F, temperatures_F):
-    humidity_percentages = []
-    for dew_point, temperature in zip(dew_points_F, temperatures_F):
-        # Convert Fahrenheit to Celsius
-        dew_point_C = (dew_point - 32) * 5/9
-        temperature_C = (temperature - 32) * 5/9
-
-        # Calculate actual vapor pressure
-        vapor_pressure = 6.112 * 10 ** (7.5 * dew_point_C / (237.7 + dew_point_C))
-
-        # Calculate saturation vapor pressure
-        saturation_vapor_pressure = 6.112 * 10 ** (7.5 * temperature_C / (237.7 + temperature_C))
-
-        # Calculate humidity percentage
-        humidity_percentage = (vapor_pressure / saturation_vapor_pressure) * 100
-        humidity_percentages.append(humidity_percentage)
-
-    return humidity_percentages
-
-#https://www.weather.gov/epz/wxcalc_windchill
-#https://www.wpc.ncep.noaa.gov/html/heatindex_equation.shtml
-def calc_aparent_temp (T, DP, V):
-    if not V:
-        V = 3
-
-    RH = 100*(math.exp((17.625*DP)/(243.04+DP))/math.exp((17.625*T)/(243.04+T)))
-    #print(RH)
-    if T > 80:
-        adjustment = 0
-        HI = -42.379 + 2.04901523*T + 10.14333127*RH - .22475541*T*RH - .00683783*T*T - .05481717*RH*RH + .00122874*T*T*RH + .00085282*T*RH*RH - .00000199*T*T*RH*RH
-        if T < 112 and RH < 13:
-            adjustment = ((13-RH)/4)*sqrt((17-abs(T-95.))/17)
-            HI = HI - adjustment
-        elif T < 87 and RH > 85:
-            adjustment = ((RH-85)/10) * ((87-T)/5)
-            HI = HI + adjustment
-        return HI
-    elif T < 50 and V >= 3:
-        WC = 35.74 + (0.6215*T) - 35.75*(V**0.16) + 0.4275*T*(V**0.16)
-        return WC
-    else:
-        return T
-
-
-'''
-This function calculates the angle the sun is above the horizon for a given latitude and date.
-date is a datetime object datetime.date(2023, 1, 21)
-'''
-def calc_sun_angle (latitude, year, month, day):
-    
-    try:
-        datetime_obj = datetime.datetime(year, month, day, 12, 0, 0)
-    except ValueError as e:
-        # Handle the error, e.g., by setting datetime_obj to a default value
-        return None    
-    # Create an observer object for the specified latitude
-    observer = ephem.Observer()
-    observer.lat = str(latitude)
-    observer.date = datetime_obj
-
-    # Calculate the position of the sun
-    sun = ephem.Sun()
-    sun.compute(observer)
-
-    # Get the altitude of the sun (elevation angle)
-    return math.degrees(sun.alt)
-    
-
-
-
-def calc_uv_index(sun_angle, altitude, sunshine_percentage):
-    if not sunshine_percentage:
-        sunshine_percentage = 0
-    #adjusts for percentage vs numerical value 0-100
-    if sunshine_percentage > 1:
-        sunshine_percentage /= 100
-    sunshine_percentage = max(0, min(sunshine_percentage, 1))
-
-    # Calculate the UV index based on the sun angle, where 90 degrees is the maximum returning 12
-    uv_index = (sun_angle / 90) * 12
-    
-    # Adjust the UV index based on altitude
-    altitude_adjustment = altitude / 1000 * 0.05
-    uv_index_adjusted = uv_index * (1 + altitude_adjustment)
-
-    # Adjust the UV index based on sunshine percentage
-    # The sunshine effect is multiplied by the square root to better reflect the effect of clouds
-
-    #TODO error when clicking on friday harbor, WA. 
-    #RuntimeWarning: invalid value encountered in double_scalars 
-    uv_index_adjusted = uv_index_adjusted * min(sunshine_percentage ** 0.5,1)
-
-    return max(uv_index_adjusted, 0)
-
-
-'''
-This function calculates the comfort index for a given set of weather conditions.
-'''
-def calc_comfort_index(temp, dewpoint, precip, windspeed, uv_index, sunshine_percent, apparent):
-    cloud_cover = 100 - 100*sunshine_percent
-    def bound_value(value, min_val, max_val):
-        return max(min(value, max_val), min_val)
-
-    hourlyTempIndex = max((((math.exp(-(math.pow((temp - 70), 2) / 1500)))) - math.pow((0.007 * temp), 11)) + .01, 0) * 100
-    hourlyDewIndex = max(((-0.5 * dewpoint) + 165) - (math.exp(0.06 * dewpoint)), 0)
-
-    hourlyPrecipIndex = min(-math.pow(10000 * precip, 1/3) - math.exp(0.045 * precip) + 150, 100)
-    hourlyWindSpeedIndex = min(-(math.pow(280000 * windspeed, 1/3)) - math.exp(0.05 * windspeed) - (math.pow((-0.005 * windspeed - 6), 3) + 5), 100)
-    hourlyUVIndexIndex = min(-math.pow(15000 * uv_index, 1/3) - math.exp(0.43 * uv_index) + 150, 100)
-    hourlyCloudCoverIndex = max(((-0.05 * cloud_cover) + 101) - (math.exp(0.046 * cloud_cover)), 0)
-    hourlyFeelLikeIndex = 100 * (math.exp((-((math.pow((apparent - 70), 2) / 2800)))) - (math.pow((0.0005 * apparent), 2)) - (0.07 * math.exp(-0.05 * apparent)) - (math.pow((0.008 * apparent), 11)) + 0.01)
-    
-    temp_weight = 50
-    apparent_weight = 100
-    windspeed_weight = 25
-    uv_weight = 10
-    sunshine_weight = 25
-    precip_weight = 50
-    dewpoint_weight = 100
-
-    hourlyUVIndexIndex = bound_value(hourlyUVIndexIndex, 0, 100)
-    hourlyPrecipIndex = bound_value(hourlyPrecipIndex, 0, 100)
-    hourlyDewIndex = bound_value(hourlyDewIndex, 0, 100)
-    hourlyWindSpeedIndex = max(hourlyWindSpeedIndex, 0)
-    hourlyTempIndex = min(hourlyTempIndex, 100)
-    if apparent < 25:
-        dewpoint_weight = 3
-    if temp < 0:
-        hourlyTempIndex = 0
-        dewpoint_weight = 1
-    hourlyFeelLikeIndex = bound_value(hourlyFeelLikeIndex, -100, 100)
-
-    comfortIndex = ((hourlyTempIndex * temp_weight) + (hourlyDewIndex * dewpoint_weight) + 
-                    (hourlyFeelLikeIndex * apparent_weight) + 
-                    (hourlyWindSpeedIndex * windspeed_weight) + 
-                    (hourlyUVIndexIndex * uv_weight) + (hourlyCloudCoverIndex * sunshine_weight) + 
-                    (hourlyPrecipIndex * precip_weight)) / (temp_weight + dewpoint_weight + apparent_weight + windspeed_weight + uv_weight + sunshine_weight + precip_weight)
-    
-    return max(min(comfortIndex, 100),0)
-    
     
 def get_elevation_from_coords(lat,lon):
     '''
@@ -558,7 +453,7 @@ def haversine_distance(lat1, lon1, lat2, lon2):
     return R * c / 1.6
 
 
-def nearest_coordinates_to_point_NWS(target_lat, target_lon, df, num_results=NUM_NEAREST_STATIONS_NWS):
+def nearest_coordinates_to_point_NWS(target_lat, target_lon, df, num_results=3):
     """
     Find the closest coordinates to a target point using NWS CF6 stations(NWS, CITY_CODE).
     """
@@ -577,7 +472,7 @@ def nearest_coordinates_to_point_NWS(target_lat, target_lon, df, num_results=NUM
     return closest
 
 
-def nearest_coordinates_to_point_NOAA(target_lat, target_lon, df, num_results=NUM_NEAREST_STATIONS_NOAA):
+def nearest_coordinates_to_point_NOAA(target_lat, target_lon, df, num_results=3):
     """
     Find the closest coordinates to a target point using NOAA stations (USCxxxxxxxxx.csv).
     """
@@ -597,11 +492,15 @@ def nearest_coordinates_to_point_NOAA(target_lat, target_lon, df, num_results=NU
 
     return closest
 
-
-def inverse_dist_weights(closest_points_list):
+'''
+This function takes in a list of the closest points to a target point
+ and returns a list of weights for each point
+ The higher the weight power, the more the weights are skewed towards the closest point
+'''
+def inverse_dist_weights(closest_points_list, weight_power=.5):
     dist_values = [entry[-1] for entry in closest_points_list]
     # Squared to give increased weight to closest
-    inverses = [(1 / value) ** 0.5 for value in dist_values]
+    inverses = [(1 / value) ** weight_power for value in dist_values]
     sum_inverses = sum(inverses)
     weights = [inverse / sum_inverses for inverse in inverses]
     
