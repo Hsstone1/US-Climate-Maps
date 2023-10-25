@@ -14,7 +14,7 @@ const useStyles = makeStyles({
     display: "inline-block", // Display cards inline
     marginRight: "10px", // Add some spacing between cards
     borderBottom: "4px solid", // Add border to the card
-    width: "200px", // Set the max-width of the card
+    width: "230px", // Set the max-width of the card
     height: "40px", // Set the max-height of the card
     padding: 0, // Remove internal padding
     borderRadius: 0, // Remove border radius

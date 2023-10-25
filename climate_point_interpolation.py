@@ -18,10 +18,10 @@ The NWS stations are used largely to get sunlight data.
 '''
 
 #TODO if the start date is more recent than 2019-04-01 there is an error involving the regresion
-NUM_NWS_SAMPLE_STATIONS = 1
-NUM_NOAA_SAMPLE_STATIONS = 1
+NUM_NWS_SAMPLE_STATIONS = 10
+NUM_NOAA_SAMPLE_STATIONS = 10
 CURRENT_YEAR = int(time.strftime("%Y"))
-START_DATE = '2010-01-01'
+START_DATE = '2000-01-01'
 END_DATE = f'{CURRENT_YEAR}-12-31'
 ELEV_TEMPERATURE_CHANGE = 4
 
@@ -72,9 +72,13 @@ def optimized_climate_data(target_lat, target_lon, target_elevation):
 
     noaa_final_data["DAILY_DEWPOINT_AVG"] = dewpoint_regr_calc(noaa_final_data["DAILY_HIGH_AVG"], noaa_final_data["DAILY_LOW_AVG"], noaa_final_data["DAILY_PRECIP_AVG"])
     noaa_final_data["DAILY_HUMIDITY_AVG"] = calc_humidity_percentage_vector(noaa_final_data["DAILY_DEWPOINT_AVG"], noaa_final_data["DAILY_MEAN_AVG"])
+    noaa_final_data["DAILY_HUMIDITY_AVG"] = noaa_final_data["DAILY_HUMIDITY_AVG"].clip(0, 100)
+
     noaa_final_data['HDD'] = np.maximum(65 - noaa_final_data['DAILY_MEAN_AVG'], 0)
     noaa_final_data['CDD'] = np.maximum(noaa_final_data['DAILY_MEAN_AVG'] - 65, 0)
     noaa_final_data['DAILY_GROWING_CHANCE'] = calc_growing_chance_vectorized(noaa_final_data, window_size=30)
+    
+    #TODO perform outlier detection, as the case with honolulu having a very large record high anomaly
     noaa_final_data = calculate_statistic_by_date(noaa_final_data, 'DAILY_HIGH_AVG', 'max', 'DAILY_RECORD_HIGH')
     noaa_final_data = calculate_statistic_by_date(noaa_final_data, 'DAILY_LOW_AVG', 'min', 'DAILY_RECORD_LOW')
     noaa_final_data = calculate_statistic_by_date(noaa_final_data, 'DAILY_HIGH_AVG', 'percentile', 'DAILY_EXPECTED_MAX')

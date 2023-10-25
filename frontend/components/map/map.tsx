@@ -6,22 +6,29 @@ import ComparePage from "../compare-page/comparepage";
 import { MarkerType } from "../export-props";
 import { getGeolocate, getElevation } from "./geolocate";
 import CustomInfoWindow from "./custominfowindow";
-import YearDropdown from "../historical-weather/datepicker";
+import Snackbar from "@mui/material/Snackbar";
+import LinearProgress from "@mui/material/LinearProgress";
+import CircularProgress from "@mui/material/CircularProgress";
 
 type LatLngLiteral = google.maps.LatLngLiteral;
 type MapOptions = google.maps.MapOptions;
+//max number of locations that can be compared at once
+const NUM_NUM_LOCATIONS = 5;
 
 export default function Map() {
   const mapRef = useRef<GoogleMap>();
   const center = useMemo<LatLngLiteral>(() => ({ lat: 38.0, lng: -98.0 }), []);
+  const [isFetching, setIsFetching] = useState(false);
+  const [clickedLocation, setClickedLocation] = useState<LatLngLiteral | null>(
+    null
+  );
+  const [alertMessage, setAlertMessage] = useState<string | null>(null);
+
   const [selectedMarker, setSelectedMarker] = useState<MarkerType[]>([]);
   const [locationsCompare, setLocationsCompare] = useState<MarkerType[]>([]);
   const [activeComponent, setActiveComponent] = useState<
     "map" | "compare" | "climate change"
   >("map");
-
-  //max number of locations that can be compared at once
-  const NUM_LOCATIONS = 5;
 
   const mapOptions = useMemo<MapOptions>(
     () => ({
@@ -54,12 +61,16 @@ export default function Map() {
     mapRef.current = map;
   }, []);
 
+  //This is used to keep track of the number of markers on the map while avoiding async state updates
+  const markerCountRef = useRef(0);
+  useEffect(() => {
+    markerCountRef.current = selectedMarker.length;
+  }, [selectedMarker]);
+
   const handleMapClick = useCallback(
     (ev: google.maps.MapMouseEvent): void => {
-      if (selectedMarker.length - 2 >= NUM_LOCATIONS) {
-        console.log("You can only compare up to 5 locations at once");
-        return;
-      }
+      if (isFetching) return; // Block map clicks if fetching
+
       const latitude = ev.latLng?.lat();
       const longitude = ev.latLng?.lng();
       //console.log("CLICKED MAP");
@@ -68,14 +79,21 @@ export default function Map() {
         handleBackendMarkerData({ lat: latitude, lng: longitude });
       }
     },
-    [selectedMarker]
+    [isFetching]
   );
 
   const handleBackendMarkerData = useCallback(
     (position: LatLngLiteral): void => {
       const { lat: latitude, lng: longitude } = position;
-      const startTime = performance.now();
       const markerId = `${latitude}_${longitude}`;
+      if (markerCountRef.current >= NUM_NUM_LOCATIONS) {
+        setAlertMessage("Maximum number of locations reached!");
+        setTimeout(() => setAlertMessage(null), 1000);
+        return;
+      }
+
+      setIsFetching(true);
+      setClickedLocation(position);
 
       // Check if marker with the same ID already exists
       const markerExists = selectedMarker.some(
@@ -83,7 +101,8 @@ export default function Map() {
       );
 
       if (markerExists) {
-        //console.log("Marker already exists");
+        setAlertMessage("Marker already exists!");
+        setTimeout(() => setAlertMessage(null), 1000);
         return;
       }
 
@@ -123,6 +142,9 @@ export default function Map() {
                     newMarker,
                   ]);
 
+                  setIsFetching(false);
+                  setClickedLocation(null);
+
                   handleCompareMarker(newMarker);
 
                   console.log(data);
@@ -138,6 +160,8 @@ export default function Map() {
             })
             .catch((error) => {
               console.error("Error Cannot Retrieve Data: " + error);
+              setIsFetching(false);
+              setClickedLocation(null);
             });
         })
         .catch((error) => {
@@ -177,7 +201,7 @@ export default function Map() {
       );
 
       //If marker doesnt exist in location list, add it
-      if (!isMarkerExists && prevLocations.length < NUM_LOCATIONS) {
+      if (!isMarkerExists && prevLocations.length < NUM_NUM_LOCATIONS) {
         return [...prevLocations, marker];
       }
 
@@ -185,18 +209,6 @@ export default function Map() {
       return prevLocations;
     });
   }, []);
-
-  const handleSelectYear = (selectedYear: string) => {
-    if (selectedYear === "Average") {
-      console.log("Average Data");
-      // You can perform further actions based on the selected year
-    } else {
-      console.log("Selected year:", selectedYear);
-
-      // api call to get data for the selected year
-    }
-    // You can perform further actions based on the selected year
-  };
 
   return (
     <div className="app-container">
@@ -246,22 +258,32 @@ export default function Map() {
         <div className="nav_locations">
           <ul className="nav_locations-items">
             <li>
-              <SearchBar
-                setMarker={(position) => {
-                  handleBackendMarkerData(position);
-                  mapRef.current?.panTo(position);
-                }}
-              />
+              <div style={{ minWidth: "200px" }}>
+                {" "}
+                {/* This ensures that SearchBar has a minimum width */}
+                <SearchBar
+                  setMarker={(position) => {
+                    handleBackendMarkerData(position);
+                    mapRef.current?.panTo(position);
+                  }}
+                />
+              </div>
             </li>
           </ul>
 
-          <ul className="nav_locations-list">
+          <ul
+            className={
+              locationsCompare.length === 0
+                ? "nav_locations-list centered-content"
+                : "nav_locations-list"
+            }
+          >
             <li>
               {locationsCompare.length === 0 ? (
                 <>
                   <p>
                     Click a location on the map, then navigate to the comparison
-                    tab. Up to {NUM_LOCATIONS} locations can be compared at
+                    tab. Up to {NUM_NUM_LOCATIONS} locations can be compared at
                     once.
                   </p>
                 </>
@@ -273,14 +295,6 @@ export default function Map() {
               )}
             </li>
           </ul>
-
-          {/*
-          <ul className="nav_locations-items">
-            <li className="historical_year-dropdown">
-              <YearDropdown onSelectYear={handleSelectYear} />
-            </li>
-          </ul>
-            */}
         </div>
       </nav>
 
@@ -314,6 +328,41 @@ export default function Map() {
           </div>
         )}
       </div>
+      <Snackbar
+        open={isFetching}
+        anchorOrigin={{ vertical: "bottom", horizontal: "center" }}
+      >
+        <div
+          style={{
+            backgroundColor: "#5496ff",
+            display: "flex",
+            alignItems: "center",
+            padding: "8px 16px",
+            borderRadius: "4px",
+          }}
+        >
+          <div style={{ flex: 1, color: "white" }}>
+            {clickedLocation &&
+              `Fetching data for: Lat: ${clickedLocation.lat.toFixed(
+                2
+              )}, Lng: ${clickedLocation.lng.toFixed(2)}`}
+          </div>
+          <CircularProgress
+            size={24}
+            color="inherit"
+            style={{ marginLeft: "10px" }}
+          />
+        </div>
+      </Snackbar>
+
+      <Snackbar
+        open={Boolean(alertMessage)}
+        autoHideDuration={1000}
+        onClose={() => setAlertMessage(null)}
+        anchorOrigin={{ vertical: "bottom", horizontal: "center" }}
+        message={alertMessage}
+        ContentProps={{ style: { backgroundColor: "#ff3333", color: "white" } }}
+      />
     </div>
   );
 }

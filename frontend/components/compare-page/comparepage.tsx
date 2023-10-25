@@ -1,10 +1,11 @@
 import { ClimateChartDataset } from "./comparepageprops";
-
+import { useEffect, useState } from "react";
+import Typography from "@mui/material/Typography";
 import { MarkerType, LocationColors } from "../export-props";
 import ClimateChart from "./climatechart";
 import Table from "./comparepagetable";
-import ClimateTablePaginate from "../climate-table/climatetablepaginate";
-import Typography from "@mui/material/Typography";
+import ClimateChartPaginate from "../climate-table/climatetablepaginate";
+import YearSelector from "../historical-weather/yearselector";
 
 type ComparisonPageProps = {
   locations: MarkerType[];
@@ -17,6 +18,8 @@ export default function ComparisonPage({ locations }: ComparisonPageProps) {
   const BACKGROUND_ALPHA = 0.05;
   const HEADING_VARIANT = "h5";
   const SMA_SMOOTH_DAYS = 30;
+
+  const [selectedYear, setSelectedYear] = useState<string>("Annual");
 
   // Append first index to end of array for chart
   function appendFirstIndexToEnd(data: number[]): number[] {
@@ -32,11 +35,18 @@ export default function ComparisonPage({ locations }: ComparisonPageProps) {
   ) => {
     const { multiplyByVal = 1, windowSize } = options;
 
-    const rawData = location.data.climate_data.avg_daily.map(
-      (day: { [key: string]: any }) => day[key] * multiplyByVal
-    );
+    // This selects the average data for all years if the annual option is selected
+    // Otherwise, it selects the data for the selected year
+    const rawData =
+      selectedYear === "Annual"
+        ? location.data.climate_data.avg_daily.map(
+            (day: { [key: string]: any }) => day[key] * multiplyByVal
+          )
+        : location.data.climate_data.historical[selectedYear].daily.map(
+            (day: { [key: string]: any }) => day[key] * multiplyByVal
+          );
 
-    if (windowSize === undefined) {
+    if (selectedYear !== "Annual" || windowSize === undefined) {
       return rawData;
     }
 
@@ -497,13 +507,26 @@ export default function ComparisonPage({ locations }: ComparisonPageProps) {
                 component="div"
                 textAlign={"center"}
               >
-                Yearly High and Low Temperatures
+                {selectedYear === "Annual" ? "Annual" : selectedYear} High and
+                Low Temperatures
               </Typography>
 
-              <ClimateChart
-                datasetProp={temperature_dataset(locations)}
-                units={"°F"}
-              ></ClimateChart>
+              {selectedYear === "Annual" ? (
+                <ClimateChart
+                  datasetProp={temperature_dataset(locations)}
+                  units={"°F"}
+                />
+              ) : (
+                <ClimateChartPaginate locations={locations}>
+                  {(location) => (
+                    <ClimateChart
+                      datasetProp={temperature_dataset([location])}
+                      units={"°F"}
+                    />
+                  )}
+                </ClimateChartPaginate>
+              )}
+
               <p style={{ textAlign: "center" }}>
                 Average monthly high and low temperatures for each location. The
                 dashed line represents the average monthly apparent temperature,
@@ -542,7 +565,8 @@ export default function ComparisonPage({ locations }: ComparisonPageProps) {
                 component="div"
                 textAlign={"center"}
               >
-                Yearly Temperature Ranges
+                {selectedYear === "Annual" ? "Annual" : selectedYear}{" "}
+                Temperature Ranges
               </Typography>
 
               <ClimateChart
@@ -588,7 +612,8 @@ export default function ComparisonPage({ locations }: ComparisonPageProps) {
                 component="div"
                 textAlign={"center"}
               >
-                Yearly Growing Season
+                {selectedYear === "Annual" ? "Annual" : selectedYear} Growing
+                Season
               </Typography>
               <ClimateChart
                 datasetProp={growingDataset(locations)}
@@ -638,7 +663,7 @@ export default function ComparisonPage({ locations }: ComparisonPageProps) {
                 component="div"
                 textAlign={"center"}
               >
-                Yearly Rainfall
+                {selectedYear === "Annual" ? "Annual" : selectedYear} Rainfall
               </Typography>
 
               <ClimateChart
@@ -681,7 +706,7 @@ export default function ComparisonPage({ locations }: ComparisonPageProps) {
                 component="div"
                 textAlign={"center"}
               >
-                Yearly Snowfall
+                {selectedYear === "Annual" ? "Annual" : selectedYear} Snowfall
               </Typography>
               <ClimateChart
                 datasetProp={snow_dataset(locations)}
@@ -726,7 +751,8 @@ export default function ComparisonPage({ locations }: ComparisonPageProps) {
                 component="div"
                 textAlign={"center"}
               >
-                Yearly Humidity
+                {selectedYear === "Annual" ? "Annual" : selectedYear} Humidity
+                Percentage
               </Typography>
 
               <ClimateChart
@@ -750,7 +776,7 @@ export default function ComparisonPage({ locations }: ComparisonPageProps) {
                 component="div"
                 textAlign={"center"}
               >
-                Yearly Dewpoint
+                {selectedYear === "Annual" ? "Annual" : selectedYear} Dewpoint
               </Typography>
 
               <ClimateChart
@@ -776,7 +802,7 @@ export default function ComparisonPage({ locations }: ComparisonPageProps) {
                 component="div"
                 textAlign={"center"}
               >
-                Yearly Wind Speed
+                {selectedYear === "Annual" ? "Annual" : selectedYear} Wind Speed
               </Typography>
               <ClimateChart
                 datasetProp={windDataset(locations)}
@@ -810,7 +836,8 @@ export default function ComparisonPage({ locations }: ComparisonPageProps) {
                 component="div"
                 textAlign={"center"}
               >
-                Yearly Sunshine
+                {selectedYear === "Annual" ? "Annual" : selectedYear} Sunshine
+                Percentage
               </Typography>
               <ClimateChart
                 datasetProp={sunshine_dataset(locations)}
@@ -846,7 +873,7 @@ export default function ComparisonPage({ locations }: ComparisonPageProps) {
                 component="div"
                 textAlign={"center"}
               >
-                Yearly Sun Angle
+                Annual Sun Angle
               </Typography>
               <ClimateChart
                 datasetProp={sun_angle_dataset(locations)}
@@ -881,7 +908,7 @@ export default function ComparisonPage({ locations }: ComparisonPageProps) {
                 component="div"
                 textAlign={"center"}
               >
-                Yearly UV Index
+                {selectedYear === "Annual" ? "Annual" : selectedYear} UV Index
               </Typography>
               <ClimateChart
                 datasetProp={uv_index_dataset(locations)}
@@ -916,7 +943,8 @@ export default function ComparisonPage({ locations }: ComparisonPageProps) {
                 component="div"
                 textAlign={"center"}
               >
-                Yearly Comfort Rating
+                {selectedYear === "Annual" ? "Annual" : selectedYear} Comfort
+                Rating
               </Typography>
               <ClimateChart
                 datasetProp={comfortDataset(locations)}
@@ -943,6 +971,13 @@ export default function ComparisonPage({ locations }: ComparisonPageProps) {
             </div>
           </div>
         )}
+      </div>
+
+      <div className="year-selector-footer">
+        <YearSelector
+          historical={locations[0].data.climate_data.historical}
+          onYearChange={setSelectedYear}
+        />
       </div>
     </div>
   );

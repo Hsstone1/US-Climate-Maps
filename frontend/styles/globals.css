@@ -67,30 +67,38 @@ a {
   background-color: #303030;
   color: #ffffff;
   display: flex;
-  justify-content: left;
+  justify-content: center;
   align-items: center;
   position: fixed;
   text-align: center;
   z-index: 100;
+  justify-content: flex-start;
 }
 
 .nav_locations-items{
   list-style: none;
-  align-items: center;
   padding-left: 1rem;
   display: flex;
   text-align: center;
+  flex: 1; 
+  flex-shrink: 0
 }
 
 
 .nav_locations-list {
   list-style: none;
-  flex: 1;
+  flex: grow;
   display: flex;
   align-items: center;
-  justify-content: center;
   white-space: nowrap; /* Prevent wrapping to the next line */
+  overflow-x: auto; /* Enable horizontal scrolling */
+  scrollbar-width: none; /* For Firefox */
+  margin-left: 10px;
+  justify-content: flex-start
+}
 
+.nav_locations-list::-webkit-scrollbar {
+  display: none; /* For Chrome, Safari, and Edge */
 }
 
 
@@ -155,9 +163,15 @@ a {
 
 }
 
-.compare-page-scroll{
+.compare-page-scroll {
   width: 100%;
   align-items: center;
+  overflow-y: scroll; /* Enable vertical scroll */
+  scrollbar-width: none; /* For Firefox */
+}
+
+.compare-page-scroll::-webkit-scrollbar {
+  display: none; /* For Chrome, Safari, and Edge */
 }
 
 .compare_chart-div {
@@ -172,4 +186,36 @@ a {
   margin: auto;
   align-items: center;
   display: block;
+}
+
+.compare-progress-bar {
+  height: 3px;  /* You can adjust the height if needed */
+  background-color: lightblue;
+  position: fixed;
+  top: 0;
+  left: 0;
+  z-index: 1000; /* Keep the progress bar on top */
+  transition: width 0.3s ease; /* Smooth width change */
+}
+
+.year-selector-footer {
+  position: fixed;
+  bottom: 0;
+  width: 100%;
+  background-color: #f9f9f9; 
+  z-index: 1000;
+  padding: 0; 
+}
+
+/* Optional: Style to hide the scrollbar but keep functionality */
+.year-selector-footer ::-webkit-scrollbar {
+  display: none;
+}
+
+.centered-content {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  height: 100%;
+  width: 100%;
 }

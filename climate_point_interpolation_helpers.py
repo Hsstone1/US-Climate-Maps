@@ -71,14 +71,21 @@ def calc_sun_angle_and_daylight_length(latitude_degrees):
         phi = math.radians(latitude_degrees)  # convert latitude to radians
 
         # calculating the hour angle at which the sun sets/rises
-        omega = math.acos(-math.tan(phi) * math.tan(math.radians(delta)))
+        clamped_value = max(-1, min(1, -math.tan(phi) * math.tan(math.radians(delta))))
 
-        # solar noon elevation
-        elevation_angle = math.degrees(math.asin(math.sin(phi) * math.sin(math.radians(delta)) + 
+        # If clamped_value is -1 or 1, the sun never rises or never sets, respectively.
+        if clamped_value == 1:
+            daylight_length = 0  # Polar night
+            elevation_angle = 0  # Sun is below horizon all day
+        elif clamped_value == -1:
+            daylight_length = 24  # Midnight sun
+            #elevation_angle = 90  # Maximum possible solar noon elevation
+        else:
+            omega = math.acos(clamped_value)
+            daylight_length = 2 * omega * 24 / (2 * math.pi)  # Convert radians to hours
+            # solar noon elevation
+            elevation_angle = math.degrees(math.asin(math.sin(phi) * math.sin(math.radians(delta)) + 
                                 math.cos(phi) * math.cos(math.radians(delta))))
-        
-        # total daylight length
-        daylight_length = 2 * omega * 24 / (2 * math.pi)  # Convert radians to hours
         
         results.append((day_of_year, elevation_angle, daylight_length))
 

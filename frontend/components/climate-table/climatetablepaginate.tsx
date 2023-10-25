@@ -4,11 +4,15 @@ import React, { useState, useEffect } from "react";
 import { Button, Box } from "@mui/material";
 import Pagination from "@mui/material/Pagination";
 
-type ClimateTableProps = {
+type ClimateChartProps = {
   locations: MarkerType[];
+  children: (location: MarkerType) => JSX.Element;
 };
 
-export default function ClimateTablePaginate({ locations }: ClimateTableProps) {
+export default function ClimateChartPaginate({
+  locations,
+  children,
+}: ClimateChartProps) {
   const [currentIndex, setCurrentIndex] = useState(0);
   const [currentChart, setCurrentChart] = useState<MarkerType | null>(null);
 
@@ -27,10 +31,6 @@ export default function ClimateTablePaginate({ locations }: ClimateTableProps) {
     }
   }, [locations, currentIndex]);
 
-  const handleNext = () => {
-    setCurrentIndex((prevIndex) => prevIndex + 1);
-  };
-
   const handlePrevious = () => {
     setCurrentIndex((prevIndex) => prevIndex - 1);
   };
@@ -47,7 +47,7 @@ export default function ClimateTablePaginate({ locations }: ClimateTableProps) {
       {/* Render the current chart if it exists */}
       {currentChart && (
         <div style={{ display: "flex", justifyContent: "center" }}>
-          <ClimateTable data={currentChart.data} />
+          {children(currentChart)}
         </div>
       )}
 
