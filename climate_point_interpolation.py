@@ -21,7 +21,7 @@ The NWS stations are used largely to get sunlight data.
 NUM_NWS_SAMPLE_STATIONS = 10
 NUM_NOAA_SAMPLE_STATIONS = 10
 CURRENT_YEAR = int(time.strftime("%Y"))
-START_DATE = '2000-01-01'
+START_DATE = '1980-01-01'
 END_DATE = f'{CURRENT_YEAR}-12-31'
 ELEV_TEMPERATURE_CHANGE = 4
 
@@ -36,8 +36,10 @@ def optimized_climate_data(target_lat, target_lon, target_elevation):
     closest_points_NOAA = nearest_coordinates_to_point_NOAA(target_lat, target_lon, df_stations_NOAA_names, num_results=NUM_NOAA_SAMPLE_STATIONS)
 
     # Compute inverse weighted average so closest distance has most weight
-    weights_NWS = inverse_dist_weights(closest_points_NWS)
-    weights_NOAA = inverse_dist_weights(closest_points_NOAA)
+    # The higher the weight power, the more the weights are skewed towards the closest point
+
+    weights_NWS = inverse_dist_weights(closest_points_NWS, weight_power=1)
+    weights_NOAA = inverse_dist_weights(closest_points_NOAA, weight_power=1)
 
 
     # Get the historical weather for each location
@@ -70,15 +72,46 @@ def optimized_climate_data(target_lat, target_lon, target_elevation):
     noaa_final_data = aggregate_data(noaa_all_data, noaa_cols_to_aggregate)
     noaa_final_data.set_index('DATE', inplace=True)
 
+    #Outlier Detection
+    ########################################################################
+    WINDOW_SIZE = 30  # for example, 15 days before and 15 days after
+    STD_DEV = 3
+    df = pd.DataFrame()
+    df['high_Rolling_Mean'] = noaa_final_data['DAILY_HIGH_AVG'].rolling(window=WINDOW_SIZE, center=True).mean()
+    df['high_Rolling_Std'] = noaa_final_data['DAILY_HIGH_AVG'].rolling(window=WINDOW_SIZE, center=True).std()
+
+    df['low_Rolling_Mean'] = noaa_final_data['DAILY_LOW_AVG'].rolling(window=WINDOW_SIZE, center=True).mean()
+    df['low_Rolling_Std'] = noaa_final_data['DAILY_LOW_AVG'].rolling(window=WINDOW_SIZE, center=True).std()
+
+    df['high_Is_Outlier'] = ((noaa_final_data['DAILY_HIGH_AVG'] < (df['high_Rolling_Mean'] - STD_DEV * df['high_Rolling_Std'])) | 
+                    (noaa_final_data['DAILY_HIGH_AVG'] > (df['high_Rolling_Mean'] + STD_DEV * df['high_Rolling_Std'])))
+    df['low_Is_Outlier'] = ((noaa_final_data['DAILY_LOW_AVG'] < (df['low_Rolling_Mean'] - STD_DEV * df['low_Rolling_Std'])) | 
+                    (noaa_final_data['DAILY_LOW_AVG'] > (df['low_Rolling_Mean'] + STD_DEV * df['low_Rolling_Std'])))
+    
+    # Replace high temperature outliers with their respective rolling mean
+    noaa_final_data.loc[df['high_Is_Outlier'], 'DAILY_HIGH_AVG'] = df.loc[df['high_Is_Outlier'], 'high_Rolling_Mean']
+    noaa_final_data.loc[df['low_Is_Outlier'], 'DAILY_LOW_AVG'] = df.loc[df['low_Is_Outlier'], 'low_Rolling_Mean']
+    noaa_final_data['DAILY_MEAN_AVG'] = (noaa_final_data['DAILY_HIGH_AVG'] + noaa_final_data['DAILY_LOW_AVG'])/2
+    
+    
+    start_time = time.time()
     noaa_final_data["DAILY_DEWPOINT_AVG"] = dewpoint_regr_calc(noaa_final_data["DAILY_HIGH_AVG"], noaa_final_data["DAILY_LOW_AVG"], noaa_final_data["DAILY_PRECIP_AVG"])
+    print("FINISHED REGR: ", time.time() - start_time)
+    noaa_final_data["NUM_HIGH_DEWPOINT_DAYS"] = (noaa_final_data["DAILY_DEWPOINT_AVG"] > 70).astype(int)
+    
     noaa_final_data["DAILY_HUMIDITY_AVG"] = calc_humidity_percentage_vector(noaa_final_data["DAILY_DEWPOINT_AVG"], noaa_final_data["DAILY_MEAN_AVG"])
+    noaa_final_data["DAILY_MORNING_HUMIDITY_AVG"] = calc_humidity_percentage_vector(noaa_final_data["DAILY_DEWPOINT_AVG"], noaa_final_data["DAILY_LOW_AVG"])
+    noaa_final_data["DAILY_AFTERNOON_HUMIDITY_AVG"] = calc_humidity_percentage_vector(noaa_final_data["DAILY_DEWPOINT_AVG"], noaa_final_data["DAILY_HIGH_AVG"])
+    
     noaa_final_data["DAILY_HUMIDITY_AVG"] = noaa_final_data["DAILY_HUMIDITY_AVG"].clip(0, 100)
+    noaa_final_data["DAILY_MORNING_HUMIDITY_AVG"] = noaa_final_data["DAILY_MORNING_HUMIDITY_AVG"].clip(0, 100)
+    noaa_final_data["DAILY_AFTERNOON_HUMIDITY_AVG"] = noaa_final_data["DAILY_AFTERNOON_HUMIDITY_AVG"].clip(0, 100)
+    noaa_final_data["DAILY_MORNING_FROST_CHANCE"] = 100 * ((noaa_final_data["DAILY_MORNING_HUMIDITY_AVG"] > 90) & (noaa_final_data["DAILY_LOW_AVG"] <= 32)).astype(int)
 
     noaa_final_data['HDD'] = np.maximum(65 - noaa_final_data['DAILY_MEAN_AVG'], 0)
     noaa_final_data['CDD'] = np.maximum(noaa_final_data['DAILY_MEAN_AVG'] - 65, 0)
     noaa_final_data['DAILY_GROWING_CHANCE'] = calc_growing_chance_vectorized(noaa_final_data, window_size=30)
     
-    #TODO perform outlier detection, as the case with honolulu having a very large record high anomaly
     noaa_final_data = calculate_statistic_by_date(noaa_final_data, 'DAILY_HIGH_AVG', 'max', 'DAILY_RECORD_HIGH')
     noaa_final_data = calculate_statistic_by_date(noaa_final_data, 'DAILY_LOW_AVG', 'min', 'DAILY_RECORD_LOW')
     noaa_final_data = calculate_statistic_by_date(noaa_final_data, 'DAILY_HIGH_AVG', 'percentile', 'DAILY_EXPECTED_MAX')
@@ -171,10 +204,15 @@ def optimized_climate_data(target_lat, target_lon, target_elevation):
     combined['UV_INDEX'] = calc_uv_index_vectorized(combined['SUN_ANGLE'], target_elevation, combined['DAILY_SUNSHINE_AVG'])
     combined['APPARENT_HIGH_AVG'] = calc_aparent_temp_vector(combined['DAILY_HIGH_AVG'], combined['DAILY_DEWPOINT_AVG'], combined['DAILY_WIND_AVG'])
     combined['APPARENT_LOW_AVG'] = calc_aparent_temp_vector(combined['DAILY_LOW_AVG'], combined['DAILY_DEWPOINT_AVG'], combined['DAILY_WIND_AVG'])
-    combined['DAILY_COMFORT_INDEX'] = calc_comfort_index_vector(combined['DAILY_MEAN_AVG'], combined['DAILY_DEWPOINT_AVG'], combined['DAILY_SUNSHINE_AVG'])
+    combined['APPARENT_MEAN_AVG'] = (combined['APPARENT_HIGH_AVG'] + combined['APPARENT_LOW_AVG'])/2
+    combined['DAILY_COMFORT_INDEX'] = calc_comfort_index_vector(combined['DAILY_MEAN_AVG'], combined['APPARENT_HIGH_AVG'],  combined['DAILY_DEWPOINT_AVG'], combined['DAILY_SUNSHINE_AVG'])
     combined['SUNSHINE_HOURS'] = combined['DAYLIGHT_LENGTH'] * (combined['DAILY_SUNSHINE_AVG']/100)
 
-    #combined.to_csv('combined.csv')
+
+
+
+
+    # Converting dataframe into useful dictionary for json return
     #########################################################################
     
     
@@ -225,7 +263,7 @@ def optimized_climate_data(target_lat, target_lon, target_elevation):
     avg_daily = df.resample('D').mean().groupby(lambda x: (x.month, x.day)).mean().to_dict(orient='records')
     
     # Adjustments for annual and monthly values
-    process_columns = ['CDD', 'HDD', 'CLOUDY_DAYS', 'PARTLY_CLOUDY_DAYS', 'SUNNY_DAYS', 'SNOW_DAYS', 'PRECIP_DAYS', 'SNOW_AVG', 'PRECIP_AVG', 'SUNSHINE_HOURS']
+    process_columns = ['CDD', 'HDD', 'CLOUDY_DAYS', 'PARTLY_CLOUDY_DAYS', 'SUNNY_DAYS', 'SNOW_DAYS', 'PRECIP_DAYS', 'SNOW_AVG', 'PRECIP_AVG', 'SUNSHINE_HOURS', 'NUM_HIGH_DEWPOINT_DAYS']
     for column in process_columns:
         if column in avg_annual:
             avg_annual[column] *= 365
@@ -287,30 +325,34 @@ def process_noaa_station_data(station, weight, elev_diff):
     # Read the CSV data
     file_path = f"{os.getcwd()}\\STATIONS\\NOAA-STATIONS\\" + station
     df = pd.read_csv(file_path, usecols= ['DATE', 'PRCP', 'SNOW', 'TMAX', 'TMIN'])
-
     
-     # Convert the 'DATE' column to datetime and filter rows based on the date range
+    # Convert the 'DATE' column to datetime and filter rows based on the date range
     df['DATE'] = pd.to_datetime(df['DATE'])
     df = df[(df['DATE'] >= START_DATE) & (df['DATE'] <= END_DATE)]
-
     
     elev_diff /= 1000
     
     # Apply the computations to create the new columns
-    df['DAILY_HIGH_AVG'] = (df['TMAX'] * 9 / 50 + 32 - elev_diff * ELEV_TEMPERATURE_CHANGE).fillna(0)
-    df['DAILY_MEAN_AVG'] = ((df['TMAX'] * 9 / 50 + 32 + df['TMIN'] * 9 / 50 + 32)/2 - elev_diff * ELEV_TEMPERATURE_CHANGE).fillna(0)
-    df['DAILY_LOW_AVG'] = (df['TMIN'] * 9 / 50 + 32- elev_diff * ELEV_TEMPERATURE_CHANGE).fillna(0)
+    df['DAILY_HIGH_AVG'] = (df['TMAX'] * 9 / 50 + 32 - elev_diff * ELEV_TEMPERATURE_CHANGE)
+    df['DAILY_LOW_AVG'] = (df['TMIN'] * 9 / 50 + 32- elev_diff * ELEV_TEMPERATURE_CHANGE)
     df['DAILY_PRECIP_AVG'] = (df['PRCP'] / 254 *  min((1 + elev_diff * 0.2),2)).fillna(0)
     df['DAILY_SNOW_AVG'] = (df['SNOW'] / 25.4 *  min((1 + elev_diff * 0.2),2)).fillna(0)
+
+    # Filter out rows where DAILY_LOW_AVG is greater than DAILY_HIGH_AVG
+    df = df[df['DAILY_LOW_AVG'] <= df['DAILY_HIGH_AVG']]
+    df.dropna(subset=['DAILY_HIGH_AVG', 'DAILY_LOW_AVG'], inplace=True)
+
+
 
     # Check for precipitation and snow above thresholds
     df['PRECIP_DAYS'] = (df['DAILY_PRECIP_AVG'] > 0.01).astype(int)
     df['SNOW_DAYS'] = (df['DAILY_SNOW_AVG'] > 0.1).astype(int)
-    df['PRECIP_DAYS'] = (df['PRECIP_DAYS'] * min((1 + elev_diff * 0.03),2)).fillna(0)
-    df['SNOW_DAYS'] = (df['SNOW_DAYS'] * min((1 + elev_diff * 0.03),2)).fillna(0)
+    df['PRECIP_DAYS'] = (df['PRECIP_DAYS'] * min((1 + elev_diff * 0.03),2))
+    df['SNOW_DAYS'] = (df['SNOW_DAYS'] * min((1 + elev_diff * 0.03),2))
     
     # Apply the weights
-    weighted_cols = ['DAILY_HIGH_AVG', 'DAILY_MEAN_AVG', 'DAILY_LOW_AVG', 'DAILY_PRECIP_AVG', 'DAILY_SNOW_AVG', 'PRECIP_DAYS', 'SNOW_DAYS']
+    weighted_cols = ['DAILY_HIGH_AVG', 'DAILY_LOW_AVG', 'DAILY_PRECIP_AVG', 'DAILY_SNOW_AVG', 'PRECIP_DAYS', 'SNOW_DAYS']
+
     df[weighted_cols] = df[weighted_cols].multiply(weight, axis=0)
     df['WEIGHT'] = weight
 
@@ -323,7 +365,7 @@ def process_nws_station_data(provider, city_code, weight, elev_diff):
     elev_diff /= 1000
     # Compute the required averages with elevation adjustments since conditions change with elevation
     elevation_adjustment_for_wind = min((1 + elev_diff * 0.2), 2)
-    elevation_adjustment_for_sunshine = max((1 - elev_diff * 0.03), 0)
+    elevation_adjustment_for_sunshine = max((1 - elev_diff * 0.1), 0)
 
     # Convert the 'DATE' column to datetime
     df['DATE'] = pd.to_datetime(df['Date'])
@@ -332,6 +374,8 @@ def process_nws_station_data(provider, city_code, weight, elev_diff):
     df['DAILY_WIND_DIR_AVG'] = df['DR'].where(df['DR'] != 1, 0)
     df['DAILY_SUNSHINE_AVG'] = (10 * (10 - df['S-S'])).where(df['S-S'] >= 0, 0) * elevation_adjustment_for_sunshine
     df['DAILY_SUNSHINE_AVG'] = df['DAILY_SUNSHINE_AVG'].clip(lower=0, upper=100)
+    
+    df.dropna(subset=['DAILY_WIND_AVG', 'DAILY_WIND_DIR_AVG', 'DAILY_SUNSHINE_AVG'], inplace=True)
 
     weighted_cols = ['DAILY_WIND_AVG', 'DAILY_WIND_DIR_AVG', 'DAILY_SUNSHINE_AVG']
 

@@ -1,19 +1,20 @@
-import ClimateTable from "./climatetable";
-import { MarkerType } from "../export-props";
 import React, { useState, useEffect } from "react";
-import { Button, Box } from "@mui/material";
-import Pagination from "@mui/material/Pagination";
+import { Box, Pagination } from "@mui/material";
+import { MarkerType } from "../export-props";
 
 type ClimateChartProps = {
   locations: MarkerType[];
-  children: (location: MarkerType) => JSX.Element;
+  children: (location: MarkerType, index?: number) => JSX.Element;
+  currentIndex: number;
+  setCurrentIndex: React.Dispatch<React.SetStateAction<number>>;
 };
 
 export default function ClimateChartPaginate({
   locations,
   children,
+  currentIndex,
+  setCurrentIndex,
 }: ClimateChartProps) {
-  const [currentIndex, setCurrentIndex] = useState(0);
   const [currentChart, setCurrentChart] = useState<MarkerType | null>(null);
 
   useEffect(() => {
@@ -25,15 +26,12 @@ export default function ClimateChartPaginate({
       currentIndex < locations.length
     ) {
       setCurrentChart(locations[currentIndex]);
-    } else {
+    } else if (locations.length > 0) {
+      // added an else if condition to check if locations array is not empty
       setCurrentChart(locations[currentIndex - 1]);
-      handlePrevious();
+      setCurrentIndex((prev) => Math.max(prev - 1, 0)); // Boundary check added
     }
-  }, [locations, currentIndex]);
-
-  const handlePrevious = () => {
-    setCurrentIndex((prevIndex) => prevIndex - 1);
-  };
+  }, [locations, currentIndex, setCurrentIndex]);
 
   const handlePageChange = (
     event: React.ChangeEvent<unknown>,
@@ -47,7 +45,7 @@ export default function ClimateChartPaginate({
       {/* Render the current chart if it exists */}
       {currentChart && (
         <div style={{ display: "flex", justifyContent: "center" }}>
-          {children(currentChart)}
+          {children(currentChart, currentIndex)}
         </div>
       )}
 

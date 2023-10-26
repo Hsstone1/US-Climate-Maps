@@ -92,9 +92,6 @@ export default function Map() {
         return;
       }
 
-      setIsFetching(true);
-      setClickedLocation(position);
-
       // Check if marker with the same ID already exists
       const markerExists = selectedMarker.some(
         (marker) => marker.id === markerId
@@ -105,6 +102,8 @@ export default function Map() {
         setTimeout(() => setAlertMessage(null), 1000);
         return;
       }
+      setIsFetching(true);
+      setClickedLocation(position);
 
       getElevation(latitude, longitude)
         .then((elevation) => {

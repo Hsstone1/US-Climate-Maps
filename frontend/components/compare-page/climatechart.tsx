@@ -163,6 +163,7 @@ export default function ClimateChart({
         left: 40,
       },
     },
+
     plugins: {
       legend: {
         position: "top" as const,
@@ -251,6 +252,7 @@ export default function ClimateChart({
         display: "auto",
         beginAtZero: false,
         suggestedMax: 100,
+        suggestedMin: 0,
         ticks: {
           callback: function (value) {
             return value + " °F ";
@@ -276,7 +278,7 @@ export default function ClimateChart({
             return value + " in ";
           },
           maxTicksLimit: 10,
-          stepSize: 0.1,
+          stepSize: 1,
           font: {
             size: 10,
           },
@@ -306,7 +308,7 @@ export default function ClimateChart({
         type: "linear",
         position: "left",
         display: "auto",
-        suggestedMin: 0,
+        min: 0,
         suggestedMax: 10,
         ticks: {
           beginAtZero: true,

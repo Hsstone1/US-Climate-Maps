@@ -7,6 +7,8 @@ import numpy as np
 from scipy.stats import norm
 from sklearn.discriminant_analysis import StandardScaler
 from sklearn.ensemble import RandomForestRegressor
+from sklearn.metrics import mean_squared_error
+from sklearn.model_selection import GridSearchCV, train_test_split
 
 
 def calc_growing_chance_vectorized(noaa_final_data, window_size=14):
@@ -126,6 +128,10 @@ def calc_humidity_percentage_vector(dew_points_F, temperatures_F):
     return humidity_percentages
 
 
+from sklearn.model_selection import RandomizedSearchCV
+from sklearn.linear_model import LinearRegression
+
+from sklearn.linear_model import LinearRegression
 
 def dewpoint_regr_calc(Tmax, Tmin, totalPrcp):
     # Read the CSV file with temperature and dewpoint data
@@ -149,21 +155,12 @@ def dewpoint_regr_calc(Tmax, Tmin, totalPrcp):
     rf_model = RandomForestRegressor(n_estimators=5, random_state=42)
     rf_model.fit(X_scaled, y.values.ravel())
 
-    # Calculate Tdiurinal and TAvg from your input data
-    Tdiurinal = [x - y for x, y in zip(Tmax, Tmin)]  # Element-wise subtraction
-    TAvg = [(x + y) / 2 for x, y in zip(Tmax, Tmin)]
+    Tdiurinal = [x - y for x, y in zip(Tmax, Tmin)]  
 
     # Create a new DataFrame with your input data
     new_data = pd.DataFrame({'TMax': Tmax, 'TMin': Tmin, 'TDiurinal': Tdiurinal, 'Total': totalPrcp})
-
-    # Scale the new input data
     new_data_scaled = scaler.transform(new_data)
-
-    # Predict dewpoint using the regression model
     rf_predicted_dewpoint = rf_model.predict(new_data_scaled)
-
-    # Calculate and return dewpoint
-    # dewpoint = compute_dew_point(rf_predicted_dewpoint, TAvg)
 
     return rf_predicted_dewpoint
 
@@ -214,7 +211,7 @@ def calc_aparent_temp_vector(T, DP, V):
     return result
 
 
-def calc_comfort_index_vector(temperature_df, dewpoint_df, sunshine_df):
+def calc_comfort_index_vector(temperature_df, apparent_df, dewpoint_df, sunshine_df):
 
     
     def temperature_score(temp):
@@ -226,6 +223,17 @@ def calc_comfort_index_vector(temperature_df, dewpoint_df, sunshine_df):
             return (temp - 20) * (100 / 50)  # linearly scale between 20 and 70
         elif 70 < temp < 110:
             return (110 - temp) * (100 / 40)  # linearly scale between 70 and 110
+        
+    def apparent_temperature_score(apparent_temp):
+        if apparent_temp <= 20 or apparent_temp >= 110:
+            return 0
+        elif apparent_temp == 70:
+            return 100
+        elif 20 < apparent_temp < 70:
+            return (apparent_temp - 20) * (100 / 50)  # linearly scale between 20 and 70
+        elif 70 < apparent_temp < 110:
+            return (110 - apparent_temp) * (100 / 40)  # linearly scale between 70 and 110
+
 
     def dewpoint_score(dewpoint):
         if dewpoint >= 80:
@@ -245,12 +253,14 @@ def calc_comfort_index_vector(temperature_df, dewpoint_df, sunshine_df):
 
     # Calculate individual component scores
     df = pd.DataFrame()
-    df['temp_score'] = temperature_df.apply(temperature_score) * 0.3  # 30% weight
-    df['dew_score'] = dewpoint_df.apply(dewpoint_score) * 0.4  # 40% weight
-    df['sun_score'] = sunshine_df.apply(sunlight_score) * 0.3  # 30% weight
+    
+    df['temp_score'] = temperature_df.apply(temperature_score) * 0.4  # 40% weight
+    df['apparent_temp_score'] = apparent_df.apply(apparent_temperature_score) * 0.2  # 40% weight
+    df['dew_score'] = dewpoint_df.apply(dewpoint_score) * 0.2  # 20% weight
+    df['sun_score'] = sunshine_df.apply(sunlight_score) * 0.2  # 20% weight
 
     # Calculate the final comfort index
-    df['comfort_index'] = df['temp_score'] + df['dew_score'] + df['sun_score']
+    df['comfort_index'] = (df['temp_score'] + df['apparent_temp_score'] + df['dew_score'] + df['sun_score'])
 
     return df['comfort_index']
 
