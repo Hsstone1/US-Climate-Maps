@@ -4,7 +4,7 @@ import { MarkerType } from "../export-props";
 
 type ClimateChartProps = {
   locations: MarkerType[];
-  children: (location: MarkerType, index?: number) => JSX.Element;
+  children: (location: MarkerType, index: number) => JSX.Element;
   currentIndex: number;
   setCurrentIndex: React.Dispatch<React.SetStateAction<number>>;
 };

@@ -38,7 +38,7 @@ def optimized_climate_data(target_lat, target_lon, target_elevation):
     # Compute inverse weighted average so closest distance has most weight
     # The higher the weight power, the more the weights are skewed towards the closest point
 
-    weights_NWS = inverse_dist_weights(closest_points_NWS, weight_power=1)
+    weights_NWS = inverse_dist_weights(closest_points_NWS, weight_power=.25)
     weights_NOAA = inverse_dist_weights(closest_points_NOAA, weight_power=1)
 
 
@@ -50,9 +50,9 @@ def optimized_climate_data(target_lat, target_lon, target_elevation):
     elev_diff = target_elevation - average_weighted_elev
 
 
-    #print("TEST NWS STATIONS: ", nws_station_identifiers)
+    print("TEST NWS STATIONS: ", nws_station_identifiers)
     print("TEST NWS WEIGHTS: ", weights_NWS)
-    #print("TEST NOAA FILES: ", noaa_station_files)
+    print("TEST NOAA FILES: ", noaa_station_files)
     print("TEST NOAA WEIGHTS: ", weights_NOAA)
 
     '''
@@ -370,6 +370,7 @@ def process_nws_station_data(provider, city_code, weight, elev_diff):
     # Convert the 'DATE' column to datetime
     df['DATE'] = pd.to_datetime(df['Date'])
 
+    #TODO fix -10 values still apreaing in the dataset for sunlight, see hawaii values.
     df['DAILY_WIND_AVG'] = df['MAX SPD'].where(df['MAX SPD'] > 0, 0) * elevation_adjustment_for_wind
     df['DAILY_WIND_DIR_AVG'] = df['DR'].where(df['DR'] != 1, 0)
     df['DAILY_SUNSHINE_AVG'] = (10 * (10 - df['S-S'])).where(df['S-S'] >= 0, 0) * elevation_adjustment_for_sunshine

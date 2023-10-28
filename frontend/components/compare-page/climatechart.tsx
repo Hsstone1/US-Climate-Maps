@@ -12,10 +12,12 @@ import {
   ChartOptions,
   Filler,
 } from "chart.js";
-import React from "react";
+import React, { useEffect, useRef, useMemo, useCallback } from "react";
 import { Chart } from "react-chartjs-2";
 import ChartDataLabels from "chartjs-plugin-datalabels";
 import { ClimateChartDataset } from "./comparepageprops";
+import zoomPlugin from "chartjs-plugin-zoom";
+import { useZoom } from "./zoomcontext";
 
 ChartJS.register(
   LinearScale,
@@ -28,7 +30,8 @@ ChartJS.register(
   LineController,
   BarController,
   Filler,
-  ChartDataLabels
+  ChartDataLabels,
+  zoomPlugin
 );
 
 type ClimateChartProps = {
@@ -54,12 +57,40 @@ const MONTHS = [
   "Dec",
 ];
 
-export default function ClimateChart({
+function ClimateChart({
   datasetProp,
   units = "",
   adjustUnitsByVal = 1,
   isLeapYear = false,
 }: ClimateChartProps) {
+  const chartRef = useRef<ChartJS<"line"> | null>(null);
+
+  const { zoomLevel, setZoomLevel } = useZoom();
+  useEffect(() => {
+    const chartInstance = chartRef.current;
+    if (zoomLevel && chartInstance) {
+      const xScale = chartInstance.scales.x;
+      xScale.min = zoomLevel.xMin;
+      xScale.max = zoomLevel.xMax;
+      chartInstance.update();
+    }
+  }, [zoomLevel]);
+  const handleZoom = useCallback(
+    ({ chart }: { chart: any }) => {
+      if (chart && chart.scales) {
+        const xScale = chart.scales.x;
+        if (xScale) {
+          const currentZoomState = {
+            xMin: xScale.min,
+            xMax: xScale.max,
+          };
+          setZoomLevel(currentZoomState);
+        }
+      }
+    },
+    [setZoomLevel]
+  );
+
   // This function generates labels with month names at the correct indices
   const generateMonthLabels = () => {
     // Days in months (non-leap year by default)
@@ -123,25 +154,15 @@ export default function ClimateChart({
             const yAxisID = context.dataset.yAxisID;
 
             if (yAxisID === "Temperature") {
-              return value.toFixed(0) + " °F";
+              return value.toFixed(0) + "°F";
             } else if (yAxisID === "Precip" && value !== 0) {
-              return value.toFixed(1) + " in";
-            } else if (
-              yAxisID === "Sunshine_Percentage" &&
-              value !== 0 &&
-              value !== 1
-            ) {
-              return (value * 100).toFixed(0) + " %";
-            } else if (
-              yAxisID === "Humidity_Percentage" &&
-              value !== 0 &&
-              value !== 1
-            ) {
-              return value.toFixed(0) + " %";
+              return value.toFixed(1) + "in";
+            } else if (yAxisID === "Percentage" && value !== 0 && value !== 1) {
+              return value.toFixed(0) + "%";
             } else if (yAxisID === "Wind") {
               return value.toFixed(0) + " mph";
             } else if (yAxisID === "Sun_Angle") {
-              return value.toFixed(1) + " °";
+              return value.toFixed(1) + "°";
             } else if (value !== 1 && value !== 0) {
               return value.toFixed(0);
             } else {
@@ -158,9 +179,9 @@ export default function ClimateChart({
     layout: {
       padding: {
         top: 20,
-        right: 40,
-        bottom: 20,
-        left: 40,
+        //right: 40,
+        //bottom: 20,
+        //left: 40,
       },
     },
 
@@ -175,6 +196,23 @@ export default function ClimateChart({
       },
       filler: {
         propagate: true,
+      },
+
+      zoom: {
+        pan: {
+          enabled: true,
+          mode: "x",
+        },
+        zoom: {
+          onZoom: handleZoom,
+          wheel: {
+            enabled: true,
+          },
+          pinch: {
+            enabled: false,
+          },
+          mode: "x",
+        },
       },
 
       tooltip: {
@@ -285,7 +323,7 @@ export default function ClimateChart({
         },
       },
 
-      Humidity_Percentage: {
+      Percentage: {
         type: "linear",
         position: "left",
         display: "auto",
@@ -318,24 +356,6 @@ export default function ClimateChart({
           maxTicksLimit: 10,
 
           stepSize: 1,
-          font: {
-            size: 10,
-          },
-        },
-      },
-      Sunshine_Percentage: {
-        type: "linear",
-        position: "left",
-        display: "auto",
-        max: 1.005,
-        min: 0,
-        ticks: {
-          beginAtZero: true,
-          callback: function (value: number) {
-            return (value * 100).toFixed(0) + " % "; // Multiply by 100 and append "%"
-          },
-          maxTicksLimit: 10,
-          stepSize: 0.1,
           font: {
             size: 10,
           },
@@ -395,7 +415,16 @@ export default function ClimateChart({
     },
   } as ChartOptions<"bar" | "line">;
 
+  const memoizedChartData = useMemo(() => createChartData(), [datasetProp]);
+
   return (
-    <Chart options={chartOptions} data={createChartData()} type={"line"} />
+    <Chart
+      ref={chartRef}
+      options={chartOptions}
+      data={memoizedChartData}
+      type={"line"}
+    />
   );
 }
+
+export default React.memo(ClimateChart);

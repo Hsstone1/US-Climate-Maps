@@ -13,9 +13,8 @@ export type ClimateChartDataset = {
   yAxisID:
     | "Temperature"
     | "Precip"
-    | "Sunshine_Percentage"
     | "Sun_Angle"
-    | "Humidity_Percentage"
+    | "Percentage"
     | "Wind"
     | "Comfort_Index"
     | "UV_Index";

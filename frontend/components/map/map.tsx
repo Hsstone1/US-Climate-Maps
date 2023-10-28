@@ -7,8 +7,9 @@ import { MarkerType } from "../export-props";
 import { getGeolocate, getElevation } from "./geolocate";
 import CustomInfoWindow from "./custominfowindow";
 import Snackbar from "@mui/material/Snackbar";
-import LinearProgress from "@mui/material/LinearProgress";
 import CircularProgress from "@mui/material/CircularProgress";
+import { ZoomProvider } from "../compare-page/zoomcontext";
+import { Zoom } from "@mui/material";
 
 type LatLngLiteral = google.maps.LatLngLiteral;
 type MapOptions = google.maps.MapOptions;
@@ -297,36 +298,38 @@ export default function Map() {
         </div>
       </nav>
 
-      <div className="container">
-        {activeComponent === "compare" && (
-          <ComparePage locations={locationsCompare} />
-        )}
+      <ZoomProvider>
+        <div className="container">
+          {activeComponent === "compare" && (
+            <ComparePage locations={locationsCompare} />
+          )}
 
-        {activeComponent === "map" && (
-          <div className="map">
-            <GoogleMap
-              zoom={5}
-              center={center}
-              mapContainerClassName="map-container"
-              onLoad={onLoad}
-              options={mapOptions}
-              onClick={handleMapClick}
-            >
-              {selectedMarker.map((marker) => (
-                <Marker
-                  key={marker.id}
-                  position={{ lat: marker.lat, lng: marker.lng }}
-                >
-                  <CustomInfoWindow
-                    marker={marker}
-                    handleCloseInfoWindow={handleRemoveMarker}
-                  />
-                </Marker>
-              ))}
-            </GoogleMap>
-          </div>
-        )}
-      </div>
+          {activeComponent === "map" && (
+            <div className="map">
+              <GoogleMap
+                zoom={5}
+                center={center}
+                mapContainerClassName="map-container"
+                onLoad={onLoad}
+                options={mapOptions}
+                onClick={handleMapClick}
+              >
+                {selectedMarker.map((marker) => (
+                  <Marker
+                    key={marker.id}
+                    position={{ lat: marker.lat, lng: marker.lng }}
+                  >
+                    <CustomInfoWindow
+                      marker={marker}
+                      handleCloseInfoWindow={handleRemoveMarker}
+                    />
+                  </Marker>
+                ))}
+              </GoogleMap>
+            </div>
+          )}
+        </div>
+      </ZoomProvider>
       <Snackbar
         open={isFetching}
         anchorOrigin={{ vertical: "bottom", horizontal: "center" }}
