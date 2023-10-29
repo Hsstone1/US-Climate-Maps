@@ -9,6 +9,7 @@ import Table from "./comparepagetable";
 import ClimateChartPaginate from "../climate-table/climatechartpaginate";
 import YearSelector from "../historical-weather/yearselector";
 import { useZoom } from "./zoomcontext";
+import LazyLoad from "react-lazyload";
 
 //This is dynamic import function to load components that rely on browser-specific functionalities such as the window object:
 const ClimateChart = dynamic(() => import("./climatechart"), { ssr: false });
@@ -24,6 +25,9 @@ const LINE_ALPHA = 1;
 const BACKGROUND_ALPHA = 0.05;
 const HEADING_VARIANT = "h5";
 const SMA_SMOOTH_DAYS = 30;
+const LAZY_LOAD_HEIGHT = 300;
+const LAZY_LOAD_OFFSET = 0;
+const DO_LAZY_LOAD_ONCE = false;
 
 //These values are not graphed for the select year data, as they do not change year to year
 const excludeFromHistorical = new Set([
@@ -176,25 +180,32 @@ export default function ComparisonPage({ locations }: ComparisonPageProps) {
                 {selectedYear === "Annual" ? "Annual" : selectedYear} High and
                 Low Temperatures
               </Typography>
-              {selectedYear === "Annual" ? (
-                <ClimateChart
-                  datasetProp={annualTemperatureDataset}
-                  units={"°F"}
-                />
-              ) : (
-                <ClimateChartPaginate
-                  locations={locations}
-                  currentIndex={currentIndex}
-                  setCurrentIndex={setCurrentIndex}
-                >
-                  {(location, index) => (
-                    <ClimateChart
-                      datasetProp={paginatedTemperatureDataset[index]}
-                      units={"°F"}
-                    />
-                  )}
-                </ClimateChartPaginate>
-              )}
+              <LazyLoad
+                height={LAZY_LOAD_HEIGHT}
+                offset={LAZY_LOAD_OFFSET}
+                once={DO_LAZY_LOAD_ONCE}
+              >
+                {selectedYear === "Annual" ? (
+                  <ClimateChart
+                    datasetProp={annualTemperatureDataset}
+                    units={"°F"}
+                  />
+                ) : (
+                  <ClimateChartPaginate
+                    locations={locations}
+                    currentIndex={currentIndex}
+                    setCurrentIndex={setCurrentIndex}
+                  >
+                    {(location, index) => (
+                      <ClimateChartRenderer
+                        index={index}
+                        data={paginatedTemperatureDataset}
+                        units={"°F"}
+                      />
+                    )}
+                  </ClimateChartPaginate>
+                )}
+              </LazyLoad>
               <p style={{ textAlign: "center" }}>
                 Average monthly high and low temperatures for each location.
               </p>
@@ -233,26 +244,32 @@ export default function ComparisonPage({ locations }: ComparisonPageProps) {
                 {selectedYear === "Annual" ? "Annual" : selectedYear} Apparent
                 High and Low Temperatures
               </Typography>
-              {selectedYear === "Annual" ? (
-                <ClimateChart
-                  datasetProp={annualApparentTemperatureDataset}
-                  units={"°F"}
-                />
-              ) : (
-                <ClimateChartPaginate
-                  locations={locations}
-                  currentIndex={currentIndex}
-                  setCurrentIndex={setCurrentIndex}
-                >
-                  {(location, index) => (
-                    <ClimateChart
-                      datasetProp={paginatedApparentTemperatureDataset[index]}
-                      units={"°F"}
-                    />
-                  )}
-                </ClimateChartPaginate>
-              )}
-
+              <LazyLoad
+                height={LAZY_LOAD_HEIGHT}
+                offset={LAZY_LOAD_OFFSET}
+                once={DO_LAZY_LOAD_ONCE}
+              >
+                {selectedYear === "Annual" ? (
+                  <ClimateChart
+                    datasetProp={annualApparentTemperatureDataset}
+                    units={"°F"}
+                  />
+                ) : (
+                  <ClimateChartPaginate
+                    locations={locations}
+                    currentIndex={currentIndex}
+                    setCurrentIndex={setCurrentIndex}
+                  >
+                    {(location, index) => (
+                      <ClimateChartRenderer
+                        index={index}
+                        data={paginatedApparentTemperatureDataset}
+                        units={"°F"}
+                      />
+                    )}
+                  </ClimateChartPaginate>
+                )}
+              </LazyLoad>
               <p style={{ textAlign: "center" }}>
                 Average monthly apparent high and low temperatures for each
                 location. The apparent temperature changes which can change
@@ -283,7 +300,7 @@ export default function ComparisonPage({ locations }: ComparisonPageProps) {
               <hr />
               <br />
               <br />
-              {/*}
+
               <Typography
                 sx={{ flex: "1 1 100%" }}
                 variant={HEADING_VARIANT}
@@ -292,11 +309,16 @@ export default function ComparisonPage({ locations }: ComparisonPageProps) {
               >
                 Annual Temperature Ranges
               </Typography>
-
-              <ClimateChart
-                datasetProp={annualTemperatureRangeDataset}
-                units={"°F"}
-              />
+              <LazyLoad
+                height={LAZY_LOAD_HEIGHT}
+                offset={LAZY_LOAD_OFFSET}
+                once={DO_LAZY_LOAD_ONCE}
+              >
+                <ClimateChart
+                  datasetProp={annualTemperatureRangeDataset}
+                  units={"°F"}
+                />
+              </LazyLoad>
 
               <p style={{ textAlign: "center" }}>
                 Average monthly high and low temperature ranges for each
@@ -336,22 +358,30 @@ export default function ComparisonPage({ locations }: ComparisonPageProps) {
                 {selectedYear === "Annual" ? "Annual" : selectedYear} Comfort
                 Rating
               </Typography>
-              {selectedYear === "Annual" ? (
-                <ClimateChart datasetProp={annualComfortDataset} units={""} />
-              ) : (
-                <ClimateChartPaginate
-                  locations={locations}
-                  currentIndex={currentIndex}
-                  setCurrentIndex={setCurrentIndex}
-                >
-                  {(location, index) => (
-                    <ClimateChart
-                      datasetProp={paginatedComfortDataset[index]}
-                      units={""}
-                    />
-                  )}
-                </ClimateChartPaginate>
-              )}
+              <LazyLoad
+                height={LAZY_LOAD_HEIGHT}
+                offset={LAZY_LOAD_OFFSET}
+                once={DO_LAZY_LOAD_ONCE}
+              >
+                {selectedYear === "Annual" ? (
+                  <ClimateChart datasetProp={annualComfortDataset} units={""} />
+                ) : (
+                  <ClimateChartPaginate
+                    locations={locations}
+                    currentIndex={currentIndex}
+                    setCurrentIndex={setCurrentIndex}
+                  >
+                    {(location, index) => (
+                      <ClimateChartRenderer
+                        index={index}
+                        data={paginatedComfortDataset}
+                        units={""}
+                      />
+                    )}
+                  </ClimateChartPaginate>
+                )}
+              </LazyLoad>
+
               <p style={{ textAlign: "center" }}>
                 Average comfort rating for each month. The comfort rating is a
                 function of temperature, humidity, amount of sun. The higher the
@@ -385,22 +415,33 @@ export default function ComparisonPage({ locations }: ComparisonPageProps) {
               >
                 {selectedYear === "Annual" ? "Annual" : selectedYear} Rainfall
               </Typography>
-              {selectedYear === "Annual" ? (
-                <ClimateChart datasetProp={annualPrecipDataset} units={"in"} />
-              ) : (
-                <ClimateChartPaginate
-                  locations={locations}
-                  currentIndex={currentIndex}
-                  setCurrentIndex={setCurrentIndex}
-                >
-                  {(location, index) => (
-                    <ClimateChart
-                      datasetProp={paginatedPrecipDataset[index]}
-                      units={"in"}
-                    />
-                  )}
-                </ClimateChartPaginate>
-              )}
+              <LazyLoad
+                height={LAZY_LOAD_HEIGHT}
+                offset={LAZY_LOAD_OFFSET}
+                once={DO_LAZY_LOAD_ONCE}
+              >
+                {selectedYear === "Annual" ? (
+                  <ClimateChart
+                    datasetProp={annualPrecipDataset}
+                    units={"in"}
+                  />
+                ) : (
+                  <ClimateChartPaginate
+                    locations={locations}
+                    currentIndex={currentIndex}
+                    setCurrentIndex={setCurrentIndex}
+                  >
+                    {(location, index) => (
+                      <ClimateChartRenderer
+                        index={index}
+                        data={paginatedPrecipDataset}
+                        units={"in"}
+                      />
+                    )}
+                  </ClimateChartPaginate>
+                )}
+              </LazyLoad>
+
               <p style={{ textAlign: "center" }}>
                 Rainfall in inches for each month. The total number of rainy
                 days expected for each month, along with the annual total are
@@ -439,22 +480,30 @@ export default function ComparisonPage({ locations }: ComparisonPageProps) {
               >
                 {selectedYear === "Annual" ? "Annual" : selectedYear} Snowfall
               </Typography>
-              {selectedYear === "Annual" ? (
-                <ClimateChart datasetProp={annualSnowDataset} units={"in"} />
-              ) : (
-                <ClimateChartPaginate
-                  locations={locations}
-                  currentIndex={currentIndex}
-                  setCurrentIndex={setCurrentIndex}
-                >
-                  {(location, index) => (
-                    <ClimateChart
-                      datasetProp={paginatedSnowDataset[index]}
-                      units={"in"}
-                    />
-                  )}
-                </ClimateChartPaginate>
-              )}
+              <LazyLoad
+                height={LAZY_LOAD_HEIGHT}
+                offset={LAZY_LOAD_OFFSET}
+                once={DO_LAZY_LOAD_ONCE}
+              >
+                {selectedYear === "Annual" ? (
+                  <ClimateChart datasetProp={annualSnowDataset} units={"in"} />
+                ) : (
+                  <ClimateChartPaginate
+                    locations={locations}
+                    currentIndex={currentIndex}
+                    setCurrentIndex={setCurrentIndex}
+                  >
+                    {(location, index) => (
+                      <ClimateChartRenderer
+                        index={index}
+                        data={paginatedSnowDataset}
+                        units={"in"}
+                      />
+                    )}
+                  </ClimateChartPaginate>
+                )}
+              </LazyLoad>
+
               <p style={{ textAlign: "center" }}>
                 Snowfall in inches for each month. The total number of snowy
                 days expected for each month, along with the annual total are
@@ -494,22 +543,33 @@ export default function ComparisonPage({ locations }: ComparisonPageProps) {
                 {selectedYear === "Annual" ? "Annual" : selectedYear} Humidity
                 Range
               </Typography>
-              {selectedYear === "Annual" ? (
-                <ClimateChart datasetProp={annualHumidityDataset} units={"%"} />
-              ) : (
-                <ClimateChartPaginate
-                  locations={locations}
-                  currentIndex={currentIndex}
-                  setCurrentIndex={setCurrentIndex}
-                >
-                  {(location, index) => (
-                    <ClimateChart
-                      datasetProp={paginatedHumidityDataset[index]}
-                      units={"%"}
-                    />
-                  )}
-                </ClimateChartPaginate>
-              )}
+              <LazyLoad
+                height={LAZY_LOAD_HEIGHT}
+                offset={LAZY_LOAD_OFFSET}
+                once={DO_LAZY_LOAD_ONCE}
+              >
+                {selectedYear === "Annual" ? (
+                  <ClimateChart
+                    datasetProp={annualHumidityDataset}
+                    units={"%"}
+                  />
+                ) : (
+                  <ClimateChartPaginate
+                    locations={locations}
+                    currentIndex={currentIndex}
+                    setCurrentIndex={setCurrentIndex}
+                  >
+                    {(location, index) => (
+                      <ClimateChartRenderer
+                        index={index}
+                        data={paginatedHumidityDataset}
+                        units={"%"}
+                      />
+                    )}
+                  </ClimateChartPaginate>
+                )}
+              </LazyLoad>
+
               <p style={{ textAlign: "center" }}>
                 Average humidity range for each month. In the morning when the
                 tempearture is lowest, the humidity will be highest. The
@@ -553,25 +613,33 @@ export default function ComparisonPage({ locations }: ComparisonPageProps) {
                 {selectedYear === "Annual" ? "Annual" : selectedYear} Dewpoint
               </Typography>
 
-              {selectedYear === "Annual" ? (
-                <ClimateChart
-                  datasetProp={annualDewpointDataset}
-                  units={"°F"}
-                />
-              ) : (
-                <ClimateChartPaginate
-                  locations={locations}
-                  currentIndex={currentIndex}
-                  setCurrentIndex={setCurrentIndex}
-                >
-                  {(location, index) => (
-                    <ClimateChart
-                      datasetProp={paginatedDewpointDataset[index]}
-                      units={"°F"}
-                    />
-                  )}
-                </ClimateChartPaginate>
-              )}
+              <LazyLoad
+                height={LAZY_LOAD_HEIGHT}
+                offset={LAZY_LOAD_OFFSET}
+                once={DO_LAZY_LOAD_ONCE}
+              >
+                {selectedYear === "Annual" ? (
+                  <ClimateChart
+                    datasetProp={annualDewpointDataset}
+                    units={"°F"}
+                  />
+                ) : (
+                  <ClimateChartPaginate
+                    locations={locations}
+                    currentIndex={currentIndex}
+                    setCurrentIndex={setCurrentIndex}
+                  >
+                    {(location, index) => (
+                      <ClimateChartRenderer
+                        index={index}
+                        data={paginatedDewpointDataset}
+                        units={"°F"}
+                      />
+                    )}
+                  </ClimateChartPaginate>
+                )}
+              </LazyLoad>
+
               <p style={{ textAlign: "center" }}>
                 The dewpoint is a measure of absolute humidity in the air,
                 rather than the relative humidity percentage which changes with
@@ -612,25 +680,32 @@ export default function ComparisonPage({ locations }: ComparisonPageProps) {
                 {selectedYear === "Annual" ? "Annual" : selectedYear} Wind Speed
               </Typography>
 
-              {selectedYear === "Annual" ? (
-                <ClimateChart datasetProp={annualWindDataset} units={"mph"} />
-              ) : (
-                <ClimateChartPaginate
-                  locations={locations}
-                  currentIndex={currentIndex}
-                  setCurrentIndex={setCurrentIndex}
-                >
-                  {(location, index) => (
-                    <ClimateChart
-                      datasetProp={paginatedWindDataset[index]}
-                      units={"mph"}
-                    />
-                  )}
-                </ClimateChartPaginate>
-              )}
+              <LazyLoad
+                height={LAZY_LOAD_HEIGHT}
+                offset={LAZY_LOAD_OFFSET}
+                once={DO_LAZY_LOAD_ONCE}
+              >
+                {selectedYear === "Annual" ? (
+                  <ClimateChart datasetProp={annualWindDataset} units={"mph"} />
+                ) : (
+                  <ClimateChartPaginate
+                    locations={locations}
+                    currentIndex={currentIndex}
+                    setCurrentIndex={setCurrentIndex}
+                  >
+                    {(location, index) => (
+                      <ClimateChartRenderer
+                        index={index}
+                        data={paginatedWindDataset}
+                        units={"mph"}
+                      />
+                    )}
+                  </ClimateChartPaginate>
+                )}
+              </LazyLoad>
+
               <p style={{ textAlign: "center" }}>
-                Average wind speed for each month. The table contains the
-                average wind speed for each month. The wind speed is measured in
+                Average wind speed for each month. The wind speed is measured in
                 miles per hour.
               </p>
               <div>
@@ -657,27 +732,39 @@ export default function ComparisonPage({ locations }: ComparisonPageProps) {
                 {selectedYear === "Annual" ? "Annual" : selectedYear} Sunshine
                 Percentage
               </Typography>
-              {selectedYear === "Annual" ? (
-                <ClimateChart datasetProp={annualSunshineDataset} units={"%"} />
-              ) : (
-                <ClimateChartPaginate
-                  locations={locations}
-                  currentIndex={currentIndex}
-                  setCurrentIndex={setCurrentIndex}
-                >
-                  {(location, index) => (
-                    <ClimateChart
-                      datasetProp={paginatedSunshineDataset[index]}
-                      units={"%"}
-                    />
-                  )}
-                </ClimateChartPaginate>
-              )}
+
+              <LazyLoad
+                height={LAZY_LOAD_HEIGHT}
+                offset={LAZY_LOAD_OFFSET}
+                once={DO_LAZY_LOAD_ONCE}
+              >
+                {selectedYear === "Annual" ? (
+                  <ClimateChart
+                    datasetProp={annualSunshineDataset}
+                    units={"%"}
+                  />
+                ) : (
+                  <ClimateChartPaginate
+                    locations={locations}
+                    currentIndex={currentIndex}
+                    setCurrentIndex={setCurrentIndex}
+                  >
+                    {(location, index) => (
+                      <ClimateChartRenderer
+                        index={index}
+                        data={paginatedSunshineDataset}
+                        units={"%"}
+                      />
+                    )}
+                  </ClimateChartPaginate>
+                )}
+              </LazyLoad>
+
               <p style={{ textAlign: "center" }}>
                 Percent possible sunshine for each month. The total number of
                 sunny days expected for each month, along with the annual total
                 are displayed in the table. A sunny day is counted if the sun is
-                out more than 30% of each day.
+                out more than 70% of each day.
               </p>
               <div>
                 <Table
@@ -702,22 +789,30 @@ export default function ComparisonPage({ locations }: ComparisonPageProps) {
               >
                 {selectedYear === "Annual" ? "Annual" : selectedYear} UV Index
               </Typography>
-              {selectedYear === "Annual" ? (
-                <ClimateChart datasetProp={annualUVIndexDataset} units={""} />
-              ) : (
-                <ClimateChartPaginate
-                  locations={locations}
-                  currentIndex={currentIndex}
-                  setCurrentIndex={setCurrentIndex}
-                >
-                  {(location, index) => (
-                    <ClimateChart
-                      datasetProp={paginatedUVIndexDataset[index]}
-                      units={""}
-                    />
-                  )}
-                </ClimateChartPaginate>
-              )}
+              <LazyLoad
+                height={LAZY_LOAD_HEIGHT}
+                offset={LAZY_LOAD_OFFSET}
+                once={DO_LAZY_LOAD_ONCE}
+              >
+                {selectedYear === "Annual" ? (
+                  <ClimateChart datasetProp={annualUVIndexDataset} units={""} />
+                ) : (
+                  <ClimateChartPaginate
+                    locations={locations}
+                    currentIndex={currentIndex}
+                    setCurrentIndex={setCurrentIndex}
+                  >
+                    {(location, index) => (
+                      <ClimateChartRenderer
+                        index={index}
+                        data={paginatedUVIndexDataset}
+                        units={""}
+                      />
+                    )}
+                  </ClimateChartPaginate>
+                )}
+              </LazyLoad>
+
               <p style={{ textAlign: "center" }}>
                 Average UV Index. The UV index is a measure of the strength of
                 the sun's ultraviolet rays. The table contains the average UV
@@ -747,10 +842,16 @@ export default function ComparisonPage({ locations }: ComparisonPageProps) {
               >
                 Annual Sun Angle
               </Typography>
-              <ClimateChart
-                datasetProp={annualSunAngleDataset}
-                units={"°"}
-              ></ClimateChart>
+              <LazyLoad
+                height={LAZY_LOAD_HEIGHT}
+                offset={LAZY_LOAD_OFFSET}
+                once={DO_LAZY_LOAD_ONCE}
+              >
+                <ClimateChart
+                  datasetProp={annualSunAngleDataset}
+                  units={"°"}
+                ></ClimateChart>
+              </LazyLoad>
               <p style={{ textAlign: "center" }}>
                 Average sun angle for each month. The sun angle is the angle of
                 the sun above the horizon, measured at the highest point in the
@@ -781,11 +882,16 @@ export default function ComparisonPage({ locations }: ComparisonPageProps) {
               >
                 Annual Growing Season
               </Typography>
-              <ClimateChart
-                datasetProp={annualGrowingSeasonDataset}
-                units={"%"}
-              />
-
+              <LazyLoad
+                height={LAZY_LOAD_HEIGHT}
+                offset={LAZY_LOAD_OFFSET}
+                once={DO_LAZY_LOAD_ONCE}
+              >
+                <ClimateChart
+                  datasetProp={annualGrowingSeasonDataset}
+                  units={"%"}
+                />
+              </LazyLoad>
               <p style={{ textAlign: "center" }}>
                 Average frost free growing season. The table contains the
                 monthly Cooling Degree Days (CDD) and Heating Degree Days (HDD).
@@ -817,7 +923,6 @@ export default function ComparisonPage({ locations }: ComparisonPageProps) {
               </div>
               <br />
               <br />
-               {*/}
             </div>
           </div>
         )}
@@ -839,6 +944,17 @@ export default function ComparisonPage({ locations }: ComparisonPageProps) {
     </div>
   );
 }
+
+const ClimateChartRenderer: React.FC<{
+  index: number;
+  data: any[]; // Replace 'any[]' with the appropriate type for your dataset if known.
+  units: string;
+}> = ({ index, data, units }) => {
+  if (index < 0 || index >= data.length) {
+    return null;
+  }
+  return <ClimateChart datasetProp={data[index]} units={units} />;
+};
 
 // Append first index to end of array for chart
 function appendFirstIndexToEnd(data: number[]): number[] {

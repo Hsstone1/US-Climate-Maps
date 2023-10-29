@@ -18,18 +18,17 @@ export default function ClimateChartPaginate({
   const [currentChart, setCurrentChart] = useState<MarkerType | null>(null);
 
   useEffect(() => {
-    // This is a hack to prevent the app from crashing when the user removes a location
-    // when the current index is at the end of the array
-    if (
-      locations.length > 0 &&
-      currentIndex >= 0 &&
-      currentIndex < locations.length
-    ) {
-      setCurrentChart(locations[currentIndex]);
-    } else if (locations.length > 0) {
-      // added an else if condition to check if locations array is not empty
-      setCurrentChart(locations[currentIndex - 1]);
-      setCurrentIndex((prev) => Math.max(prev - 1, 0)); // Boundary check added
+    if (locations.length > 0) {
+      if (currentIndex >= 0 && currentIndex < locations.length) {
+        setCurrentChart(locations[currentIndex]);
+      } else {
+        const lastIndex = locations.length - 1;
+        setCurrentChart(locations[lastIndex]);
+        setCurrentIndex(lastIndex);
+      }
+    } else {
+      setCurrentChart(null);
+      setCurrentIndex(0);
     }
   }, [locations, currentIndex, setCurrentIndex]);
 
@@ -43,7 +42,7 @@ export default function ClimateChartPaginate({
   return (
     <div>
       {/* Render the current chart if it exists */}
-      {currentChart && (
+      {currentChart && typeof children === "function" && (
         <div style={{ display: "flex", justifyContent: "center" }}>
           {children(currentChart, currentIndex)}
         </div>

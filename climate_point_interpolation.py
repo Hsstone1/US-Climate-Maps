@@ -1,12 +1,18 @@
 import os
 import glob
+import shutil
+import sys
 import numpy as np
 import pandas as pd
+from sklearn.discriminant_analysis import StandardScaler
 from climate_point_interpolation_helpers import *
 import time
 from sklearn.ensemble import RandomForestRegressor
 from sklearn.model_selection import train_test_split
 from sklearn.metrics import mean_squared_error, mean_absolute_error, r2_score
+import boto3
+import platform
+
 
 '''
 NWS STATIONS: Has information on the average wind speed, direction, gust and sunlight
@@ -20,16 +26,35 @@ The NWS stations are used largely to get sunlight data.
 #TODO if the start date is more recent than 2019-04-01 there is an error involving the regresion
 NUM_NWS_SAMPLE_STATIONS = 10
 NUM_NOAA_SAMPLE_STATIONS = 10
+
+START_YEAR = 2000
 CURRENT_YEAR = int(time.strftime("%Y"))
-START_DATE = '1980-01-01'
+START_DATE = f'{START_YEAR}-01-01'
 END_DATE = f'{CURRENT_YEAR}-12-31'
+
 ELEV_TEMPERATURE_CHANGE = 4
+
+S3_BUCKET_NAME = 'us-climate-maps-bucket'
 
 
 
 def optimized_climate_data(target_lat, target_lon, target_elevation):
-    df_stations_NWS_names = pd.read_csv('lat_lon_identifier_elev_name.csv')
-    df_stations_NOAA_names = put_NOAA_csvs_name_into_df()
+    if is_running_on_aws():
+        # Use the built-in '/tmp' directory in AWS Lambda
+        temp_local_path = '/tmp/nws-station-identifiers.csv'
+        get_csv_from_s3(S3_BUCKET_NAME, 'nws-station-identifiers.csv', temp_local_path)
+        df_stations_NWS_names = pd.read_csv(temp_local_path)
+        os.remove(temp_local_path)
+
+        temp_local_path = '/tmp/noaa-station-identifiers.csv'
+        get_csv_from_s3(S3_BUCKET_NAME, 'noaa-station-identifiers.csv', temp_local_path)
+        df_stations_NOAA_names = pd.read_csv(temp_local_path)
+        os.remove(temp_local_path)
+
+    else:
+        df_stations_NWS_names = pd.read_csv('nws-station-identifiers.csv')
+        df_stations_NOAA_names = pd.read_csv('noaa-station-identifiers.csv')
+
 
     # Get a list of closest points to coordinate
     closest_points_NWS = nearest_coordinates_to_point_NWS(target_lat, target_lon, df_stations_NWS_names, num_results=NUM_NWS_SAMPLE_STATIONS)
@@ -39,7 +64,7 @@ def optimized_climate_data(target_lat, target_lon, target_elevation):
     # The higher the weight power, the more the weights are skewed towards the closest point
 
     weights_NWS = inverse_dist_weights(closest_points_NWS, weight_power=.25)
-    weights_NOAA = inverse_dist_weights(closest_points_NOAA, weight_power=1)
+    weights_NOAA = inverse_dist_weights(closest_points_NOAA, weight_power=.5)
 
 
     # Get the historical weather for each location
@@ -133,7 +158,7 @@ def optimized_climate_data(target_lat, target_lon, target_elevation):
 
     #####################################################################
     #Regression
-    # Convert the 'date' column to datetime type if it's not already
+    
     noaa_final_data = noaa_final_data.drop(columns='DATE').reset_index()
     nws_final_data = nws_final_data.reset_index()
     
@@ -184,8 +209,6 @@ def optimized_climate_data(target_lat, target_lon, target_elevation):
 
     # Update the combined dataframe
     combined.update(missing_data)
-    #print("COMBINED", combined)
-
 
     combined['DATE'] = pd.to_datetime(combined['DATE'])
     combined.set_index('DATE', inplace=True)
@@ -228,12 +251,6 @@ def optimized_climate_data(target_lat, target_lon, target_elevation):
     df.set_index('DATE', inplace=True)
 
     df.columns = df.columns.str.replace('DAILY_', '')
-
-
-    # Calculate averages
-    #avg_annual = df.resample('Y').mean().to_dict(orient='records')
-
-    
 
     # Calculate averages
     avg_annual = df.mean().to_dict()
@@ -306,7 +323,11 @@ def optimized_climate_data(target_lat, target_lon, target_elevation):
     }
 
     # Apply the handle_nan function to clean the entire result structure
+    #TODO this returns much faster if the handle_nan function is not applied, but 
+    #the frontend will crash with the json output if this is not applied
+    # Find a way around this
     climate_data = handle_nan(result)
+    #climate_data = result
 
 
     mean_temp_values = [month_data['MEAN_AVG'] for month_data in avg_monthly]
@@ -318,14 +339,29 @@ def optimized_climate_data(target_lat, target_lon, target_elevation):
         'plant_hardiness': calc_plant_hardiness(avg_annual['EXPECTED_MIN']),
     }
 
+    
     return climate_data, location_data
 
 
+
+
 def process_noaa_station_data(station, weight, elev_diff):
-    # Read the CSV data
-    file_path = f"{os.getcwd()}\\STATIONS\\NOAA-STATIONS\\" + station
-    df = pd.read_csv(file_path, usecols= ['DATE', 'PRCP', 'SNOW', 'TMAX', 'TMIN'])
+    USE_COLS = ['DATE', 'PRCP', 'SNOW', 'TMAX', 'TMIN']
     
+    # Read the CSV data
+    if is_running_on_aws():
+        # Use the built-in '/tmp' directory in AWS Lambda
+        temp_local_path = f"/tmp/{station}"
+
+        get_csv_from_s3(S3_BUCKET_NAME, f"NOAA-STATIONS/{station}", temp_local_path)
+        df = pd.read_csv(temp_local_path, usecols=USE_COLS)
+        # Delete the file from /tmp directory after reading it
+        os.remove(temp_local_path)
+
+    else:
+        file_path = f"{os.getcwd()}\\STATIONS\\NOAA-STATIONS\\" + station
+        df = pd.read_csv(file_path, usecols= USE_COLS)
+        
     # Convert the 'DATE' column to datetime and filter rows based on the date range
     df['DATE'] = pd.to_datetime(df['DATE'])
     df = df[(df['DATE'] >= START_DATE) & (df['DATE'] <= END_DATE)]
@@ -360,26 +396,42 @@ def process_noaa_station_data(station, weight, elev_diff):
 
 def process_nws_station_data(provider, city_code, weight, elev_diff):
     # Define the directory path and list of csv files
-    file_path = f"{os.getcwd()}\\STATIONS\\NWS-STATIONS\\{provider}\\{city_code}\\" + f'{provider}_{city_code}.csv'
-    df = pd.read_csv(file_path, usecols= ['Date', 'MAX SPD', 'DR', 'S-S'])
+    USE_COLS = ['Date', 'MAX SPD', 'DR', 'S-S']
+    if is_running_on_aws():
+        # Use the built-in '/tmp' directory in AWS Lambda
+        temp_local_path = f"/tmp/{provider}_{city_code}.csv"
+
+        get_csv_from_s3(S3_BUCKET_NAME, f"NWS_STATION_FILES/{provider}_{city_code}.csv", temp_local_path)
+        df = pd.read_csv(temp_local_path, usecols=USE_COLS)
+        # Delete the file from /tmp directory after reading it
+        os.remove(temp_local_path)
+
+    else:
+        file_path = f"{os.getcwd()}\\STATIONS\\NWS_STATION_FILES\\" + f'{provider}_{city_code}.csv'
+        df = pd.read_csv(file_path, usecols= USE_COLS)
     elev_diff /= 1000
     # Compute the required averages with elevation adjustments since conditions change with elevation
     elevation_adjustment_for_wind = min((1 + elev_diff * 0.2), 2)
-    elevation_adjustment_for_sunshine = max((1 - elev_diff * 0.1), 0)
+    elevation_adjustment_for_sunshine = max((1 - elev_diff * 0.03), 0)
 
     # Convert the 'DATE' column to datetime
     df['DATE'] = pd.to_datetime(df['Date'])
 
-    #TODO fix -10 values still apreaing in the dataset for sunlight, see hawaii values.
+    #TODO fix -10 values still appearing in the dataset for sunlight, see Hawaii values.
     df['DAILY_WIND_AVG'] = df['MAX SPD'].where(df['MAX SPD'] > 0, 0) * elevation_adjustment_for_wind
     df['DAILY_WIND_DIR_AVG'] = df['DR'].where(df['DR'] != 1, 0)
-    df['DAILY_SUNSHINE_AVG'] = (10 * (10 - df['S-S'])).where(df['S-S'] >= 0, 0) * elevation_adjustment_for_sunshine
+
+    # Initial calculation for DAILY_SUNSHINE_AVG without elevation adjustment
+    df['DAILY_SUNSHINE_AVG'] = (10 * (10 - df['S-S'])).where(df['S-S'] >= 0, 0)
     df['DAILY_SUNSHINE_AVG'] = df['DAILY_SUNSHINE_AVG'].clip(lower=0, upper=100)
-    
+
+    # Adjust for elevation using sunshine values
+    sunshine_factor = (100 - df['DAILY_SUNSHINE_AVG']) / 100
+    elevation_adjustment_for_sunshine = (1 - elev_diff * 0.1 * sunshine_factor).clip(lower=0)
+    df['DAILY_SUNSHINE_AVG'] *= elevation_adjustment_for_sunshine
+
     df.dropna(subset=['DAILY_WIND_AVG', 'DAILY_WIND_DIR_AVG', 'DAILY_SUNSHINE_AVG'], inplace=True)
-
     weighted_cols = ['DAILY_WIND_AVG', 'DAILY_WIND_DIR_AVG', 'DAILY_SUNSHINE_AVG']
-
     df[weighted_cols] = df[weighted_cols].multiply(weight, axis=0)
     df['WEIGHT'] = weight
     
@@ -402,38 +454,133 @@ def aggregate_data(all_data, cols_to_aggregate):
     return aggregated[['DATE'] + cols_to_aggregate]
 
 
-def put_NOAA_csvs_name_into_df():
-    path = f"{os.getcwd()}\\STATIONS\\NOAA-STATIONS\\"
-    file_names = glob.glob(path + "*.csv")
 
-    data = {}
+def dewpoint_regr_calc(Tmax, Tmin, totalPrcp):
+    # Read the CSV file with temperature and dewpoint data
 
-    # Iterate over the file names and split them
-    for file_name in file_names:
-        # Remove the file extension
-        file_name = file_name[:-4]
+    if is_running_on_aws():
+        # Use the built-in '/tmp' directory in AWS Lambda
+        temp_local_path = '/tmp/temperature-humidity-data.csv'
 
-        # Split the file name using '_'
-        split_values = file_name.split('_')
-        # This splits the path string, pulling the station identifier out of path
-        split_values[0] = split_values[0].split("\\")[9]
-        column_names = ["STATION", "LAT", "LON", "ELEVATION", "NAME"]
+        get_csv_from_s3(S3_BUCKET_NAME, 'temperature-humidity-data.csv', temp_local_path)
+        df = pd.read_csv(temp_local_path)
+        # Delete the file from /tmp directory after reading it
+        os.remove(temp_local_path)
+    else:
+        df = pd.read_csv("temperature-humidity-data.csv")
 
-        # Assign the split values to the corresponding columns
-        for i, value in enumerate(split_values):
-            #column_name = f"Column_{i+1}"  # Create column names like 'Column_1', 'Column_2', etc.
-            column_name = column_names[i]
-            if column_name not in data:
-                data[column_name] = []
-            data[column_name].append(value)
+    # Calculate TDiurinal (TMax - TMin)
+    df["TDiurinal"] = df["TMax"] - df["TMin"]
+
+    # Define your input features and target variables
+    X = df[['TMax', 'TMin', 'TDiurinal', 'Total']]
+    y = df[['DAvg']]
+
+    # Split the data into training and testing sets (if needed)
+    # X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.5, random_state=42)
+
+    # Scale the features using StandardScaler
+    scaler = StandardScaler()
+    X_scaled = scaler.fit_transform(X)
+
+    # Initialize the Random Forest Regressor
+    rf_model = RandomForestRegressor(n_estimators=5, random_state=42)
+    rf_model.fit(X_scaled, y.values.ravel())
+
+    Tdiurinal = [x - y for x, y in zip(Tmax, Tmin)]  
+
+    # Create a new DataFrame with your input data
+    new_data = pd.DataFrame({'TMax': Tmax, 'TMin': Tmin, 'TDiurinal': Tdiurinal, 'Total': totalPrcp})
+    new_data_scaled = scaler.transform(new_data)
+    rf_predicted_dewpoint = rf_model.predict(new_data_scaled)
+
+    return rf_predicted_dewpoint
+
+
+def haversine_distance(lat1, lon1, lat2, lon2):
+    """
+    Calculate the haversine distance between two points on the Earth.
+    Returns the distance in miles by diving result km by 1.6
+    """
+    R = 6371  # Radius of the Earth in kilometers
+
+    # Convert latitude and longitude to radians
+    lat1, lon1, lat2, lon2 = map(radians, [lat1, lon1, lat2, lon2])
+
+    # Haversine formula
+    a = sin((lat2 - lat1) / 2) ** 2 + cos(lat1) * cos(lat2) * sin((lon2 - lon1) / 2) ** 2
+    c = 2 * atan2(sqrt(a), sqrt(1 - a))
+    return R * c / 1.6
+
+
+def nearest_coordinates_to_point_NWS(target_lat, target_lon, df, num_results=3):
+    """
+    Find the closest coordinates to a target point using NWS CF6 stations(NWS, CITY_CODE).
+    """
+    distances = []
+
+    for index, row in df.iterrows():
+        lat = row['LAT']
+        lon = row['LON']
+        distance = haversine_distance(target_lat, target_lon, lat, lon)
+        distances.append((lat, lon, row['NWS_PROVIDER'], row['CITY_CODE'], row['ELEVATION'], row['STATION'], distance))
+
+    distances.sort(key=lambda x: x[6])  # Sort by distance, which is 7th value, 6th index
+    closest = distances[:num_results]
+    #print("NWS: ", closest)
+
+    return closest
+
+
+def nearest_coordinates_to_point_NOAA(target_lat, target_lon, df, num_results=3):
+    """
+    Find the closest coordinates to a target point using NOAA stations (USCxxxxxxxxx.csv).
+    """
+    distances = []
+    
+    #["STATION", "LAT", "LON", "ELEVATION", "NAME"]
+    #USC00010160    32.935  -85.95556   660     ALEXANDER CITY, AL US
+    for index, row in df.iterrows():
+        lat = row['LAT']
+        lon = row['LON']
+        distance = haversine_distance(target_lat, target_lon, lat, lon)
+        distances.append((lat, lon, row['STATION'], row['ELEVATION'], row['NAME'], distance))
+
+    distances.sort(key=lambda x: x[5])  # Sort by distance, which is 6th value, 5th index
+    closest = distances[:num_results]
+    #print("NOAA: ", closest)
+
+    return closest
+
+'''
+This function takes in a list of the closest points to a target point
+ and returns a list of weights for each point
+ The higher the weight power, the more the weights are skewed towards the closest point
+'''
+def inverse_dist_weights(closest_points_list, weight_power=.5):
+    dist_values = [entry[-1] for entry in closest_points_list]
+    # Squared to give increased weight to closest
+    inverses = [(1 / value) ** weight_power for value in dist_values]
+    sum_inverses = sum(inverses)
+    weights = [inverse / sum_inverses for inverse in inverses]
+    
+    return weights
+ 
+
+
+def is_running_on_aws():
+    return 'amzn' in platform.platform()
+
+def get_csv_from_s3(bucket_name, file_key, local_path):
+    try:
+        s3 = boto3.client('s3')
+        s3.download_file(bucket_name, file_key, local_path)
         
-    df = pd.DataFrame(data)
-    df["LAT"] = df["LAT"].astype(float)
-    df["LON"] = df["LON"].astype(float)
-    df["ELEVATION"] = df["ELEVATION"].astype(int)
-
-
-    return df
-
-
-
+    except Exception as e:
+        if hasattr(e, 'response') and 'Error' in e.response:
+            error_code = int(e.response['Error']['Code'])
+            error_msg = e.response['Error']['Message']
+            print(f"Received error {error_code} from S3: {error_msg}")
+        else:
+            print(f"An error occurred: {e}")
+        raise

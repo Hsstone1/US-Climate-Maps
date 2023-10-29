@@ -147,7 +147,7 @@ export default function ClimateTableRow({
     } else if (dataType === "Precip") {
       return value >= 4.5 ? "#FFFFFF" : "#000000";
     } else if (dataType === "Humidity") {
-      return value >= 29.5 ? "#FFFFFF" : "#000000";
+      return value >= 9.5 ? "#FFFFFF" : "#000000";
     } else if (dataType === "SunHours") {
       return value <= 49.5 ? "#FFFFFF" : "#000000";
     } else if (dataType === "SunPercent") {

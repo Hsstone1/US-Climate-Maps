@@ -65,6 +65,7 @@ function ClimateChart({
 }: ClimateChartProps) {
   const chartRef = useRef<ChartJS<"line"> | null>(null);
 
+  /*
   const { zoomLevel, setZoomLevel } = useZoom();
   useEffect(() => {
     const chartInstance = chartRef.current;
@@ -90,6 +91,7 @@ function ClimateChart({
     },
     [setZoomLevel]
   );
+  */
 
   // This function generates labels with month names at the correct indices
   const generateMonthLabels = () => {
@@ -153,6 +155,12 @@ function ClimateChart({
           formatter: (value: any, context: any) => {
             const yAxisID = context.dataset.yAxisID;
 
+            //TODO error when removing the last location when select year is active for datasets that do not
+            //Have data for select years, so for example, the Sun angle dataset does not have data for select years
+            if (!dataset.data || dataset.data.length === 0) {
+              return ""; // Return empty string or any other placeholder if the data doesn't exist
+            }
+
             if (yAxisID === "Temperature") {
               return value.toFixed(0) + "°F";
             } else if (yAxisID === "Precip" && value !== 0) {
@@ -179,9 +187,6 @@ function ClimateChart({
     layout: {
       padding: {
         top: 20,
-        //right: 40,
-        //bottom: 20,
-        //left: 40,
       },
     },
 
@@ -204,9 +209,9 @@ function ClimateChart({
           mode: "x",
         },
         zoom: {
-          onZoom: handleZoom,
           wheel: {
             enabled: true,
+            speed: 0.3,
           },
           pinch: {
             enabled: false,

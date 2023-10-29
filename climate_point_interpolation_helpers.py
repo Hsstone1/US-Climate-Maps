@@ -1,14 +1,10 @@
 import math
 import pandas as pd
-import requests
-import urllib
 from math import radians, sin, cos, sqrt, atan2
 import numpy as np
 from scipy.stats import norm
-from sklearn.discriminant_analysis import StandardScaler
-from sklearn.ensemble import RandomForestRegressor
-from sklearn.metrics import mean_squared_error
-from sklearn.model_selection import GridSearchCV, train_test_split
+
+
 
 
 def calc_growing_chance_vectorized(noaa_final_data, window_size=14):
@@ -20,16 +16,12 @@ def calc_growing_chance_vectorized(noaa_final_data, window_size=14):
     rolling_std = rolling_std.replace(0, np.nan)
 
     # Calculate z-scores; use .fillna(0) to handle NaNs resulting from zero standard deviation
-    z_scores = (32 - rolling_mean) / rolling_std
-    z_scores = z_scores.fillna(0)  # Replace NaNs with 0 (where std_dev was 0)
-
-    # Calculate the cumulative probabilities using the CDF
+    z_scores = (35 - rolling_mean) / rolling_std
+    z_scores = z_scores.fillna(0) 
     cumulative_probs = norm.cdf(z_scores)
 
     # Calculate the percentiles
     percentiles_below_32 = (1 - cumulative_probs) * 100
-
-    # Apply your conditional logic using numpy.where (vectorized conditional operation)
     percentiles_below_32 = np.where(percentiles_below_32 <= 50, 0, 
                                     np.where(percentiles_below_32 >= 80, 100, percentiles_below_32))
 
@@ -127,42 +119,6 @@ def calc_humidity_percentage_vector(dew_points_F, temperatures_F):
 
     return humidity_percentages
 
-
-from sklearn.model_selection import RandomizedSearchCV
-from sklearn.linear_model import LinearRegression
-
-from sklearn.linear_model import LinearRegression
-
-def dewpoint_regr_calc(Tmax, Tmin, totalPrcp):
-    # Read the CSV file with temperature and dewpoint data
-    df = pd.read_csv("temperature-humidity-data.csv")
-
-    # Calculate TDiurinal (TMax - TMin)
-    df["TDiurinal"] = df["TMax"] - df["TMin"]
-
-    # Define your input features and target variables
-    X = df[['TMax', 'TMin', 'TDiurinal', 'Total']]
-    y = df[['DAvg']]
-
-    # Split the data into training and testing sets (if needed)
-    # X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.5, random_state=42)
-
-    # Scale the features using StandardScaler
-    scaler = StandardScaler()
-    X_scaled = scaler.fit_transform(X)
-
-    # Initialize the Random Forest Regressor
-    rf_model = RandomForestRegressor(n_estimators=5, random_state=42)
-    rf_model.fit(X_scaled, y.values.ravel())
-
-    Tdiurinal = [x - y for x, y in zip(Tmax, Tmin)]  
-
-    # Create a new DataFrame with your input data
-    new_data = pd.DataFrame({'TMax': Tmax, 'TMin': Tmin, 'TDiurinal': Tdiurinal, 'Total': totalPrcp})
-    new_data_scaled = scaler.transform(new_data)
-    rf_predicted_dewpoint = rf_model.predict(new_data_scaled)
-
-    return rf_predicted_dewpoint
 
 
 
@@ -430,96 +386,3 @@ def calc_plant_hardiness(mean_annual_min):
 def get_highest_N_values(values, numValues):
     return sorted(values, reverse=True)[:numValues]
     
-def get_elevation_from_coords(lat,lon):
-    '''
-    USGS API for elevation retrieval. Only needs lat lon coords
-    '''
-    params = {
-            'output': 'json',
-            'x': lon,
-            'y': lat,
-            'units': 'Feet'
-        }
-    
-    elevations = []
-    url = r'https://epqs.nationalmap.gov/v1/json?'
-    try:
-        result = requests.get(url + urllib.parse.urlencode(params), timeout=2.000)
-
-        elevations.append(result.json()['value'])
-        #print("ELEVATIONS: ", elevations)
-    except (requests.exceptions.JSONDecodeError, KeyError, requests.exceptions.ReadTimeout):
-        elevations.append(-999)
-        print("ERROR: ELEVATION NOT FOUND")
-    return elevations[0]
-
-  
-def haversine_distance(lat1, lon1, lat2, lon2):
-    """
-    Calculate the haversine distance between two points on the Earth.
-    Returns the distance in miles by diving result km by 1.6
-    """
-    R = 6371  # Radius of the Earth in kilometers
-
-    # Convert latitude and longitude to radians
-    lat1, lon1, lat2, lon2 = map(radians, [lat1, lon1, lat2, lon2])
-
-    # Haversine formula
-    a = sin((lat2 - lat1) / 2) ** 2 + cos(lat1) * cos(lat2) * sin((lon2 - lon1) / 2) ** 2
-    c = 2 * atan2(sqrt(a), sqrt(1 - a))
-    return R * c / 1.6
-
-
-def nearest_coordinates_to_point_NWS(target_lat, target_lon, df, num_results=3):
-    """
-    Find the closest coordinates to a target point using NWS CF6 stations(NWS, CITY_CODE).
-    """
-    distances = []
-
-    for index, row in df.iterrows():
-        lat = row['LAT']
-        lon = row['LON']
-        distance = haversine_distance(target_lat, target_lon, lat, lon)
-        distances.append((lat, lon, row['NWS_PROVIDER'], row['CITY_CODE'], row['ELEVATION'], row['STATION'], distance))
-
-    distances.sort(key=lambda x: x[6])  # Sort by distance, which is 7th value, 6th index
-    closest = distances[:num_results]
-    #print("NWS: ", closest)
-
-    return closest
-
-
-def nearest_coordinates_to_point_NOAA(target_lat, target_lon, df, num_results=3):
-    """
-    Find the closest coordinates to a target point using NOAA stations (USCxxxxxxxxx.csv).
-    """
-    distances = []
-    
-    #["STATION", "LAT", "LON", "ELEVATION", "NAME"]
-    #USC00010160    32.935  -85.95556   660     ALEXANDER CITY, AL US
-    for index, row in df.iterrows():
-        lat = row['LAT']
-        lon = row['LON']
-        distance = haversine_distance(target_lat, target_lon, lat, lon)
-        distances.append((lat, lon, row['STATION'], row['ELEVATION'], row['NAME'], distance))
-
-    distances.sort(key=lambda x: x[5])  # Sort by distance, which is 6th value, 5th index
-    closest = distances[:num_results]
-    #print("NOAA: ", closest)
-
-    return closest
-
-'''
-This function takes in a list of the closest points to a target point
- and returns a list of weights for each point
- The higher the weight power, the more the weights are skewed towards the closest point
-'''
-def inverse_dist_weights(closest_points_list, weight_power=.5):
-    dist_values = [entry[-1] for entry in closest_points_list]
-    # Squared to give increased weight to closest
-    inverses = [(1 / value) ** weight_power for value in dist_values]
-    sum_inverses = sum(inverses)
-    weights = [inverse / sum_inverses for inverse in inverses]
-    
-    return weights
- 
