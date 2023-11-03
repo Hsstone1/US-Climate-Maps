@@ -94,7 +94,7 @@ function ClimateChart({
   */
 
   // This function generates labels with month names at the correct indices
-  const generateMonthLabels = () => {
+  const generateMonthLabels = useCallback(() => {
     // Days in months (non-leap year by default)
     const daysInMonths = [31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31];
 
@@ -113,10 +113,10 @@ function ClimateChart({
     }
 
     return labels;
-  };
+  }, [isLeapYear]);
 
   //This function generates labels with day and month names at the correct indices
-  const generateDateLabels = () => {
+  const generateDateLabels = useCallback(() => {
     const daysInMonths = [31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31];
     if (isLeapYear) {
       daysInMonths[1] = 29; // February in leap year
@@ -133,9 +133,9 @@ function ClimateChart({
     }
 
     return dateLabels;
-  };
+  }, [isLeapYear]);
 
-  const createChartData = () => {
+  const createChartData = useCallback(() => {
     return {
       labels: generateMonthLabels(),
       datasets: datasetProp.map((dataset) => ({
@@ -180,247 +180,252 @@ function ClimateChart({
         },
       })),
     };
-  };
+  }, [datasetProp, generateMonthLabels]);
 
-  const chartOptions = {
-    responsive: true,
-    layout: {
-      padding: {
-        top: 20,
-      },
-    },
-
-    plugins: {
-      legend: {
-        position: "top" as const,
-        display: false,
-      },
-      title: {
-        display: true,
-        text: "Yearly Climate Averages",
-      },
-      filler: {
-        propagate: true,
-      },
-
-      zoom: {
-        pan: {
-          enabled: true,
-          mode: "x",
-        },
-        zoom: {
-          wheel: {
-            enabled: true,
-            speed: 0.3,
-          },
-          pinch: {
-            enabled: false,
-          },
-          mode: "x",
-        },
-      },
-
-      tooltip: {
-        mode: "nearest",
-        axis: "x",
-        intersect: false,
-        callbacks: {
-          title: function (context) {
-            // Get the first tooltip item assuming there is one dataset, otherwise, might need to choose the appropriate one
-            const tooltipItem = context.length ? context[0] : null;
-
-            if (tooltipItem) {
-              const dateLabels = generateDateLabels();
-              const date = dateLabels[tooltipItem.dataIndex];
-
-              // Return the string to be displayed at the top of the tooltip
-              return `${MONTHS[date.month - 1]} ${date.day}`;
-            }
-
-            return "";
-          },
-
-          label: (context) => {
-            let label = context.dataset.label || "";
-
-            if (label) {
-              label += ": ";
-            }
-
-            if (context.parsed.y !== null) {
-              label +=
-                (context.parsed.y * adjustUnitsByVal).toFixed(1) + " " + units;
-            }
-
-            return label;
-          },
-        },
-      },
-
-      datalabels: {
-        align: "bottom",
-        anchor: "center",
-        offset: -25,
-        display: "auto",
-        color: "#808080",
-
+  const chartOptions = useMemo(
+    () => ({
+      responsive: true,
+      layout: {
         padding: {
-          top: 10,
-          right: 20,
-          bottom: 10,
-          left: 20,
-        },
-        font: {
-          size: 10,
-          weight: "bolder",
-        },
-      },
-    },
-
-    scales: {
-      x: {
-        ticks: {
-          autoSkip: false,
-          maxTicksLimit: 12,
-          minRotation: 0,
-          maxRotation: 0,
-          font: {
-            size: 12,
-          },
-        },
-      },
-      Temperature: {
-        type: "linear",
-        position: "left",
-        display: "auto",
-        beginAtZero: false,
-        suggestedMax: 100,
-        suggestedMin: 0,
-        ticks: {
-          callback: function (value) {
-            return value + " °F ";
-          },
-          maxTicksLimit: 10,
-
-          stepSize: 10,
-          font: {
-            size: 12,
-          },
+          top: 20,
         },
       },
 
-      Precip: {
-        type: "linear",
-        position: "left",
-        display: "auto",
-        min: 0,
-        suggestedMax: 5,
-        ticks: {
-          beginAtZero: true,
-          callback: function (value) {
-            return value + " in ";
+      plugins: {
+        legend: {
+          position: "top" as const,
+          display: false,
+        },
+        title: {
+          display: true,
+          text: "Yearly Climate Averages",
+        },
+        filler: {
+          propagate: true,
+        },
+
+        zoom: {
+          pan: {
+            enabled: true,
+            mode: "x",
           },
-          maxTicksLimit: 10,
-          stepSize: 1,
-          font: {
-            size: 10,
+          zoom: {
+            wheel: {
+              enabled: true,
+              speed: 0.3,
+            },
+            pinch: {
+              enabled: true,
+            },
+            mode: "x",
           },
         },
-      },
 
-      Percentage: {
-        type: "linear",
-        position: "left",
-        display: "auto",
-        max: 100,
-        min: 0,
-        ticks: {
-          beginAtZero: true,
-          callback: function (value: number) {
-            return value.toFixed(0) + " % "; // Multiply by 100 and append "%"
-          },
-          maxTicksLimit: 10,
-          stepSize: 10,
-          font: {
-            size: 10,
+        tooltip: {
+          mode: "nearest",
+          axis: "x",
+          intersect: false,
+          callbacks: {
+            title: function (context) {
+              // Get the first tooltip item assuming there is one dataset, otherwise, might need to choose the appropriate one
+              const tooltipItem = context.length ? context[0] : null;
+
+              if (tooltipItem) {
+                const dateLabels = generateDateLabels();
+                const date = dateLabels[tooltipItem.dataIndex];
+
+                // Return the string to be displayed at the top of the tooltip
+                return `${MONTHS[date.month - 1]} ${date.day}`;
+              }
+
+              return "";
+            },
+
+            label: (context) => {
+              let label = context.dataset.label || "";
+
+              if (label) {
+                label += ": ";
+              }
+
+              if (context.parsed.y !== null) {
+                label +=
+                  (context.parsed.y * adjustUnitsByVal).toFixed(1) +
+                  " " +
+                  units;
+              }
+
+              return label;
+            },
           },
         },
-      },
 
-      Wind: {
-        type: "linear",
-        position: "left",
-        display: "auto",
-        min: 0,
-        suggestedMax: 10,
-        ticks: {
-          beginAtZero: true,
-          callback: function (value) {
-            return value + " mph ";
+        datalabels: {
+          align: "bottom",
+          anchor: "center",
+          offset: -25,
+          display: "auto",
+          color: "#808080",
+
+          padding: {
+            top: 10,
+            right: 20,
+            bottom: 10,
+            left: 20,
           },
-          maxTicksLimit: 10,
-
-          stepSize: 1,
           font: {
             size: 10,
+            weight: "bolder",
           },
         },
       },
 
-      Sun_Angle: {
-        type: "linear",
-        position: "left",
-        display: "auto",
-        max: 90,
-        min: 0,
-        ticks: {
-          beginAtZero: true,
+      scales: {
+        x: {
+          ticks: {
+            autoSkip: false,
+            maxTicksLimit: 12,
+            minRotation: 0,
+            maxRotation: 0,
+            font: {
+              size: 10,
+            },
+          },
+        },
+        Temperature: {
+          type: "linear",
+          position: "left",
+          display: "auto",
+          beginAtZero: false,
+          suggestedMax: 100,
+          suggestedMin: 0,
+          ticks: {
+            callback: function (value) {
+              return value + "F";
+            },
+            maxTicksLimit: 10,
 
-          maxTicksLimit: 10,
-          stepSize: 10,
-          font: {
-            size: 10,
+            stepSize: 10,
+            font: {
+              size: 10,
+            },
+          },
+        },
+
+        Precip: {
+          type: "linear",
+          position: "left",
+          display: "auto",
+          min: 0,
+          suggestedMax: 5,
+          ticks: {
+            beginAtZero: true,
+            callback: function (value) {
+              return value + "in";
+            },
+            maxTicksLimit: 10,
+            stepSize: 1,
+            font: {
+              size: 10,
+            },
+          },
+        },
+
+        Percentage: {
+          type: "linear",
+          position: "left",
+          display: "auto",
+          max: 100,
+          min: 0,
+          ticks: {
+            beginAtZero: true,
+            callback: function (value: number) {
+              return value.toFixed(0) + "%"; // Multiply by 100 and append "%"
+            },
+            maxTicksLimit: 10,
+            stepSize: 10,
+            font: {
+              size: 10,
+            },
+          },
+        },
+
+        Wind: {
+          type: "linear",
+          position: "left",
+          display: "auto",
+          min: 0,
+          suggestedMax: 10,
+          ticks: {
+            beginAtZero: true,
+            callback: function (value) {
+              return value + "mph";
+            },
+            maxTicksLimit: 10,
+
+            stepSize: 1,
+            font: {
+              size: 10,
+            },
+          },
+        },
+
+        Sun_Angle: {
+          type: "linear",
+          position: "left",
+          display: "auto",
+          max: 90,
+          min: 0,
+          ticks: {
+            beginAtZero: true,
+
+            maxTicksLimit: 10,
+            stepSize: 10,
+            font: {
+              size: 10,
+            },
+          },
+        },
+
+        UV_Index: {
+          type: "linear",
+          position: "left",
+          display: "auto",
+          suggestedMax: 10,
+          min: 0,
+          ticks: {
+            beginAtZero: true,
+
+            maxTicksLimit: 10,
+            stepSize: 1,
+            font: {
+              size: 10,
+            },
+          },
+        },
+
+        Comfort_Index: {
+          type: "linear",
+          position: "left",
+          display: "auto",
+          max: 100,
+          min: 0,
+          ticks: {
+            beginAtZero: true,
+
+            maxTicksLimit: 10,
+            stepSize: 10,
+            font: {
+              size: 10,
+            },
           },
         },
       },
+    }),
+    [generateDateLabels, adjustUnitsByVal, units]
+  ) as ChartOptions<"bar" | "line">;
 
-      UV_Index: {
-        type: "linear",
-        position: "left",
-        display: "auto",
-        suggestedMax: 10,
-        min: 0,
-        ticks: {
-          beginAtZero: true,
-
-          maxTicksLimit: 10,
-          stepSize: 1,
-          font: {
-            size: 10,
-          },
-        },
-      },
-
-      Comfort_Index: {
-        type: "linear",
-        position: "left",
-        display: "auto",
-        max: 100,
-        min: 0,
-        ticks: {
-          beginAtZero: true,
-
-          maxTicksLimit: 10,
-          stepSize: 10,
-          font: {
-            size: 10,
-          },
-        },
-      },
-    },
-  } as ChartOptions<"bar" | "line">;
-
-  const memoizedChartData = useMemo(() => createChartData(), [datasetProp]);
+  const memoizedChartData = useMemo(() => createChartData(), [createChartData]);
 
   return (
     <Chart

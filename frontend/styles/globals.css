@@ -22,6 +22,13 @@ a {
   height: 100vh;
 }
 
+/* Media query for mobile devices */
+@media screen and (max-width: 768px) {
+  .app-container {
+    height: 93vh;
+  }
+}
+
 
 .nav{
   width: 100%;
@@ -41,6 +48,24 @@ a {
   color: #ffffff;
   display: inline;
   text-align: center;
+  white-space: nowrap;
+  overflow: hidden;
+  
+}
+
+/* Media query for mobile devices */
+@media screen and (max-width: 768px) {
+  .nav h2 {
+    font-size: medium; /* Adjust the font size */
+  }
+
+  .nav a {
+    font-size: smaller; /* Adjust the font size */
+  }
+
+  .nav li {
+    padding: 10px; /* Adjust the padding for smaller screens */
+  }
 }
 
 .nav ul{
@@ -100,6 +125,24 @@ a {
 .nav_locations-list::-webkit-scrollbar {
   display: none; /* For Chrome, Safari, and Edge */
 }
+
+.compare-locations-list-text {
+  color: #ffffff;
+  white-space: normal;
+
+}
+
+/* Media query for mobile devices */
+@media screen and (max-width: 768px) {
+  .compare-locations-list-text {
+    font-size: smaller; /* Adjust the font size */
+    white-space: normal;
+    padding-right: 10px;
+    padding-left: -10px;
+
+  }
+}
+
 
 
 
@@ -181,6 +224,13 @@ a {
   display: block;
 }
 
+/* Add this media query for mobile devices */
+@media screen and (max-width: 768px) {
+  .compare_chart-div {
+    width: 90%;
+  }
+}
+
 .compare_climate_table-div {
   width: 100%;
   margin: auto;
@@ -188,15 +238,6 @@ a {
   display: block;
 }
 
-.compare-progress-bar {
-  height: 3px;  /* You can adjust the height if needed */
-  background-color: lightblue;
-  position: fixed;
-  top: 0;
-  left: 0;
-  z-index: 1000; /* Keep the progress bar on top */
-  transition: width 0.3s ease; /* Smooth width change */
-}
 
 .year-selector-footer {
   position: fixed;

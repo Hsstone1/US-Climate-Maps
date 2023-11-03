@@ -44,10 +44,6 @@ export default function ComparisonPage({ locations }: ComparisonPageProps) {
   const [currentIndex, setCurrentIndex] = useState(0);
   const { zoomLevel } = useZoom();
 
-  useEffect(() => {
-    console.log("ComparisonPage: useEffect: RE RENDER: ", zoomLevel);
-  }, [zoomLevel]);
-
   const annualTemperatureDataset = useMemo(() => {
     return temperature_dataset(locations, undefined, selectedYear);
   }, [locations, selectedYear]);
@@ -270,6 +266,7 @@ export default function ComparisonPage({ locations }: ComparisonPageProps) {
                   </ClimateChartPaginate>
                 )}
               </LazyLoad>
+
               <p style={{ textAlign: "center" }}>
                 Average monthly apparent high and low temperatures for each
                 location. The apparent temperature changes which can change
@@ -815,7 +812,7 @@ export default function ComparisonPage({ locations }: ComparisonPageProps) {
 
               <p style={{ textAlign: "center" }}>
                 Average UV Index. The UV index is a measure of the strength of
-                the sun's ultraviolet rays. The table contains the average UV
+                the suns ultraviolet rays. The table contains the average UV
                 index for each month. The UV index is highest in the summer and
                 lowest in the winter.
               </p>
@@ -852,6 +849,7 @@ export default function ComparisonPage({ locations }: ComparisonPageProps) {
                   units={"°"}
                 ></ClimateChart>
               </LazyLoad>
+
               <p style={{ textAlign: "center" }}>
                 Average sun angle for each month. The sun angle is the angle of
                 the sun above the horizon, measured at the highest point in the
@@ -892,14 +890,15 @@ export default function ComparisonPage({ locations }: ComparisonPageProps) {
                   units={"%"}
                 />
               </LazyLoad>
+
               <p style={{ textAlign: "center" }}>
                 Average frost free growing season. The table contains the
                 monthly Cooling Degree Days (CDD) and Heating Degree Days (HDD).
-                Cooling degree days are the number of degrees that a day's
+                Cooling degree days are the number of degrees that a days
                 average temperature is above 65°F. Heating degree days are the
-                number of degrees that a day's average temperature is below
-                65°F. The total number of CDD and HDD for each month, along with
-                the annual total are displayed in the table. These values are a
+                number of degrees that a days average temperature is below 65°F.
+                The total number of CDD and HDD for each month, along with the
+                annual total are displayed in the table. These values are a
                 metric in how severe a season is.
               </p>
               <div>
