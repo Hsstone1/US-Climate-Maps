@@ -1,7 +1,7 @@
 import React, { useState } from "react";
 import { FaCloudRain, FaSnowflake, FaSun } from "react-icons/fa";
 import { InfoWindow } from "@react-google-maps/api";
-import { MarkerType } from "../export-props";
+import { MarkerType } from "../location-props";
 import IndowWindowChart from "./infowindowchart";
 import ClimateTable from "../climate-table/climatetable";
 

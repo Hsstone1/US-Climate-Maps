@@ -3,13 +3,11 @@ import { GoogleMap, Marker } from "@react-google-maps/api";
 import SearchBar from "../app-bar/searchbar";
 import CompareLocationsList from "../app-bar/comparisonlist";
 import ComparePage from "../compare-page/comparepage";
-import { MarkerType } from "../export-props";
+import { MarkerType } from "../location-props";
 import { getGeolocate, getElevation } from "./geolocate";
 import CustomInfoWindow from "./custominfowindow";
 import Snackbar from "@mui/material/Snackbar";
 import CircularProgress from "@mui/material/CircularProgress";
-import { ZoomProvider } from "../compare-page/zoomcontext";
-import { Zoom } from "@mui/material";
 
 type LatLngLiteral = google.maps.LatLngLiteral;
 type MapOptions = google.maps.MapOptions;
@@ -357,38 +355,36 @@ export default function Map() {
         </div>
       </nav>
 
-      <ZoomProvider>
-        <div className="container">
-          {activeComponent === "compare" && (
-            <ComparePage locations={locationsCompare} />
-          )}
+      <div className="container">
+        {activeComponent === "compare" && (
+          <ComparePage locations={locationsCompare} />
+        )}
 
-          {activeComponent === "map" && (
-            <div className="map">
-              <GoogleMap
-                zoom={5}
-                center={center}
-                mapContainerClassName="map-container"
-                onLoad={onLoad}
-                options={mapOptions}
-                onClick={handleMapClick}
-              >
-                {selectedMarker.map((marker) => (
-                  <Marker
-                    key={marker.id}
-                    position={{ lat: marker.lat, lng: marker.lng }}
-                  >
-                    <CustomInfoWindow
-                      marker={marker}
-                      handleCloseInfoWindow={handleRemoveMarker}
-                    />
-                  </Marker>
-                ))}
-              </GoogleMap>
-            </div>
-          )}
-        </div>
-      </ZoomProvider>
+        {activeComponent === "map" && (
+          <div className="map">
+            <GoogleMap
+              zoom={5}
+              center={center}
+              mapContainerClassName="map-container"
+              onLoad={onLoad}
+              options={mapOptions}
+              onClick={handleMapClick}
+            >
+              {selectedMarker.map((marker) => (
+                <Marker
+                  key={marker.id}
+                  position={{ lat: marker.lat, lng: marker.lng }}
+                >
+                  <CustomInfoWindow
+                    marker={marker}
+                    handleCloseInfoWindow={handleRemoveMarker}
+                  />
+                </Marker>
+              ))}
+            </GoogleMap>
+          </div>
+        )}
+      </div>
       <Snackbar
         open={isFetching}
         anchorOrigin={{ vertical: "bottom", horizontal: "center" }}

@@ -3,12 +3,11 @@ import dynamic from "next/dynamic";
 import { ClimateChartDataset } from "./climatecomparehelpers";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import Typography from "@mui/material/Typography";
-import { MarkerType, LocationColors } from "../export-props";
+import { MarkerType, LocationColors } from "../location-props";
 //import ClimateChart from "./climatechart";
 import Table from "./comparepagetable";
-import ClimateChartPaginate from "../climate-table/climatechartpaginate";
-import YearSelector from "../historical-weather/yearselector";
-import { useZoom } from "./zoomcontext";
+import ClimateChartPaginate from "./climatechartpaginate";
+import YearSelector from "./yearselector";
 import LazyLoad from "react-lazyload";
 
 //This is dynamic import function to load components that rely on browser-specific functionalities such as the window object:
@@ -42,7 +41,30 @@ const excludeFromHistorical = new Set([
 export default function ComparisonPage({ locations }: ComparisonPageProps) {
   const [selectedYear, setSelectedYear] = useState<string>("Annual");
   const [currentIndex, setCurrentIndex] = useState(0);
-  const { zoomLevel } = useZoom();
+
+  const [zoomPanState, setZoomPanState] = useState({
+    zoomStart: null,
+    zoomEnd: null,
+    panStart: null,
+    panEnd: null,
+  });
+
+  console.log("RE RENDERED COMPARE PAGE");
+
+  // Handler to update zoom and pan state
+  const handleZoomPanChange = useCallback((newState) => {
+    setZoomPanState((prevZoomPanState) => {
+      if (
+        newState.zoomStart !== prevZoomPanState.zoomStart ||
+        newState.zoomEnd !== prevZoomPanState.zoomEnd ||
+        newState.panStart !== prevZoomPanState.panStart ||
+        newState.panEnd !== prevZoomPanState.panEnd
+      ) {
+        return newState;
+      }
+      return prevZoomPanState; // Return the same reference if no change
+    });
+  }, []);
 
   const annualTemperatureDataset = useMemo(() => {
     return temperature_dataset(locations, undefined, selectedYear);
@@ -185,6 +207,8 @@ export default function ComparisonPage({ locations }: ComparisonPageProps) {
                   <ClimateChart
                     datasetProp={annualTemperatureDataset}
                     units={"°F"}
+                    zoomPanState={zoomPanState}
+                    onZoomPanChange={handleZoomPanChange}
                   />
                 ) : (
                   <ClimateChartPaginate
@@ -198,6 +222,9 @@ export default function ComparisonPage({ locations }: ComparisonPageProps) {
                         data={paginatedTemperatureDataset}
                         units={"°F"}
                         isBarChart={true}
+                        year={parseInt(selectedYear)}
+                        zoomPanState={zoomPanState}
+                        onZoomPanChange={handleZoomPanChange}
                       />
                     )}
                   </ClimateChartPaginate>
@@ -250,6 +277,8 @@ export default function ComparisonPage({ locations }: ComparisonPageProps) {
                   <ClimateChart
                     datasetProp={annualApparentTemperatureDataset}
                     units={"°F"}
+                    zoomPanState={zoomPanState}
+                    onZoomPanChange={handleZoomPanChange}
                   />
                 ) : (
                   <ClimateChartPaginate
@@ -263,6 +292,9 @@ export default function ComparisonPage({ locations }: ComparisonPageProps) {
                         data={paginatedApparentTemperatureDataset}
                         units={"°F"}
                         isBarChart={true}
+                        year={parseInt(selectedYear)}
+                        zoomPanState={zoomPanState}
+                        onZoomPanChange={handleZoomPanChange}
                       />
                     )}
                   </ClimateChartPaginate>
@@ -316,6 +348,11 @@ export default function ComparisonPage({ locations }: ComparisonPageProps) {
                 <ClimateChart
                   datasetProp={annualTemperatureRangeDataset}
                   units={"°F"}
+                  year={
+                    selectedYear === "Annual" ? 2023 : parseInt(selectedYear)
+                  }
+                  zoomPanState={zoomPanState}
+                  onZoomPanChange={handleZoomPanChange}
                 />
               </LazyLoad>
 
@@ -363,7 +400,12 @@ export default function ComparisonPage({ locations }: ComparisonPageProps) {
                 once={DO_LAZY_LOAD_ONCE}
               >
                 {selectedYear === "Annual" ? (
-                  <ClimateChart datasetProp={annualComfortDataset} units={""} />
+                  <ClimateChart
+                    datasetProp={annualComfortDataset}
+                    units={""}
+                    zoomPanState={zoomPanState}
+                    onZoomPanChange={handleZoomPanChange}
+                  />
                 ) : (
                   <ClimateChartPaginate
                     locations={locations}
@@ -374,8 +416,9 @@ export default function ComparisonPage({ locations }: ComparisonPageProps) {
                       <ClimateChartRenderer
                         index={index}
                         data={paginatedComfortDataset}
-                        units={""}
-                        isBarChart={false}
+                        year={parseInt(selectedYear)}
+                        zoomPanState={zoomPanState}
+                        onZoomPanChange={handleZoomPanChange}
                       />
                     )}
                   </ClimateChartPaginate>
@@ -425,6 +468,8 @@ export default function ComparisonPage({ locations }: ComparisonPageProps) {
                   <ClimateChart
                     datasetProp={annualPrecipDataset}
                     units={"in"}
+                    zoomPanState={zoomPanState}
+                    onZoomPanChange={handleZoomPanChange}
                   />
                 ) : (
                   <ClimateChartPaginate
@@ -437,7 +482,9 @@ export default function ComparisonPage({ locations }: ComparisonPageProps) {
                         index={index}
                         data={paginatedPrecipDataset}
                         units={"in"}
-                        isBarChart={false}
+                        year={parseInt(selectedYear)}
+                        zoomPanState={zoomPanState}
+                        onZoomPanChange={handleZoomPanChange}
                       />
                     )}
                   </ClimateChartPaginate>
@@ -490,7 +537,12 @@ export default function ComparisonPage({ locations }: ComparisonPageProps) {
                 once={DO_LAZY_LOAD_ONCE}
               >
                 {selectedYear === "Annual" ? (
-                  <ClimateChart datasetProp={annualSnowDataset} units={"in"} />
+                  <ClimateChart
+                    datasetProp={annualSnowDataset}
+                    units={"in"}
+                    zoomPanState={zoomPanState}
+                    onZoomPanChange={handleZoomPanChange}
+                  />
                 ) : (
                   <ClimateChartPaginate
                     locations={locations}
@@ -502,7 +554,9 @@ export default function ComparisonPage({ locations }: ComparisonPageProps) {
                         index={index}
                         data={paginatedSnowDataset}
                         units={"in"}
-                        isBarChart={false}
+                        year={parseInt(selectedYear)}
+                        zoomPanState={zoomPanState}
+                        onZoomPanChange={handleZoomPanChange}
                       />
                     )}
                   </ClimateChartPaginate>
@@ -557,6 +611,8 @@ export default function ComparisonPage({ locations }: ComparisonPageProps) {
                   <ClimateChart
                     datasetProp={annualHumidityDataset}
                     units={"%"}
+                    zoomPanState={zoomPanState}
+                    onZoomPanChange={handleZoomPanChange}
                   />
                 ) : (
                   <ClimateChartPaginate
@@ -570,6 +626,9 @@ export default function ComparisonPage({ locations }: ComparisonPageProps) {
                         data={paginatedHumidityDataset}
                         units={"%"}
                         isBarChart={true}
+                        year={parseInt(selectedYear)}
+                        zoomPanState={zoomPanState}
+                        onZoomPanChange={handleZoomPanChange}
                       />
                     )}
                   </ClimateChartPaginate>
@@ -628,6 +687,8 @@ export default function ComparisonPage({ locations }: ComparisonPageProps) {
                   <ClimateChart
                     datasetProp={annualDewpointDataset}
                     units={"°F"}
+                    zoomPanState={zoomPanState}
+                    onZoomPanChange={handleZoomPanChange}
                   />
                 ) : (
                   <ClimateChartPaginate
@@ -640,7 +701,9 @@ export default function ComparisonPage({ locations }: ComparisonPageProps) {
                         index={index}
                         data={paginatedDewpointDataset}
                         units={"°F"}
-                        isBarChart={false}
+                        year={parseInt(selectedYear)}
+                        zoomPanState={zoomPanState}
+                        onZoomPanChange={handleZoomPanChange}
                       />
                     )}
                   </ClimateChartPaginate>
@@ -693,7 +756,12 @@ export default function ComparisonPage({ locations }: ComparisonPageProps) {
                 once={DO_LAZY_LOAD_ONCE}
               >
                 {selectedYear === "Annual" ? (
-                  <ClimateChart datasetProp={annualWindDataset} units={"mph"} />
+                  <ClimateChart
+                    datasetProp={annualWindDataset}
+                    units={"mph"}
+                    zoomPanState={zoomPanState}
+                    onZoomPanChange={handleZoomPanChange}
+                  />
                 ) : (
                   <ClimateChartPaginate
                     locations={locations}
@@ -705,7 +773,9 @@ export default function ComparisonPage({ locations }: ComparisonPageProps) {
                         index={index}
                         data={paginatedWindDataset}
                         units={"mph"}
-                        isBarChart={false}
+                        year={parseInt(selectedYear)}
+                        zoomPanState={zoomPanState}
+                        onZoomPanChange={handleZoomPanChange}
                       />
                     )}
                   </ClimateChartPaginate>
@@ -750,6 +820,8 @@ export default function ComparisonPage({ locations }: ComparisonPageProps) {
                   <ClimateChart
                     datasetProp={annualSunshineDataset}
                     units={"%"}
+                    zoomPanState={zoomPanState}
+                    onZoomPanChange={handleZoomPanChange}
                   />
                 ) : (
                   <ClimateChartPaginate
@@ -762,7 +834,9 @@ export default function ComparisonPage({ locations }: ComparisonPageProps) {
                         index={index}
                         data={paginatedSunshineDataset}
                         units={"%"}
-                        isBarChart={false}
+                        year={parseInt(selectedYear)}
+                        zoomPanState={zoomPanState}
+                        onZoomPanChange={handleZoomPanChange}
                       />
                     )}
                   </ClimateChartPaginate>
@@ -804,7 +878,12 @@ export default function ComparisonPage({ locations }: ComparisonPageProps) {
                 once={DO_LAZY_LOAD_ONCE}
               >
                 {selectedYear === "Annual" ? (
-                  <ClimateChart datasetProp={annualUVIndexDataset} units={""} />
+                  <ClimateChart
+                    datasetProp={annualUVIndexDataset}
+                    units={""}
+                    zoomPanState={zoomPanState}
+                    onZoomPanChange={handleZoomPanChange}
+                  />
                 ) : (
                   <ClimateChartPaginate
                     locations={locations}
@@ -815,8 +894,9 @@ export default function ComparisonPage({ locations }: ComparisonPageProps) {
                       <ClimateChartRenderer
                         index={index}
                         data={paginatedUVIndexDataset}
-                        units={""}
-                        isBarChart={false}
+                        year={parseInt(selectedYear)}
+                        zoomPanState={zoomPanState}
+                        onZoomPanChange={handleZoomPanChange}
                       />
                     )}
                   </ClimateChartPaginate>
@@ -860,6 +940,11 @@ export default function ComparisonPage({ locations }: ComparisonPageProps) {
                 <ClimateChart
                   datasetProp={annualSunAngleDataset}
                   units={"°"}
+                  year={
+                    selectedYear === "Annual" ? 2023 : parseInt(selectedYear)
+                  }
+                  zoomPanState={zoomPanState}
+                  onZoomPanChange={handleZoomPanChange}
                 ></ClimateChart>
               </LazyLoad>
 
@@ -901,6 +986,11 @@ export default function ComparisonPage({ locations }: ComparisonPageProps) {
                 <ClimateChart
                   datasetProp={annualGrowingSeasonDataset}
                   units={"%"}
+                  year={
+                    selectedYear === "Annual" ? 2023 : parseInt(selectedYear)
+                  }
+                  zoomPanState={zoomPanState}
+                  onZoomPanChange={handleZoomPanChange}
                 />
               </LazyLoad>
 
@@ -960,10 +1050,22 @@ export default function ComparisonPage({ locations }: ComparisonPageProps) {
 const ClimateChartRenderer: React.FC<{
   index: number;
   data: any[]; // Replace 'any[]' with the appropriate type for your dataset if known.
-  units: string;
+  units?: string;
   isBarChart?: boolean;
-  isLeapYear?: boolean;
-}> = ({ index, data, units, isBarChart = false, isLeapYear = false }) => {
+  title?: string;
+  year?: number;
+  zoomPanState: any;
+  onZoomPanChange: any;
+}> = ({
+  index,
+  data,
+  units = "",
+  isBarChart = false,
+  title = "",
+  year = 2023,
+  zoomPanState,
+  onZoomPanChange,
+}) => {
   if (index < 0 || index >= data.length) {
     return null;
   }
@@ -971,8 +1073,11 @@ const ClimateChartRenderer: React.FC<{
     <ClimateChart
       datasetProp={data[index]}
       units={units}
-      isLeapYear={isLeapYear}
       isBarChart={isBarChart}
+      title={title}
+      year={year}
+      zoomPanState={zoomPanState}
+      onZoomPanChange={onZoomPanChange}
     />
   );
 };

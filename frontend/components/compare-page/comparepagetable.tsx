@@ -9,7 +9,7 @@ import TableRow from "@mui/material/TableRow";
 import Paper from "@mui/material/Paper";
 
 import { MonthLabels } from "./climatecomparehelpers";
-import { LocationColors, MarkerType } from "../export-props";
+import { LocationColors, MarkerType } from "../location-props";
 import Typography from "@mui/material/Typography";
 
 type ComparisonPageProps = {

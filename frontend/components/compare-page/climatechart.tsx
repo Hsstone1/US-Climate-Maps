@@ -1,9 +1,8 @@
-import React, { useRef, useMemo } from "react";
+import React, { useRef, useMemo, useCallback, useEffect } from "react";
 import {
   ChartData,
   ChartDataset,
   Chart as ChartJS,
-  ChartOptions,
   registerables,
 } from "chart.js";
 import { Chart } from "react-chartjs-2";
@@ -11,7 +10,6 @@ import "chartjs-adapter-moment";
 import ChartDataLabels from "chartjs-plugin-datalabels";
 import moment from "moment";
 import { ClimateChartDataset } from "./climatecomparehelpers";
-import { TooltipCallbacks } from "chart.js";
 import zoomPlugin from "chartjs-plugin-zoom";
 
 ChartJS.register(...registerables, ChartDataLabels, zoomPlugin);
@@ -21,8 +19,11 @@ type ClimateChartProps = {
   datasetProp: ClimateChartDataset[];
   units?: string;
   adjustUnitsByVal?: number;
-  isLeapYear?: boolean;
   isBarChart?: boolean;
+  title?: string;
+  year?: number;
+  zoomPanState: any;
+  onZoomPanChange: any;
 };
 
 function formatValueWithUnit(
@@ -62,14 +63,64 @@ function ClimateChart({
   datasetProp,
   units = "",
   adjustUnitsByVal = 1,
-  isLeapYear = false,
   isBarChart = false,
+  title = "",
+  year = 2023,
+  zoomPanState,
+  onZoomPanChange,
 }: ClimateChartProps) {
-  const chartRef = useRef(null);
+  const chartRef = useRef<ChartJS | null>(null);
+  const X_RANGE_MIN = new Date(year, 0, 1).getTime();
+  const X_RANGE_MAX = new Date(year, 11, 31).getTime();
+
+  // Separate handlers for zoom and pan
+  const onZoomComplete = () => {
+    const chart = chartRef.current;
+    if (chart) {
+      const newZoomPanState = {
+        ...zoomPanState,
+        zoomStart: chart.scales.x.min,
+        zoomEnd: chart.scales.x.max,
+      };
+      onZoomPanChange(newZoomPanState);
+    }
+  };
+
+  const onPanComplete = () => {
+    const chart = chartRef.current;
+    if (chart) {
+      const newZoomPanState = {
+        ...zoomPanState,
+        panStart: chart.scales.x.min,
+        panEnd: chart.scales.x.max,
+      };
+      onZoomPanChange(newZoomPanState);
+    }
+  };
+
+  useEffect(() => {
+    const chart = chartRef.current;
+    if (chart) {
+      // Update chart based on the zoom and pan state
+      if (chart.options.scales?.x) {
+        chart.options.scales.x.min =
+          zoomPanState.zoomStart || zoomPanState.panStart;
+        chart.options.scales.x.max =
+          zoomPanState.zoomEnd || zoomPanState.panEnd;
+      }
+      chart.update();
+
+      // Set event handlers for zoom and pan completion
+      const zoomPluginOptions = chart.options.plugins?.zoom?.zoom as any;
+      if (zoomPluginOptions) {
+        zoomPluginOptions.onZoomComplete = onZoomComplete;
+        //zoomPluginOptions.onPanComplete = onPanComplete;
+      }
+    }
+  }, [zoomPanState, onZoomPanChange]);
 
   // Function to convert day index to date string
-  const dayOfYearToDate = (dayIndex: number, isLeapYear: boolean): string => {
-    const year = isLeapYear ? 2020 : 2021;
+  const dayOfYearToDate = (dayIndex: number): string => {
     return new Date(year, 0, dayIndex + 1).toISOString().split("T")[0];
   };
 
@@ -80,7 +131,7 @@ function ClimateChart({
     return datasets.map((dataset) => ({
       ...dataset,
       data: dataset.data.map((value: any, index: number) => ({
-        x: dayOfYearToDate(index, isLeapYear),
+        x: dayOfYearToDate(index),
         y: value,
       })),
       type: "line", // set type to 'line' explicitly
@@ -95,7 +146,7 @@ function ClimateChart({
     const [highDataset, lowDataset] = datasets;
     const barChartData = highDataset.data.map(
       (highValue: any, index: number) => ({
-        x: dayOfYearToDate(index, isLeapYear),
+        x: dayOfYearToDate(index),
         y: [lowDataset.data[index], highValue], // Create a floating bar
       })
     );
@@ -128,8 +179,8 @@ function ClimateChart({
   // Define scale settings as functions or constants for reusability and clarity
   const xAxisOptions = {
     type: "time",
-    min: new Date("2021-01-01").getTime(),
-    max: new Date("2021-12-31").getTime(),
+    min: X_RANGE_MIN,
+    max: X_RANGE_MAX,
     time: {
       unit: "day",
       tooltipFormat: "MMM DD",
@@ -139,8 +190,8 @@ function ClimateChart({
       },
     },
     ticks: {
-      autoSkip: false,
-      maxTicksLimit: 30,
+      autoSkip: true,
+      maxTicksLimit: 15,
       minRotation: 0,
       maxRotation: 0,
       font: {
@@ -178,13 +229,13 @@ function ClimateChart({
     const yAxisID = dataset.yAxisID;
 
     // Check if value is an array (for floating bars) and take the second value (high value) if it is
-    const yValue = Array.isArray(value.y) ? value.y[1] : value.y;
+    const yValue = Array.isArray(value.y) ? "" : value.y;
 
     // Now ensure that yValue is a number before calling the formatting function
     if (typeof yValue === "number") {
       return formatValueWithUnit(yValue, yAxisID);
     } else {
-      console.error("yValue is not a number:", yValue);
+      //console.error("yValue is not a number: FORMATTER", yValue);
       return ""; // or some default error representation
     }
   };
@@ -197,7 +248,7 @@ function ClimateChart({
     if (typeof yValue === "number") {
       return `${label}: ${formatValueWithUnit(yValue, yAxisID)}`;
     } else {
-      console.error("yValue is not a number:", yValue);
+      //console.error("yValue is not a number: TOOLTIP", yValue);
       return `${label}: N/A`; // or some default error representation
     }
   };
@@ -216,14 +267,22 @@ function ClimateChart({
       responsive: true,
       layout: {
         padding: {
-          top: 20,
+          top: 0,
           left: 10,
         },
       },
+
       plugins: {
         legend: {
           position: "top",
           display: false,
+        },
+        title: {
+          display: true,
+          text: title,
+          font: {
+            size: 20,
+          },
         },
 
         filler: {
@@ -232,34 +291,28 @@ function ClimateChart({
         zoom: {
           zoom: {
             wheel: {
-              enabled: true, // Enable zooming with mouse wheel
-              speed: 0.3, // Sensitivity will be multiplied with this number
+              enabled: true,
+              speed: 0.3,
             },
             pinch: {
-              enabled: true, // Enable zooming with pinch gesture
+              enabled: true,
             },
-            mode: "x", // Only allow zooming on the x-axis
-
-            // Define limits for zooming in (7 days) and zooming out (365 days)
-            // You will need to calculate the number of milliseconds for 7 and 365 days
-            speed: 1, // Set the zooming speed
+            mode: "x",
           },
           pan: {
             enabled: true,
             mode: "x",
             rangeMin: {
-              x: new Date("2021-01-01").getTime(), // Assuming this is the min date
+              x: X_RANGE_MIN, // Assuming this is the min date
             },
             rangeMax: {
-              x: new Date("2021-12-31").getTime(), // Assuming this is the max date
+              x: X_RANGE_MAX, // Assuming this is the max date
             },
-            speed: 20, // Set the panning speed
-            threshold: 10, // Minimal pan distance required before actually applying pan
           },
           limits: {
             x: {
-              min: new Date("2021-01-01").getTime(), // Minimum value to show on the x-axis
-              max: new Date("2021-12-31").getTime(), // Maximum value to show on the x-axis
+              min: X_RANGE_MIN, // Minimum value to show on the x-axis
+              max: X_RANGE_MAX, // Maximum value to show on the x-axis
               minRange: 14 * 24 * 60 * 60 * 1000, // 7 days in milliseconds
               maxRange: 365 * 24 * 60 * 60 * 1000, // 365 days in milliseconds
             },
@@ -271,6 +324,7 @@ function ClimateChart({
           intersect: false,
           callbacks: tooltipCallbacks,
         },
+
         datalabels: {
           align: "bottom",
           anchor: "center",
@@ -302,11 +356,26 @@ function ClimateChart({
         UV_Index: yAxisOptions("UV_Index", "", 10, 0),
         // ... Other Y-axis scales
       },
+
+      /*
       animation: {
-        duration: 1000,
+        duration: 250,
+        easing: "linear",
       },
+      */
     }),
-    [adjustUnitsByVal, units]
+    [
+      adjustUnitsByVal,
+      units,
+      title,
+      year,
+      xAxisOptions,
+      X_RANGE_MIN,
+      X_RANGE_MAX,
+      yAxisOptions,
+      tooltipCallbacks,
+      datalabelsFormatter,
+    ]
   );
 
   return (
