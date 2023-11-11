@@ -8,7 +8,7 @@ import TableHead from "@mui/material/TableHead";
 import TableRow from "@mui/material/TableRow";
 import Paper from "@mui/material/Paper";
 
-import { MonthLabels } from "./comparepageprops";
+import { MonthLabels } from "./climatecomparehelpers";
 import { LocationColors, MarkerType } from "../export-props";
 import Typography from "@mui/material/Typography";
 

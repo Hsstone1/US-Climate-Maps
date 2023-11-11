@@ -16,8 +16,8 @@ type MapOptions = google.maps.MapOptions;
 //max number of locations that can be compared at once
 const NUM_NUM_LOCATIONS = 5;
 
-//let apiUrl = "http://localhost:5000/climate_data";
-let apiUrl = "https://api.usclimatemaps.com/climate_data";
+let apiUrl = "http://localhost:5000/climate_data";
+//let apiUrl = "https://api.usclimatemaps.com/climate_data";
 
 export default function Map() {
   const mapRef = useRef<GoogleMap>();
@@ -179,6 +179,8 @@ export default function Map() {
                 lng: longitude,
                 data: data,
               };
+
+              console.log(data);
 
               setSelectedMarker((prevMarkers) => [...prevMarkers, newMarker]);
 

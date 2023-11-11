@@ -1,6 +1,6 @@
 import dynamic from "next/dynamic";
 
-import { ClimateChartDataset } from "./comparepageprops";
+import { ClimateChartDataset } from "./climatecomparehelpers";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import Typography from "@mui/material/Typography";
 import { MarkerType, LocationColors } from "../export-props";
@@ -20,7 +20,7 @@ type ComparisonPageProps = {
 
 const CHART_BORDER_WIDTH = 2;
 //const LINE_TENSION = 0.35;
-const LINE_TENSION = 0;
+const LINE_TENSION = 0.5;
 const LINE_ALPHA = 1;
 const BACKGROUND_ALPHA = 0.05;
 const HEADING_VARIANT = "h5";
@@ -197,6 +197,7 @@ export default function ComparisonPage({ locations }: ComparisonPageProps) {
                         index={index}
                         data={paginatedTemperatureDataset}
                         units={"°F"}
+                        isBarChart={true}
                       />
                     )}
                   </ClimateChartPaginate>
@@ -261,6 +262,7 @@ export default function ComparisonPage({ locations }: ComparisonPageProps) {
                         index={index}
                         data={paginatedApparentTemperatureDataset}
                         units={"°F"}
+                        isBarChart={true}
                       />
                     )}
                   </ClimateChartPaginate>
@@ -373,6 +375,7 @@ export default function ComparisonPage({ locations }: ComparisonPageProps) {
                         index={index}
                         data={paginatedComfortDataset}
                         units={""}
+                        isBarChart={false}
                       />
                     )}
                   </ClimateChartPaginate>
@@ -410,7 +413,8 @@ export default function ComparisonPage({ locations }: ComparisonPageProps) {
                 component="div"
                 textAlign={"center"}
               >
-                {selectedYear === "Annual" ? "Annual" : selectedYear} Rainfall
+                {selectedYear === "Annual" ? "Annual" : selectedYear}{" "}
+                Precipitation
               </Typography>
               <LazyLoad
                 height={LAZY_LOAD_HEIGHT}
@@ -433,6 +437,7 @@ export default function ComparisonPage({ locations }: ComparisonPageProps) {
                         index={index}
                         data={paginatedPrecipDataset}
                         units={"in"}
+                        isBarChart={false}
                       />
                     )}
                   </ClimateChartPaginate>
@@ -440,15 +445,17 @@ export default function ComparisonPage({ locations }: ComparisonPageProps) {
               </LazyLoad>
 
               <p style={{ textAlign: "center" }}>
-                Rainfall in inches for each month. The total number of rainy
-                days expected for each month, along with the annual total are
-                displayed in the table. A rainy day is counted if there is more
-                than 0.01 inches of accumulation.
+                Precipitation in inches for each month. Precipitation is the
+                combined total water content of both rain and snow. The total
+                number of rainy days expected for each month, along with the
+                annual precipitation total are displayed in the table. A rainy
+                day is counted if there is more than 0.01 inches of rainfall
+                accumulation.
               </p>
               <div>
                 <Table
                   locations={locations}
-                  heading="Total Rainfall"
+                  heading="Total Precipitation"
                   monthlyDataKey={"PRECIP_AVG"}
                   annualDataKey={"PRECIP_AVG"}
                   decimalTrunc={1}
@@ -495,6 +502,7 @@ export default function ComparisonPage({ locations }: ComparisonPageProps) {
                         index={index}
                         data={paginatedSnowDataset}
                         units={"in"}
+                        isBarChart={false}
                       />
                     )}
                   </ClimateChartPaginate>
@@ -561,6 +569,7 @@ export default function ComparisonPage({ locations }: ComparisonPageProps) {
                         index={index}
                         data={paginatedHumidityDataset}
                         units={"%"}
+                        isBarChart={true}
                       />
                     )}
                   </ClimateChartPaginate>
@@ -631,6 +640,7 @@ export default function ComparisonPage({ locations }: ComparisonPageProps) {
                         index={index}
                         data={paginatedDewpointDataset}
                         units={"°F"}
+                        isBarChart={false}
                       />
                     )}
                   </ClimateChartPaginate>
@@ -695,6 +705,7 @@ export default function ComparisonPage({ locations }: ComparisonPageProps) {
                         index={index}
                         data={paginatedWindDataset}
                         units={"mph"}
+                        isBarChart={false}
                       />
                     )}
                   </ClimateChartPaginate>
@@ -751,6 +762,7 @@ export default function ComparisonPage({ locations }: ComparisonPageProps) {
                         index={index}
                         data={paginatedSunshineDataset}
                         units={"%"}
+                        isBarChart={false}
                       />
                     )}
                   </ClimateChartPaginate>
@@ -804,6 +816,7 @@ export default function ComparisonPage({ locations }: ComparisonPageProps) {
                         index={index}
                         data={paginatedUVIndexDataset}
                         units={""}
+                        isBarChart={false}
                       />
                     )}
                   </ClimateChartPaginate>
@@ -948,19 +961,21 @@ const ClimateChartRenderer: React.FC<{
   index: number;
   data: any[]; // Replace 'any[]' with the appropriate type for your dataset if known.
   units: string;
-}> = ({ index, data, units }) => {
+  isBarChart?: boolean;
+  isLeapYear?: boolean;
+}> = ({ index, data, units, isBarChart = false, isLeapYear = false }) => {
   if (index < 0 || index >= data.length) {
     return null;
   }
-  return <ClimateChart datasetProp={data[index]} units={units} />;
+  return (
+    <ClimateChart
+      datasetProp={data[index]}
+      units={units}
+      isLeapYear={isLeapYear}
+      isBarChart={isBarChart}
+    />
+  );
 };
-
-// Append first index to end of array for chart
-function appendFirstIndexToEnd(data: number[]): number[] {
-  const newData = [...data];
-  newData.push(data[0]);
-  return newData;
-}
 
 const mapClimateData = (
   location: any,
@@ -1050,12 +1065,10 @@ const temperature_dataset = (
     const high_dataset: ClimateChartDataset = {
       type: "line",
       label: location.data.location_data.location,
-      data: appendFirstIndexToEnd(
-        mapClimateData(location, "HIGH_AVG", selectedYear, {
-          multiplyByVal: 1,
-          windowSize: SMA_SMOOTH_DAYS,
-        })
-      ),
+      data: mapClimateData(location, "HIGH_AVG", selectedYear, {
+        multiplyByVal: 1,
+        windowSize: SMA_SMOOTH_DAYS,
+      }),
       backgroundColor: background_color,
       borderColor: color,
       borderWidth: CHART_BORDER_WIDTH,
@@ -1070,12 +1083,10 @@ const temperature_dataset = (
     const low_dataset: ClimateChartDataset = {
       type: "line",
       label: location.data.location_data.location,
-      data: appendFirstIndexToEnd(
-        mapClimateData(location, "LOW_AVG", selectedYear, {
-          multiplyByVal: 1,
-          windowSize: SMA_SMOOTH_DAYS,
-        })
-      ),
+      data: mapClimateData(location, "LOW_AVG", selectedYear, {
+        multiplyByVal: 1,
+        windowSize: SMA_SMOOTH_DAYS,
+      }),
       backgroundColor: background_color,
       borderColor: color,
       borderWidth: CHART_BORDER_WIDTH,
@@ -1109,12 +1120,10 @@ const apparent_temperature_dataset = (
     const high_dataset: ClimateChartDataset = {
       type: "line",
       label: location.data.location_data.location,
-      data: appendFirstIndexToEnd(
-        mapClimateData(location, "APPARENT_HIGH_AVG", selectedYear, {
-          multiplyByVal: 1,
-          windowSize: SMA_SMOOTH_DAYS,
-        })
-      ),
+      data: mapClimateData(location, "APPARENT_HIGH_AVG", selectedYear, {
+        multiplyByVal: 1,
+        windowSize: SMA_SMOOTH_DAYS,
+      }),
       backgroundColor: background_color,
       borderColor: color,
       borderWidth: CHART_BORDER_WIDTH,
@@ -1129,12 +1138,10 @@ const apparent_temperature_dataset = (
     const low_dataset: ClimateChartDataset = {
       type: "line",
       label: location.data.location_data.location,
-      data: appendFirstIndexToEnd(
-        mapClimateData(location, "APPARENT_LOW_AVG", selectedYear, {
-          multiplyByVal: 1,
-          windowSize: SMA_SMOOTH_DAYS,
-        })
-      ),
+      data: mapClimateData(location, "APPARENT_LOW_AVG", selectedYear, {
+        multiplyByVal: 1,
+        windowSize: SMA_SMOOTH_DAYS,
+      }),
       backgroundColor: background_color,
       borderColor: color,
       borderWidth: CHART_BORDER_WIDTH,
@@ -1168,12 +1175,10 @@ const temperature_range_dataset = (
     const max_dataset: ClimateChartDataset = {
       type: "line",
       label: location.data.location_data.location,
-      data: appendFirstIndexToEnd(
-        mapClimateData(location, "EXPECTED_MAX", selectedYear, {
-          multiplyByVal: 1,
-          windowSize: SMA_SMOOTH_DAYS,
-        })
-      ),
+      data: mapClimateData(location, "EXPECTED_MAX", selectedYear, {
+        multiplyByVal: 1,
+        windowSize: SMA_SMOOTH_DAYS,
+      }),
       backgroundColor: background_color,
       borderColor: color,
       borderWidth: CHART_BORDER_WIDTH,
@@ -1188,12 +1193,10 @@ const temperature_range_dataset = (
     const min_dataset: ClimateChartDataset = {
       type: "line",
       label: location.data.location_data.location,
-      data: appendFirstIndexToEnd(
-        mapClimateData(location, "EXPECTED_MIN", selectedYear, {
-          multiplyByVal: 1,
-          windowSize: SMA_SMOOTH_DAYS,
-        })
-      ),
+      data: mapClimateData(location, "EXPECTED_MIN", selectedYear, {
+        multiplyByVal: 1,
+        windowSize: SMA_SMOOTH_DAYS,
+      }),
       backgroundColor: background_color,
       borderColor: color,
       borderWidth: CHART_BORDER_WIDTH,
@@ -1225,13 +1228,10 @@ const precip_dataset = (
     const precip: ClimateChartDataset = {
       type: "line",
       label: location.data.location_data.location,
-      data: appendFirstIndexToEnd(
-        mapClimateData(location, "PRECIP_AVG", selectedYear, {
-          multiplyByVal: multiplier,
-          windowSize: SMA_SMOOTH_DAYS * 2,
-        })
-      ),
-
+      data: mapClimateData(location, "PRECIP_AVG", selectedYear, {
+        multiplyByVal: multiplier,
+        windowSize: SMA_SMOOTH_DAYS * 2,
+      }),
       backgroundColor: color,
       borderColor: color,
       borderWidth: CHART_BORDER_WIDTH,
@@ -1262,13 +1262,10 @@ const snow_dataset = (
     const snow_dataset: ClimateChartDataset = {
       type: "line",
       label: location.data.location_data.location,
-      data: appendFirstIndexToEnd(
-        mapClimateData(location, "SNOW_AVG", selectedYear, {
-          multiplyByVal: multiplier,
-          windowSize: SMA_SMOOTH_DAYS * 2,
-        })
-      ),
-
+      data: mapClimateData(location, "SNOW_AVG", selectedYear, {
+        multiplyByVal: multiplier,
+        windowSize: SMA_SMOOTH_DAYS * 2,
+      }),
       backgroundColor: color,
       borderColor: color,
       borderWidth: CHART_BORDER_WIDTH,
@@ -1299,12 +1296,10 @@ const humidity_dataset = (
     const morning_humidity_dataset: ClimateChartDataset = {
       type: "line",
       label: location.data.location_data.location,
-      data: appendFirstIndexToEnd(
-        mapClimateData(location, "MORNING_HUMIDITY_AVG", selectedYear, {
-          multiplyByVal: 1,
-          windowSize: SMA_SMOOTH_DAYS,
-        })
-      ),
+      data: mapClimateData(location, "MORNING_HUMIDITY_AVG", selectedYear, {
+        multiplyByVal: 1,
+        windowSize: SMA_SMOOTH_DAYS,
+      }),
 
       backgroundColor: background_color,
       borderColor: color,
@@ -1319,12 +1314,10 @@ const humidity_dataset = (
     const afternoon_humidity_dataset: ClimateChartDataset = {
       type: "line",
       label: location.data.location_data.location,
-      data: appendFirstIndexToEnd(
-        mapClimateData(location, "AFTERNOON_HUMIDITY_AVG", selectedYear, {
-          multiplyByVal: 1,
-          windowSize: SMA_SMOOTH_DAYS,
-        })
-      ),
+      data: mapClimateData(location, "AFTERNOON_HUMIDITY_AVG", selectedYear, {
+        multiplyByVal: 1,
+        windowSize: SMA_SMOOTH_DAYS,
+      }),
 
       backgroundColor: background_color,
       borderColor: color,
@@ -1355,12 +1348,10 @@ const dewpoint_dataset = (
     const dewpoint_dataset: ClimateChartDataset = {
       type: "line",
       label: location.data.location_data.location,
-      data: appendFirstIndexToEnd(
-        mapClimateData(location, "DEWPOINT_AVG", selectedYear, {
-          multiplyByVal: 1,
-          windowSize: SMA_SMOOTH_DAYS,
-        })
-      ),
+      data: mapClimateData(location, "DEWPOINT_AVG", selectedYear, {
+        multiplyByVal: 1,
+        windowSize: SMA_SMOOTH_DAYS,
+      }),
 
       backgroundColor: color,
       borderColor: color,
@@ -1391,12 +1382,10 @@ const wind_dataset = (
     const wind_dataset: ClimateChartDataset = {
       type: "line",
       label: location.data.location_data.location,
-      data: appendFirstIndexToEnd(
-        mapClimateData(location, "WIND_AVG", selectedYear, {
-          multiplyByVal: 1,
-          windowSize: SMA_SMOOTH_DAYS,
-        })
-      ),
+      data: mapClimateData(location, "WIND_AVG", selectedYear, {
+        multiplyByVal: 1,
+        windowSize: SMA_SMOOTH_DAYS,
+      }),
 
       backgroundColor: color,
       borderColor: color,
@@ -1427,12 +1416,10 @@ const sunshine_dataset = (
     const sunshine_dataset: ClimateChartDataset = {
       type: "line",
       label: location.data.location_data.location,
-      data: appendFirstIndexToEnd(
-        mapClimateData(location, "SUNSHINE_AVG", selectedYear, {
-          multiplyByVal: 1,
-          windowSize: SMA_SMOOTH_DAYS,
-        })
-      ),
+      data: mapClimateData(location, "SUNSHINE_AVG", selectedYear, {
+        multiplyByVal: 1,
+        windowSize: SMA_SMOOTH_DAYS,
+      }),
 
       backgroundColor: color,
       borderColor: color,
@@ -1463,12 +1450,10 @@ const sun_angle_dataset = (
     const sun_angle: ClimateChartDataset = {
       type: "line",
       label: location.data.location_data.location,
-      data: appendFirstIndexToEnd(
-        mapClimateData(location, "SUN_ANGLE", selectedYear, {
-          multiplyByVal: 1,
-          windowSize: SMA_SMOOTH_DAYS,
-        })
-      ),
+      data: mapClimateData(location, "SUN_ANGLE", selectedYear, {
+        multiplyByVal: 1,
+        windowSize: SMA_SMOOTH_DAYS,
+      }),
 
       backgroundColor: color,
       borderColor: color,
@@ -1499,12 +1484,10 @@ const uv_index_dataset = (
     const uv_index: ClimateChartDataset = {
       type: "line",
       label: location.data.location_data.location,
-      data: appendFirstIndexToEnd(
-        mapClimateData(location, "UV_INDEX", selectedYear, {
-          multiplyByVal: 1,
-          windowSize: SMA_SMOOTH_DAYS,
-        })
-      ),
+      data: mapClimateData(location, "UV_INDEX", selectedYear, {
+        multiplyByVal: 1,
+        windowSize: SMA_SMOOTH_DAYS,
+      }),
 
       backgroundColor: color,
       borderColor: color,
@@ -1535,12 +1518,10 @@ const comfort_index_dataset = (
     const comfort_index_dataset: ClimateChartDataset = {
       type: "line",
       label: location.data.location_data.location,
-      data: appendFirstIndexToEnd(
-        mapClimateData(location, "COMFORT_INDEX", selectedYear, {
-          multiplyByVal: 1,
-          windowSize: SMA_SMOOTH_DAYS,
-        })
-      ),
+      data: mapClimateData(location, "COMFORT_INDEX", selectedYear, {
+        multiplyByVal: 1,
+        windowSize: SMA_SMOOTH_DAYS,
+      }),
 
       backgroundColor: color,
       borderColor: color,
@@ -1571,12 +1552,10 @@ const growing_season_dataset = (
     const frostfree_dataset: ClimateChartDataset = {
       type: "line",
       label: location.data.location_data.location,
-      data: appendFirstIndexToEnd(
-        mapClimateData(location, "GROWING_CHANCE", selectedYear, {
-          multiplyByVal: 1,
-          windowSize: SMA_SMOOTH_DAYS,
-        })
-      ),
+      data: mapClimateData(location, "GROWING_CHANCE", selectedYear, {
+        multiplyByVal: 1,
+        windowSize: SMA_SMOOTH_DAYS,
+      }),
       backgroundColor: color,
       borderColor: color,
       borderWidth: CHART_BORDER_WIDTH,

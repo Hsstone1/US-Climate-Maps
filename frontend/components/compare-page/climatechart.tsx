@@ -1,272 +1,282 @@
+import React, { useRef, useMemo } from "react";
 import {
+  ChartData,
+  ChartDataset,
   Chart as ChartJS,
-  LinearScale,
-  CategoryScale,
-  BarElement,
-  PointElement,
-  LineElement,
-  Legend,
-  Tooltip,
-  LineController,
-  BarController,
   ChartOptions,
-  Filler,
+  registerables,
 } from "chart.js";
-import React, { useEffect, useRef, useMemo, useCallback } from "react";
 import { Chart } from "react-chartjs-2";
+import "chartjs-adapter-moment";
 import ChartDataLabels from "chartjs-plugin-datalabels";
-import { ClimateChartDataset } from "./comparepageprops";
+import moment from "moment";
+import { ClimateChartDataset } from "./climatecomparehelpers";
+import { TooltipCallbacks } from "chart.js";
 import zoomPlugin from "chartjs-plugin-zoom";
-import { useZoom } from "./zoomcontext";
 
-ChartJS.register(
-  LinearScale,
-  CategoryScale,
-  BarElement,
-  PointElement,
-  LineElement,
-  Legend,
-  Tooltip,
-  LineController,
-  BarController,
-  Filler,
-  ChartDataLabels,
-  zoomPlugin
-);
+ChartJS.register(...registerables, ChartDataLabels, zoomPlugin);
 
+// Define the prop types for your component
 type ClimateChartProps = {
   datasetProp: ClimateChartDataset[];
   units?: string;
   adjustUnitsByVal?: number;
   isLeapYear?: boolean;
+  isBarChart?: boolean;
 };
 
-// Define month names
-const MONTHS = [
-  "Jan",
-  "Feb",
-  "Mar",
-  "Apr",
-  "May",
-  "Jun",
-  "Jul",
-  "Aug",
-  "Sep",
-  "Oct",
-  "Nov",
-  "Dec",
-];
+function formatValueWithUnit(
+  yValue: number,
+  yAxisID: string,
+  decimalTrunc?: 0
+): string {
+  let unit = "";
+
+  switch (yAxisID) {
+    case "Temperature":
+      unit = "°F";
+      break;
+    case "Precip":
+      unit = "in";
+      break;
+    case "Sun_Angle":
+      unit = "°";
+      break;
+    case "Percentage":
+      unit = "%";
+      break;
+    case "Wind":
+      unit = "mph";
+      break;
+
+    // ... add other cases as needed
+    default:
+      unit = "";
+      break;
+  }
+
+  return `${yValue.toFixed(decimalTrunc)}${unit}`;
+}
 
 function ClimateChart({
   datasetProp,
   units = "",
   adjustUnitsByVal = 1,
   isLeapYear = false,
+  isBarChart = false,
 }: ClimateChartProps) {
-  const chartRef = useRef<ChartJS<"line"> | null>(null);
+  const chartRef = useRef(null);
 
-  /*
-  const { zoomLevel, setZoomLevel } = useZoom();
-  useEffect(() => {
-    const chartInstance = chartRef.current;
-    if (zoomLevel && chartInstance) {
-      const xScale = chartInstance.scales.x;
-      xScale.min = zoomLevel.xMin;
-      xScale.max = zoomLevel.xMax;
-      chartInstance.update();
-    }
-  }, [zoomLevel]);
-  const handleZoom = useCallback(
-    ({ chart }: { chart: any }) => {
-      if (chart && chart.scales) {
-        const xScale = chart.scales.x;
-        if (xScale) {
-          const currentZoomState = {
-            xMin: xScale.min,
-            xMax: xScale.max,
-          };
-          setZoomLevel(currentZoomState);
-        }
-      }
-    },
-    [setZoomLevel]
-  );
-  */
+  // Function to convert day index to date string
+  const dayOfYearToDate = (dayIndex: number, isLeapYear: boolean): string => {
+    const year = isLeapYear ? 2020 : 2021;
+    return new Date(year, 0, dayIndex + 1).toISOString().split("T")[0];
+  };
 
-  // This function generates labels with month names at the correct indices
-  const generateMonthLabels = useCallback(() => {
-    // Days in months (non-leap year by default)
-    const daysInMonths = [31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31];
-
-    // Adjust for leap year
-    if (isLeapYear) {
-      daysInMonths[1] = 29; // February
-    }
-
-    // Generate labels
-    const labels = new Array(isLeapYear ? 366 : 365).fill("");
-    let dayCounter = 0;
-
-    for (let i = 0; i < daysInMonths.length; i++) {
-      labels[dayCounter] = MONTHS[i]; // Set the month label
-      dayCounter += daysInMonths[i]; // Move to the next month position
-    }
-
-    return labels;
-  }, [isLeapYear]);
-
-  //This function generates labels with day and month names at the correct indices
-  const generateDateLabels = useCallback(() => {
-    const daysInMonths = [31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31];
-    if (isLeapYear) {
-      daysInMonths[1] = 29; // February in leap year
-    }
-
-    const dateLabels = [];
-    let totalDays = 0;
-
-    for (let month = 0; month < daysInMonths.length; month++) {
-      for (let day = 1; day <= daysInMonths[month]; day++) {
-        dateLabels.push({ day, month: month + 1, totalDays });
-        totalDays++;
-      }
-    }
-
-    return dateLabels;
-  }, [isLeapYear]);
-
-  const createChartData = useCallback(() => {
-    return {
-      labels: generateMonthLabels(),
-      datasets: datasetProp.map((dataset) => ({
-        type: dataset.type,
-        label: dataset.label,
-        data: dataset.data,
-        backgroundColor: dataset.backgroundColor,
-        borderColor: dataset.borderColor,
-        borderWidth: dataset.borderWidth,
-        borderDash: dataset.borderDash,
-        pointRadius: dataset.pointRadius,
-        pointHoverRadius: dataset.pointHoverRadius,
-        lineTension: dataset.lineTension,
-        fill: dataset.fill,
-        yAxisID: dataset.yAxisID,
-        datalabels: {
-          formatter: (value: any, context: any) => {
-            const yAxisID = context.dataset.yAxisID;
-
-            //TODO error when removing the last location when select year is active for datasets that do not
-            //Have data for select years, so for example, the Sun angle dataset does not have data for select years
-            if (!dataset.data || dataset.data.length === 0) {
-              return ""; // Return empty string or any other placeholder if the data doesn't exist
-            }
-
-            if (yAxisID === "Temperature") {
-              return value.toFixed(0) + "°F";
-            } else if (yAxisID === "Precip" && value !== 0) {
-              return value.toFixed(1) + "in";
-            } else if (yAxisID === "Percentage" && value !== 0 && value !== 1) {
-              return value.toFixed(0) + "%";
-            } else if (yAxisID === "Wind") {
-              return value.toFixed(0) + " mph";
-            } else if (yAxisID === "Sun_Angle") {
-              return value.toFixed(1) + "°";
-            } else if (value !== 1 && value !== 0) {
-              return value.toFixed(0);
-            } else {
-              return "";
-            }
-          },
-        },
+  // Transform datasets for line chart
+  const transformLineDatasets = (
+    datasets: ClimateChartDataset[]
+  ): ChartDataset<"line">[] => {
+    return datasets.map((dataset) => ({
+      ...dataset,
+      data: dataset.data.map((value: any, index: number) => ({
+        x: dayOfYearToDate(index, isLeapYear),
+        y: value,
       })),
-    };
-  }, [datasetProp, generateMonthLabels]);
+      type: "line", // set type to 'line' explicitly
+    }));
+  };
 
-  const chartOptions = useMemo(
+  // Transform datasets for bar chart
+  const transformBarDatasets = (
+    datasets: ClimateChartDataset[]
+  ): ChartDataset<"bar", any>[] => {
+    // Assuming datasets[0] contains the high values and datasets[1] contains the low values
+    const [highDataset, lowDataset] = datasets;
+    const barChartData = highDataset.data.map(
+      (highValue: any, index: number) => ({
+        x: dayOfYearToDate(index, isLeapYear),
+        y: [lowDataset.data[index], highValue], // Create a floating bar
+      })
+    );
+
+    return [
+      {
+        ...highDataset, // Use properties from highDataset for the bar chart
+        data: barChartData,
+        type: "bar",
+        borderSkipped: false,
+        categoryPercentage: 0.9,
+        barPercentage: 0.9,
+      },
+    ];
+  };
+
+  // Determine the datasets based on the chart type
+  const datasets = isBarChart
+    ? transformBarDatasets(datasetProp)
+    : transformLineDatasets(datasetProp);
+
+  // Create the chart data
+  const chartData: ChartData<"bar" | "line"> = useMemo(
+    () => ({
+      datasets, // datasets is now correctly typed
+    }),
+    [datasets]
+  );
+
+  // Define scale settings as functions or constants for reusability and clarity
+  const xAxisOptions = {
+    type: "time",
+    min: new Date("2021-01-01").getTime(),
+    max: new Date("2021-12-31").getTime(),
+    time: {
+      unit: "day",
+      tooltipFormat: "MMM DD",
+      displayFormats: {
+        month: "MMM",
+        day: "MMM DD",
+      },
+    },
+    ticks: {
+      autoSkip: false,
+      maxTicksLimit: 30,
+      minRotation: 0,
+      maxRotation: 0,
+      font: {
+        size: 10,
+      },
+    },
+  };
+
+  const yAxisOptions = (
+    axisId: string,
+    unit: string,
+    max: number,
+    min?: number
+  ) => ({
+    type: "linear",
+    position: "left",
+    id: axisId,
+    display: "auto",
+    beginAtZero: false,
+    suggestedMax: max,
+    suggestedMin: min,
+    ticks: {
+      callback: function (value: any) {
+        return `${value}${unit}`;
+      },
+      maxTicksLimit: 11,
+      stepSize: max / 10,
+      font: {
+        size: 10,
+      },
+    },
+  });
+  const datalabelsFormatter = (value: { y: any[] }, context: any) => {
+    const dataset = context.chart.data.datasets[context.datasetIndex];
+    const yAxisID = dataset.yAxisID;
+
+    // Check if value is an array (for floating bars) and take the second value (high value) if it is
+    const yValue = Array.isArray(value.y) ? value.y[1] : value.y;
+
+    // Now ensure that yValue is a number before calling the formatting function
+    if (typeof yValue === "number") {
+      return formatValueWithUnit(yValue, yAxisID);
+    } else {
+      console.error("yValue is not a number:", yValue);
+      return ""; // or some default error representation
+    }
+  };
+
+  const tooltipLabelCallback = (context: any) => {
+    const label = context.dataset.label || "";
+    const yAxisID = context.dataset.yAxisID;
+    const yValue = context.parsed.y;
+
+    if (typeof yValue === "number") {
+      return `${label}: ${formatValueWithUnit(yValue, yAxisID)}`;
+    } else {
+      console.error("yValue is not a number:", yValue);
+      return `${label}: N/A`; // or some default error representation
+    }
+  };
+
+  const tooltipCallbacks: any = {
+    title: function (context: { label: any }[]) {
+      const dateLabel = context[0].label;
+      return moment(dateLabel).format("MMM DD");
+    },
+    label: tooltipLabelCallback,
+  };
+
+  // Combine them into your main chart options
+  const chartOptions: any = useMemo(
     () => ({
       responsive: true,
       layout: {
         padding: {
           top: 20,
+          left: 10,
         },
       },
-
       plugins: {
         legend: {
-          position: "top" as const,
+          position: "top",
           display: false,
         },
-        title: {
-          display: true,
-          text: "Yearly Climate Averages",
-        },
+
         filler: {
           propagate: true,
         },
-
         zoom: {
+          zoom: {
+            wheel: {
+              enabled: true, // Enable zooming with mouse wheel
+              speed: 0.3, // Sensitivity will be multiplied with this number
+            },
+            pinch: {
+              enabled: true, // Enable zooming with pinch gesture
+            },
+            mode: "x", // Only allow zooming on the x-axis
+
+            // Define limits for zooming in (7 days) and zooming out (365 days)
+            // You will need to calculate the number of milliseconds for 7 and 365 days
+            speed: 1, // Set the zooming speed
+          },
           pan: {
             enabled: true,
             mode: "x",
+            rangeMin: {
+              x: new Date("2021-01-01").getTime(), // Assuming this is the min date
+            },
+            rangeMax: {
+              x: new Date("2021-12-31").getTime(), // Assuming this is the max date
+            },
+            speed: 20, // Set the panning speed
+            threshold: 10, // Minimal pan distance required before actually applying pan
           },
-          zoom: {
-            wheel: {
-              enabled: true,
-              speed: 0.3,
+          limits: {
+            x: {
+              min: new Date("2021-01-01").getTime(), // Minimum value to show on the x-axis
+              max: new Date("2021-12-31").getTime(), // Maximum value to show on the x-axis
+              minRange: 14 * 24 * 60 * 60 * 1000, // 7 days in milliseconds
+              maxRange: 365 * 24 * 60 * 60 * 1000, // 365 days in milliseconds
             },
-            pinch: {
-              enabled: true,
-            },
-            mode: "x",
           },
         },
-
         tooltip: {
           mode: "nearest",
           axis: "x",
           intersect: false,
-          callbacks: {
-            title: function (context) {
-              // Get the first tooltip item assuming there is one dataset, otherwise, might need to choose the appropriate one
-              const tooltipItem = context.length ? context[0] : null;
-
-              if (tooltipItem) {
-                const dateLabels = generateDateLabels();
-                const date = dateLabels[tooltipItem.dataIndex];
-
-                // Return the string to be displayed at the top of the tooltip
-                return `${MONTHS[date.month - 1]} ${date.day}`;
-              }
-
-              return "";
-            },
-
-            label: (context) => {
-              let label = context.dataset.label || "";
-
-              if (label) {
-                label += ": ";
-              }
-
-              if (context.parsed.y !== null) {
-                label +=
-                  (context.parsed.y * adjustUnitsByVal).toFixed(1) +
-                  " " +
-                  units;
-              }
-
-              return label;
-            },
-          },
+          callbacks: tooltipCallbacks,
         },
-
         datalabels: {
           align: "bottom",
           anchor: "center",
           offset: -25,
           display: "auto",
           color: "#808080",
-
           padding: {
             top: 10,
             right: 20,
@@ -275,164 +285,36 @@ function ClimateChart({
           },
           font: {
             size: 10,
-            weight: "bolder",
+            style: "oblique",
+            family: "Arial",
           },
+          formatter: datalabelsFormatter,
         },
       },
-
       scales: {
-        x: {
-          ticks: {
-            autoSkip: false,
-            maxTicksLimit: 12,
-            minRotation: 0,
-            maxRotation: 0,
-            font: {
-              size: 10,
-            },
-          },
-        },
-        Temperature: {
-          type: "linear",
-          position: "left",
-          display: "auto",
-          beginAtZero: false,
-          suggestedMax: 100,
-          suggestedMin: 0,
-          ticks: {
-            callback: function (value) {
-              return value + "F";
-            },
-            maxTicksLimit: 10,
-
-            stepSize: 10,
-            font: {
-              size: 10,
-            },
-          },
-        },
-
-        Precip: {
-          type: "linear",
-          position: "left",
-          display: "auto",
-          min: 0,
-          suggestedMax: 5,
-          ticks: {
-            beginAtZero: true,
-            callback: function (value) {
-              return value + "in";
-            },
-            maxTicksLimit: 10,
-            stepSize: 1,
-            font: {
-              size: 10,
-            },
-          },
-        },
-
-        Percentage: {
-          type: "linear",
-          position: "left",
-          display: "auto",
-          max: 100,
-          min: 0,
-          ticks: {
-            beginAtZero: true,
-            callback: function (value: number) {
-              return value.toFixed(0) + "%"; // Multiply by 100 and append "%"
-            },
-            maxTicksLimit: 10,
-            stepSize: 10,
-            font: {
-              size: 10,
-            },
-          },
-        },
-
-        Wind: {
-          type: "linear",
-          position: "left",
-          display: "auto",
-          min: 0,
-          suggestedMax: 10,
-          ticks: {
-            beginAtZero: true,
-            callback: function (value) {
-              return value + "mph";
-            },
-            maxTicksLimit: 10,
-
-            stepSize: 1,
-            font: {
-              size: 10,
-            },
-          },
-        },
-
-        Sun_Angle: {
-          type: "linear",
-          position: "left",
-          display: "auto",
-          max: 90,
-          min: 0,
-          ticks: {
-            beginAtZero: true,
-
-            maxTicksLimit: 10,
-            stepSize: 10,
-            font: {
-              size: 10,
-            },
-          },
-        },
-
-        UV_Index: {
-          type: "linear",
-          position: "left",
-          display: "auto",
-          suggestedMax: 10,
-          min: 0,
-          ticks: {
-            beginAtZero: true,
-
-            maxTicksLimit: 10,
-            stepSize: 1,
-            font: {
-              size: 10,
-            },
-          },
-        },
-
-        Comfort_Index: {
-          type: "linear",
-          position: "left",
-          display: "auto",
-          max: 100,
-          min: 0,
-          ticks: {
-            beginAtZero: true,
-
-            maxTicksLimit: 10,
-            stepSize: 10,
-            font: {
-              size: 10,
-            },
-          },
-        },
+        x: xAxisOptions,
+        Temperature: yAxisOptions("Temperature", "F", 100, 0),
+        Precip: yAxisOptions("Precip", "in", 5, 0),
+        Sun_Angle: yAxisOptions("Sun_Angle", "°", 90, 0),
+        Percentage: yAxisOptions("Percentage", "%", 100, 0),
+        Wind: yAxisOptions("Wind", "mph", 10, 0),
+        Comfort_Index: yAxisOptions("Comfort_Index", "", 100, 0),
+        UV_Index: yAxisOptions("UV_Index", "", 10, 0),
+        // ... Other Y-axis scales
+      },
+      animation: {
+        duration: 1000,
       },
     }),
-    [generateDateLabels, adjustUnitsByVal, units]
-  ) as ChartOptions<"bar" | "line">;
-
-  const memoizedChartData = useMemo(() => createChartData(), [createChartData]);
+    [adjustUnitsByVal, units]
+  );
 
   return (
     <Chart
       ref={chartRef}
       options={chartOptions}
-      data={memoizedChartData}
-      type={"line"}
+      data={chartData}
+      type={isBarChart ? "bar" : "line"}
     />
   );
 }

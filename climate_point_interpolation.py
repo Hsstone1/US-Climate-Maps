@@ -2,13 +2,17 @@ import os
 import glob
 import shutil
 import sys
+import joblib
 import numpy as np
 import pandas as pd
 from sklearn.discriminant_analysis import StandardScaler
+from sklearn.linear_model import Lasso, LinearRegression
+from sklearn.pipeline import Pipeline
+from sklearn.preprocessing import PolynomialFeatures
 from climate_point_interpolation_helpers import *
 import time
 from sklearn.ensemble import RandomForestRegressor
-from sklearn.model_selection import train_test_split
+from sklearn.model_selection import GridSearchCV, train_test_split
 from sklearn.metrics import mean_squared_error, mean_absolute_error, r2_score
 import boto3
 import platform
@@ -25,8 +29,8 @@ The NWS stations are used largely to get sunlight data.
 """
 
 # TODO if the start date is more recent than 2019-04-01 there is an error involving the regresion
-NUM_NWS_SAMPLE_STATIONS = 10
-NUM_NOAA_SAMPLE_STATIONS = 10
+NUM_NWS_SAMPLE_STATIONS = 5
+NUM_NOAA_SAMPLE_STATIONS = 8
 MAX_THREADS = 10
 
 START_YEAR = 1980
@@ -34,7 +38,7 @@ CURRENT_YEAR = int(time.strftime("%Y"))
 START_DATE = f"{START_YEAR}-01-01"
 END_DATE = f"{CURRENT_YEAR}-12-31"
 
-ELEV_TEMPERATURE_CHANGE = 4
+ELEV_TEMPERATURE_CHANGE = 4.5
 
 S3_BUCKET_NAME = "us-climate-maps-bucket"
 
@@ -77,8 +81,8 @@ def optimized_climate_data(target_lat, target_lon, target_elevation):
     # Compute inverse weighted average so closest distance has most weight
     # The higher the weight power, the more the weights are skewed towards the closest point
 
-    weights_NWS = inverse_dist_weights(closest_points_NWS, weight_power=0.25)
-    weights_NOAA = inverse_dist_weights(closest_points_NOAA, weight_power=0.5)
+    weights_NWS = inverse_dist_weights(closest_points_NWS, weight_power=0.5)
+    weights_NOAA = inverse_dist_weights(closest_points_NOAA, weight_power=1)
 
     # Get the historical weather for each location
     nws_station_identifiers = [(entry[2], entry[3]) for entry in closest_points_NWS]
@@ -105,6 +109,7 @@ def optimized_climate_data(target_lat, target_lon, target_elevation):
     print("TEST NWS WEIGHTS: ", weights_NWS)
     print("TEST NOAA FILES: ", noaa_station_files)
     print("TEST NOAA WEIGHTS: ", weights_NOAA)
+    print("ELEV DIFF: ", elev_diff)
 
     print("FINISHED GETTING WEIGHTS: ", time.time() - start_time)
 
@@ -129,7 +134,9 @@ def optimized_climate_data(target_lat, target_lon, target_elevation):
         )
 
     noaa_all_data_frames, noaa_cols_to_aggregate_lists = zip(*noaa_results)
+
     """
+    # This is the original code that was used to process the NOAA dataframes not threaded
     noaa_all_data_frames, noaa_cols_to_aggregate_lists = zip(
         *[
             process_noaa_station_data(station, weight, elev_diff)
@@ -147,65 +154,80 @@ def optimized_climate_data(target_lat, target_lon, target_elevation):
     noaa_final_data = aggregate_data(noaa_all_data, noaa_cols_to_aggregate)
     noaa_final_data.set_index("DATE", inplace=True)
 
-    print("FINISHED AGGREGATE FILES: ", time.time() - start_time)
+    print("FINISHED NOAA AGGREGATE FILES: ", time.time() - start_time)
 
     start_time = time.time()
 
     # Outlier Detection
     ########################################################################
-    WINDOW_SIZE = 30  # for example, 15 days before and 15 days after
+    WINDOW_SIZE = 14  # for example, 15 days before and 15 days after
     STD_DEV = 3
-    df = pd.DataFrame()
-    df["high_Rolling_Mean"] = (
-        noaa_final_data["DAILY_HIGH_AVG"]
-        .rolling(window=WINDOW_SIZE, center=True)
-        .mean()
+
+    noaa_final_data = replace_outliers_with_rolling_mean(
+        noaa_final_data, "DAILY_HIGH_AVG", WINDOW_SIZE, STD_DEV
     )
-    df["high_Rolling_Std"] = (
-        noaa_final_data["DAILY_HIGH_AVG"].rolling(window=WINDOW_SIZE, center=True).std()
+    noaa_final_data = replace_outliers_with_rolling_mean(
+        noaa_final_data, "DAILY_LOW_AVG", WINDOW_SIZE, STD_DEV
     )
 
-    df["low_Rolling_Mean"] = (
-        noaa_final_data["DAILY_LOW_AVG"].rolling(window=WINDOW_SIZE, center=True).mean()
-    )
-    df["low_Rolling_Std"] = (
-        noaa_final_data["DAILY_LOW_AVG"].rolling(window=WINDOW_SIZE, center=True).std()
-    )
+    print("FINISHED NOAA OUTLIER DETECTION: ", time.time() - start_time)
 
-    df["high_Is_Outlier"] = (
-        noaa_final_data["DAILY_HIGH_AVG"]
-        < (df["high_Rolling_Mean"] - STD_DEV * df["high_Rolling_Std"])
-    ) | (
-        noaa_final_data["DAILY_HIGH_AVG"]
-        > (df["high_Rolling_Mean"] + STD_DEV * df["high_Rolling_Std"])
-    )
-    df["low_Is_Outlier"] = (
-        noaa_final_data["DAILY_LOW_AVG"]
-        < (df["low_Rolling_Mean"] - STD_DEV * df["low_Rolling_Std"])
-    ) | (
-        noaa_final_data["DAILY_LOW_AVG"]
-        > (df["low_Rolling_Mean"] + STD_DEV * df["low_Rolling_Std"])
-    )
-
-    # Replace high temperature outliers with their respective rolling mean
-    noaa_final_data.loc[df["high_Is_Outlier"], "DAILY_HIGH_AVG"] = df.loc[
-        df["high_Is_Outlier"], "high_Rolling_Mean"
-    ]
-    noaa_final_data.loc[df["low_Is_Outlier"], "DAILY_LOW_AVG"] = df.loc[
-        df["low_Is_Outlier"], "low_Rolling_Mean"
-    ]
     noaa_final_data["DAILY_MEAN_AVG"] = (
         noaa_final_data["DAILY_HIGH_AVG"] + noaa_final_data["DAILY_LOW_AVG"]
     ) / 2
-    print("FINISHED OUTLIER DETECTION: ", time.time() - start_time)
 
     start_time = time.time()
-    noaa_final_data["DAILY_DEWPOINT_AVG"] = dewpoint_regr_calc(
+
+    """
+    #Marcus D. Williams, Scott L. Goodrick, Andrew Grundstein & Marshall
+    #Shepherd (2015) Comparison of dew point temperature estimation methods in Southwestern
+    #Georgia, Physical Geography, 36:4, 255-267, DOI: 10.1080/02723646.2015.1011554
+    
+    noaa_final_data["COEF_DEWPOINT_AVG"] = (
+        1.00681512 * noaa_final_data["DAILY_LOW_AVG"]
+        + 0.17912155
+        * (noaa_final_data["DAILY_HIGH_AVG"] - noaa_final_data["DAILY_LOW_AVG"])
+        + 0.05591049 * noaa_final_data["DAILY_PRECIP_AVG"]
+        - 1.789463
+    )
+    """
+    noaa_final_data["REGR_DEWPOINT_AVG"] = dewpoint_regr_calc(
         noaa_final_data["DAILY_HIGH_AVG"],
         noaa_final_data["DAILY_LOW_AVG"],
         noaa_final_data["DAILY_PRECIP_AVG"],
     )
-    print("FINISHED REGR: ", time.time() - start_time)
+
+    # Calculate the Diurnal Temperature Range (DTR)
+    noaa_final_data["DTR"] = (
+        noaa_final_data["DAILY_HIGH_AVG"] - noaa_final_data["DAILY_LOW_AVG"]
+    )
+
+    # Apply the correction factor for dewpoint using known data
+    a, b = fit_dewpoint_adjustment_model()
+    noaa_final_data["REGR_DEWPOINT_AVG"] = noaa_final_data.apply(
+        lambda row: adjust_dewpoint(row, a, b, "DTR", "REGR_DEWPOINT_AVG"), axis=1
+    )
+
+    """
+    # This serves as the ramp between the two dewpoint calculation methods, at 30 inches of annual precipitation
+    # Since the coefifient method is perfect for higher precip areas, like the us southeast,
+    # and the regression method is better for lower precip areas, like the us southwest
+    
+    PRECIP_RAMP = 0
+    weight = sigmoid((noaa_final_data["DAILY_PRECIP_AVG"].mean() * 365) - PRECIP_RAMP)
+    print("WEIGHT: ", weight)
+    
+    noaa_final_data["DAILY_DEWPOINT_AVG"] = (
+        noaa_final_data["COEF_DEWPOINT_AVG"] * (1 - weight)
+        + noaa_final_data["REGR_DEWPOINT_AVG"] * weight
+    )
+    """
+    noaa_final_data["DAILY_DEWPOINT_AVG"] = noaa_final_data["REGR_DEWPOINT_AVG"]
+    noaa_final_data = replace_outliers_with_rolling_mean(
+        noaa_final_data, "DAILY_DEWPOINT_AVG", 14, 2
+    )
+
+    print("FINISHED DEWPOINT REGR: ", time.time() - start_time)
     noaa_final_data["NUM_HIGH_DEWPOINT_DAYS"] = (
         noaa_final_data["DAILY_DEWPOINT_AVG"] > 70
     ).astype(int)
@@ -213,23 +235,14 @@ def optimized_climate_data(target_lat, target_lon, target_elevation):
     start_time = time.time()
     noaa_final_data["DAILY_HUMIDITY_AVG"] = calc_humidity_percentage_vector(
         noaa_final_data["DAILY_DEWPOINT_AVG"], noaa_final_data["DAILY_MEAN_AVG"]
-    )
+    ).clip(0, 100)
     noaa_final_data["DAILY_MORNING_HUMIDITY_AVG"] = calc_humidity_percentage_vector(
         noaa_final_data["DAILY_DEWPOINT_AVG"], noaa_final_data["DAILY_LOW_AVG"]
-    )
+    ).clip(0, 100)
     noaa_final_data["DAILY_AFTERNOON_HUMIDITY_AVG"] = calc_humidity_percentage_vector(
         noaa_final_data["DAILY_DEWPOINT_AVG"], noaa_final_data["DAILY_HIGH_AVG"]
-    )
+    ).clip(0, 100)
 
-    noaa_final_data["DAILY_HUMIDITY_AVG"] = noaa_final_data["DAILY_HUMIDITY_AVG"].clip(
-        0, 100
-    )
-    noaa_final_data["DAILY_MORNING_HUMIDITY_AVG"] = noaa_final_data[
-        "DAILY_MORNING_HUMIDITY_AVG"
-    ].clip(0, 100)
-    noaa_final_data["DAILY_AFTERNOON_HUMIDITY_AVG"] = noaa_final_data[
-        "DAILY_AFTERNOON_HUMIDITY_AVG"
-    ].clip(0, 100)
     noaa_final_data["DAILY_MORNING_FROST_CHANCE"] = 100 * (
         (noaa_final_data["DAILY_MORNING_HUMIDITY_AVG"] > 90)
         & (noaa_final_data["DAILY_LOW_AVG"] <= 32)
@@ -254,7 +267,7 @@ def optimized_climate_data(target_lat, target_lon, target_elevation):
         noaa_final_data, "DAILY_LOW_AVG", "percentile", "DAILY_EXPECTED_MIN"
     )
     noaa_final_data["DATE"] = noaa_final_data.index
-    print("FINISHED CALCULATIONS: ", time.time() - start_time)
+    print("FINISHED NOAA CALCULATIONS: ", time.time() - start_time)
 
     start_time = time.time()
     # Process each CSV and combine the dataframes into one
@@ -271,6 +284,7 @@ def optimized_climate_data(target_lat, target_lon, target_elevation):
     nws_all_data_frames, nws_cols_to_aggregate_lists = zip(*nws_results)
 
     """
+    #This is the original code that was used to process the NWS dataframes not threaded
     nws_all_data_frames, nws_cols_to_aggregate_lists = zip(
         *[
             process_nws_station_data(station[0], station[1], weight, elev_diff)
@@ -287,7 +301,7 @@ def optimized_climate_data(target_lat, target_lon, target_elevation):
     nws_final_data = nws_all_data.groupby("DATE").sum().reset_index()
     nws_final_data = aggregate_data(nws_all_data, nws_cols_to_aggregate)
     nws_final_data.set_index("DATE", inplace=True)
-    print("FINISHED COMBINE DF: ", time.time() - start_time)
+    print("FINISHED NWS AGGREGATE FILES: ", time.time() - start_time)
 
     #####################################################################
     # Regression
@@ -394,7 +408,7 @@ def optimized_climate_data(target_lat, target_lon, target_elevation):
         combined["DAILY_SUNSHINE_AVG"] / 100
     )
 
-    print("FINISHED REGRESSION: ", time.time() - start_time)
+    print("FINISHED COMBINED REGRESSION: ", time.time() - start_time)
 
     # Converting dataframe into useful dictionary for json return
     #########################################################################
@@ -515,8 +529,8 @@ def optimized_climate_data(target_lat, target_lon, target_elevation):
     # TODO this returns much faster if the handle_nan function is not applied, but
     # the frontend will crash with the json output if this is not applied
     # Find a way around this
-    # climate_data = handle_nan(result)
-    climate_data = result
+    climate_data = handle_nan(result)
+    # climate_data = result
 
     mean_temp_values = [month_data["MEAN_AVG"] for month_data in avg_monthly]
     precip_values = [month_data["PRECIP_AVG"] for month_data in avg_monthly]
@@ -533,6 +547,26 @@ def optimized_climate_data(target_lat, target_lon, target_elevation):
 
 def process_noaa_station_data(station, weight, elev_diff):
     USE_COLS = ["DATE", "PRCP", "SNOW", "TMAX", "TMIN"]
+    FREEZING_POINT_F = 32
+    # This is sort of a magic number, which reduces snowfall and rpecip in respect to the elevation difference
+    # between the average elevation of the stations and the target elevation
+    ELEVATION_PRECIP_ADJUSTMENT_FACTOR = 0.15
+    ELEVATION_SNOW_ADJUSTMENT_FACTOR = 0.5
+
+    # This is sort of a magic number, which increases precipitation in respect to the elevation difference
+    # between the average elevation of the stations and the target elevation
+    # This emulates the orthographic effect, which increases precipitation with elevation
+    ELEV_PRECIP_ADJUSTMENT_FACTOR = 0.2
+
+    # This is sort of a magic number, which increases precipitation days in respect to the elevation difference
+    # between the average elevation of the stations and the target elevation
+    # This emulates the orthographic effect, which increases precipitation days with elevation
+    ELEV_PRECIP_DAYS_ADJUSTMENT_FACTOR = 0.02
+
+    # These values represent the required precip and snow in a day for it to be considered a precip or snow day
+    PRECIP_DAY_THRESHOLD_IN = 0.01
+    SNOW_DAY_THRESHOLD_IN = 0.1
+    elev_diff /= 1000
 
     # Read the CSV data
     if is_running_on_aws():
@@ -552,27 +586,80 @@ def process_noaa_station_data(station, weight, elev_diff):
     df["DATE"] = pd.to_datetime(df["DATE"])
     df = df[(df["DATE"] >= START_DATE) & (df["DATE"] <= END_DATE)]
 
-    elev_diff /= 1000
-
-    # Apply the computations to create the new columns
     df["DAILY_HIGH_AVG"] = (
         df["TMAX"] * 9 / 50 + 32 - elev_diff * ELEV_TEMPERATURE_CHANGE
     )
     df["DAILY_LOW_AVG"] = df["TMIN"] * 9 / 50 + 32 - elev_diff * ELEV_TEMPERATURE_CHANGE
-    df["DAILY_PRECIP_AVG"] = (df["PRCP"] / 254 * min((1 + elev_diff * 0.2), 2)).fillna(
-        0
-    )
-    df["DAILY_SNOW_AVG"] = (df["SNOW"] / 25.4 * min((1 + elev_diff * 0.2), 2)).fillna(0)
 
-    # Filter out rows where DAILY_LOW_AVG is greater than DAILY_HIGH_AVG
+    # Filter out rows where the high is lower than the low, and drop rows with NaN values
     df = df[df["DAILY_LOW_AVG"] <= df["DAILY_HIGH_AVG"]]
     df.dropna(subset=["DAILY_HIGH_AVG", "DAILY_LOW_AVG"], inplace=True)
+    df["DAILY_MEAN_AVG"] = (df["DAILY_HIGH_AVG"] + df["DAILY_LOW_AVG"]) / 2
 
-    # Check for precipitation and snow above thresholds
-    df["PRECIP_DAYS"] = (df["DAILY_PRECIP_AVG"] > 0.01).astype(int)
-    df["SNOW_DAYS"] = (df["DAILY_SNOW_AVG"] > 0.1).astype(int)
-    df["PRECIP_DAYS"] = df["PRECIP_DAYS"] * min((1 + elev_diff * 0.03), 2)
-    df["SNOW_DAYS"] = df["SNOW_DAYS"] * min((1 + elev_diff * 0.03), 2)
+    # This aproximates how much moisture is in the air, similar to how the dewpoint is predicted.
+    # If the diurinal temperature range is high, then the snow will be fluffier,
+    # and if it is low, then the snow will be wetter, so less inches of snow per inch of precip.
+    df["DTR"] = df["DAILY_HIGH_AVG"] - df["DAILY_LOW_AVG"]
+    df["RAIN_TO_SNOW_CONVERSION"] = (df["DTR"] / 2).clip(lower=5, upper=20)
+
+    # Calculate snow averages using vectorized operations
+    # Set DAILY_SNOW_AVG to 0 if DAILY_LOW_AVG is above the freezing point
+    rain_to_snow_condition = (df["DAILY_HIGH_AVG"] < FREEZING_POINT_F) | (
+        (df["DAILY_LOW_AVG"] < FREEZING_POINT_F)
+        & (df["DAILY_MEAN_AVG"] < FREEZING_POINT_F)
+    )
+
+    # This reduces snowfall in respect to the elevation difference,
+    # if target is bellow the average station elevation
+    precip_elevation_adjustment = np.where(
+        elev_diff < 0,
+        np.maximum(1 + elev_diff * ELEVATION_PRECIP_ADJUSTMENT_FACTOR, 0),
+        1,
+    )
+    snow_elevation_adjustment = np.where(
+        elev_diff < 0,
+        np.maximum(1 + elev_diff * ELEVATION_SNOW_ADJUSTMENT_FACTOR, 0),
+        1,
+    )
+
+    # Adjusts precipitation for elevation
+    df["DAILY_PRECIP_AVG"] = (
+        df["PRCP"]
+        / 254
+        * min((1 + elev_diff * ELEV_PRECIP_ADJUSTMENT_FACTOR), 2)
+        * precip_elevation_adjustment
+    ).fillna(0)
+
+    df["DAILY_SNOW_AVG"] = np.where(
+        rain_to_snow_condition,
+        df["DAILY_PRECIP_AVG"]
+        * df["RAIN_TO_SNOW_CONVERSION"]
+        * snow_elevation_adjustment,
+        0,
+    )
+    df["DAILY_SNOW_AVG"] += np.where(
+        ~rain_to_snow_condition,
+        df["SNOW"]
+        / 25.4
+        * min((1 + elev_diff * ELEV_PRECIP_ADJUSTMENT_FACTOR), 2)
+        * snow_elevation_adjustment,
+        0,
+    )
+    df["PRECIP_DAYS"] = np.where(
+        rain_to_snow_condition,
+        0,
+        (df["DAILY_PRECIP_AVG"] > PRECIP_DAY_THRESHOLD_IN).astype(int),
+    )
+    df["PRECIP_DAYS"] = df["PRECIP_DAYS"] * min(
+        (1 + elev_diff * ELEV_PRECIP_DAYS_ADJUSTMENT_FACTOR)
+        * precip_elevation_adjustment,
+        2,
+    )
+    df["SNOW_DAYS"] = (df["DAILY_SNOW_AVG"] > SNOW_DAY_THRESHOLD_IN).astype(int) * min(
+        (1 + elev_diff * ELEV_PRECIP_DAYS_ADJUSTMENT_FACTOR)
+        * snow_elevation_adjustment,
+        2,
+    )
 
     # Apply the weights
     weighted_cols = [
@@ -708,6 +795,131 @@ def dewpoint_regr_calc(Tmax, Tmin, totalPrcp):
     rf_predicted_dewpoint = rf_model.predict(new_data_scaled)
 
     return rf_predicted_dewpoint
+
+
+def fit_dewpoint_adjustment_model():
+    # Sample data
+    df = pd.read_csv("dewpoint-adjustment-data.csv")
+    df["DTR"] = df["High_Temp"] - df["Low_Temp"]
+    df["Dewpoint_Adjustment"] = df["Actual_Dewpoint"] - df["Predicted_Dewpoint"]
+
+    # Fit the linear model
+    model = LinearRegression().fit(df[["DTR"]], df["Dewpoint_Adjustment"])
+
+    # Return the coefficients
+    return model.coef_[0], model.intercept_
+
+
+def adjust_dewpoint(row, a, b, diurinal_str, dewpoint_str):
+    dtr = row[diurinal_str]
+    predicted_dewpoint = row[dewpoint_str]
+    adjustment = a * dtr + b
+    return predicted_dewpoint + adjustment
+
+
+def replace_outliers_with_rolling_mean(dataframe, column_name, window_size, std_dev):
+    """
+    Replace outliers in a specified column of a DataFrame with the rolling mean.
+
+    :param dataframe: Pandas DataFrame containing the data.
+    :param column_name: The name of the column to process.
+    :param window_size: The size of the rolling window.
+    :param std_dev: The number of standard deviations to use for defining outliers.
+    :return: DataFrame with outliers replaced in the specified column.
+    """
+    rolling_mean = (
+        dataframe[column_name].rolling(window=window_size, center=True).mean()
+    )
+    rolling_std = dataframe[column_name].rolling(window=window_size, center=True).std()
+
+    is_outlier = (dataframe[column_name] < (rolling_mean - std_dev * rolling_std)) | (
+        dataframe[column_name] > (rolling_mean + std_dev * rolling_std)
+    )
+
+    # Replace outliers with rolling mean
+    dataframe.loc[is_outlier, column_name] = rolling_mean[is_outlier]
+
+    return dataframe
+
+
+"""
+THIS IS IN TESTING, TRYING TO OPTIMIZE DEWPOINT VALUES
+
+def dewpoint_regr_calc_new(Tmax, Tmin, totalPrcp):
+    if is_running_on_aws():
+        # Use the built-in '/tmp' directory in AWS Lambda
+        temp_local_path = "/tmp/dewpoint_model.pkl"
+
+        get_csv_from_s3(S3_BUCKET_NAME, "dewpoint_model.pkl", temp_local_path)
+        best_model = joblib.load(temp_local_path)
+        # Delete the file from /tmp directory after reading it
+        os.remove(temp_local_path)
+    else:
+        # Load the pre-trained and saved model
+        best_model = joblib.load("dewpoint_model.pkl")
+
+    # Transform new data using the pipeline's transformers
+    new_data = pd.DataFrame({"TMax": Tmax, "TMin": Tmin, "Total": totalPrcp})
+
+    # Make predictions using the best model
+    rf_predicted_dewpoint = best_model.predict(new_data)
+    return rf_predicted_dewpoint
+"""
+
+"""
+# This is to be run on local only, used to train dewpoint model which can be loaded later
+def dewpoint_regr_calc_model():
+    # Read the CSV file with temperature and dewpoint data
+    df = pd.read_csv("temperature-humidity-data.csv")
+
+    # Define your input features and target variable
+    X = df[["TMax", "TMin", "Total"]]
+    y = df["DAvg"]
+
+    # Define a pipeline that includes scaling, polynomial feature creation, and Linear Regression
+    pipeline = Pipeline(
+        [
+            ("poly", PolynomialFeatures(degree=2, include_bias=False)),
+            ("scaler", StandardScaler()),
+            ("lin_reg", LinearRegression()),
+        ]
+    )
+
+    # Parameters for GridSearchCV for Lasso Regression
+    param_grid = {
+        "lasso__alpha": [0.001, 0.01, 0.1, 1, 10],  # Different regularization strengths
+    }
+
+    # Replace the Linear Regression with Lasso in the pipeline
+    pipeline.steps[2] = ("lasso", Lasso(random_state=42))
+
+    # Split the data into training and testing sets (if needed)
+    X_train, X_test, y_train, y_test = train_test_split(
+        X, y, test_size=0.2, random_state=42
+    )
+
+    # Initialize GridSearchCV
+    grid_search = GridSearchCV(pipeline, param_grid, cv=5, n_jobs=-1, verbose=1)
+
+    # Fit the model
+    grid_search.fit(X_train, y_train)
+
+    # Best model
+    best_model = grid_search.best_estimator_
+
+    # Evaluate the model
+    y_pred = best_model.predict(X_test)
+    mse = mean_squared_error(y_test, y_pred)
+    mae = mean_absolute_error(y_test, y_pred)
+    print(f"Mean Squared Error: {mse}")
+    print(f"Mean Absolute Error: {mae}")
+
+    # Save the best model to a file
+    model_filename = "dewpoint_model.pkl"
+    joblib.dump(best_model, model_filename)
+
+    print(f"Best Lasso model saved to {model_filename}")
+"""
 
 
 def haversine_distance(lat1, lon1, lat2, lon2):
