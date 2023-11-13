@@ -231,6 +231,11 @@ a {
   }
 }
 
+.climate_chart {
+  width: 100%;
+  height: 100%;
+}
+
 .compare_climate_table-div {
   width: 100%;
   margin: auto;

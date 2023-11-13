@@ -599,8 +599,8 @@ export default function ComparisonPage({ locations }: ComparisonPageProps) {
                 component="div"
                 textAlign={"center"}
               >
-                {selectedYear === "Annual" ? "Annual" : selectedYear} Humidity
-                Range
+                {selectedYear === "Annual" ? "Annual" : selectedYear} Afternoon
+                Humidity
               </Typography>
               <LazyLoad
                 height={LAZY_LOAD_HEIGHT}
@@ -625,7 +625,6 @@ export default function ComparisonPage({ locations }: ComparisonPageProps) {
                         index={index}
                         data={paginatedHumidityDataset}
                         units={"%"}
-                        isBarChart={true}
                         year={parseInt(selectedYear)}
                         zoomPanState={zoomPanState}
                         onZoomPanChange={handleZoomPanChange}
@@ -636,8 +635,8 @@ export default function ComparisonPage({ locations }: ComparisonPageProps) {
               </LazyLoad>
 
               <p style={{ textAlign: "center" }}>
-                Average humidity range for each month. In the morning when the
-                tempearture is lowest, the humidity will be highest. The
+                Average afternoon humidity for each month. In the morning when
+                the tempearture is lowest, the humidity will be highest. The
                 opposite is the case in the afternoon. The humidity is measured
                 in percentage. A humidity level below 30 percent is considered
                 comfortable, and above 70 percent is considered very humid. The
@@ -1398,23 +1397,6 @@ const humidity_dataset = (
 
     const color = LocationColors(LINE_ALPHA)[colorIndex];
     const background_color = LocationColors(BACKGROUND_ALPHA)[colorIndex];
-    const morning_humidity_dataset: ClimateChartDataset = {
-      type: "line",
-      label: location.data.location_data.location,
-      data: mapClimateData(location, "MORNING_HUMIDITY_AVG", selectedYear, {
-        multiplyByVal: 1,
-        windowSize: SMA_SMOOTH_DAYS,
-      }),
-
-      backgroundColor: background_color,
-      borderColor: color,
-      borderWidth: CHART_BORDER_WIDTH,
-      pointRadius: 0,
-      pointHoverRadius: 0,
-      lineTension: LINE_TENSION,
-      fill: "+1",
-      yAxisID: "Percentage",
-    };
 
     const afternoon_humidity_dataset: ClimateChartDataset = {
       type: "line",
@@ -1430,11 +1412,10 @@ const humidity_dataset = (
       pointRadius: 0,
       pointHoverRadius: 0,
       lineTension: LINE_TENSION,
-      fill: "-1",
       yAxisID: "Percentage",
     };
 
-    datasets.push(morning_humidity_dataset, afternoon_humidity_dataset);
+    datasets.push(afternoon_humidity_dataset);
   });
   return datasets;
 };

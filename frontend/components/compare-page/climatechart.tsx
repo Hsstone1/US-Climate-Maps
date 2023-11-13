@@ -37,6 +37,9 @@ function formatValueWithUnit(
     case "Temperature":
       unit = "°F";
       break;
+    case "Temperature_R":
+      unit = "°F";
+      break;
     case "Precip":
       unit = "in";
       break;
@@ -61,8 +64,7 @@ function formatValueWithUnit(
 
 function ClimateChart({
   datasetProp,
-  units = "",
-  adjustUnitsByVal = 1,
+
   isBarChart = false,
   title = "",
   year = 2023,
@@ -117,7 +119,7 @@ function ClimateChart({
         //zoomPluginOptions.onPanComplete = onPanComplete;
       }
     }
-  }, [zoomPanState, onZoomPanChange]);
+  }, [zoomPanState, onZoomPanChange, onZoomComplete]);
 
   // Function to convert day index to date string
   const dayOfYearToDate = (dayIndex: number): string => {
@@ -204,10 +206,12 @@ function ClimateChart({
     axisId: string,
     unit: string,
     max: number,
-    min?: number
+    min?: number,
+    position: "left" | "right" = "left",
+    drawOnGrid: true | false = true
   ) => ({
     type: "linear",
-    position: "left",
+    position: position,
     id: axisId,
     display: "auto",
     beginAtZero: false,
@@ -222,6 +226,9 @@ function ClimateChart({
       font: {
         size: 10,
       },
+    },
+    grid: {
+      drawOnChartArea: drawOnGrid, // This ensures grid lines are drawn for the left axis
     },
   });
   const datalabelsFormatter = (value: { y: any[] }, context: any) => {
@@ -347,7 +354,7 @@ function ClimateChart({
       },
       scales: {
         x: xAxisOptions,
-        Temperature: yAxisOptions("Temperature", "F", 100, 0),
+        Temperature: yAxisOptions("Temperature", "F", 100, 0, "left", true),
         Precip: yAxisOptions("Precip", "in", 5, 0),
         Sun_Angle: yAxisOptions("Sun_Angle", "°", 90, 0),
         Percentage: yAxisOptions("Percentage", "%", 100, 0),
@@ -365,10 +372,7 @@ function ClimateChart({
       */
     }),
     [
-      adjustUnitsByVal,
-      units,
       title,
-      year,
       xAxisOptions,
       X_RANGE_MIN,
       X_RANGE_MAX,
@@ -379,12 +383,14 @@ function ClimateChart({
   );
 
   return (
-    <Chart
-      ref={chartRef}
-      options={chartOptions}
-      data={chartData}
-      type={isBarChart ? "bar" : "line"}
-    />
+    <div className="climate_chart">
+      <Chart
+        ref={chartRef}
+        options={chartOptions}
+        data={chartData}
+        type={isBarChart ? "bar" : "line"}
+      />
+    </div>
   );
 }
 

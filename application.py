@@ -29,6 +29,7 @@ def climate_data():
                 latitude = float(inner_data["latitude"])
                 longitude = float(inner_data["longitude"])
                 elevation = float(inner_data["elevation"])
+
             except ValueError:
                 # Handle the error if the values cannot be converted to float
                 return (

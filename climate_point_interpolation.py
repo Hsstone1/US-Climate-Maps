@@ -33,7 +33,7 @@ NUM_NWS_SAMPLE_STATIONS = 5
 NUM_NOAA_SAMPLE_STATIONS = 8
 MAX_THREADS = 10
 
-START_YEAR = 1980
+START_YEAR = 2000
 CURRENT_YEAR = int(time.strftime("%Y"))
 START_DATE = f"{START_YEAR}-01-01"
 END_DATE = f"{CURRENT_YEAR}-12-31"
@@ -799,7 +799,17 @@ def dewpoint_regr_calc(Tmax, Tmin, totalPrcp):
 
 def fit_dewpoint_adjustment_model():
     # Sample data
-    df = pd.read_csv("dewpoint-adjustment-data.csv")
+    if is_running_on_aws():
+        # Use the built-in '/tmp' directory in AWS Lambda
+        temp_local_path = "/tmp/dewpoint-adjustment-data.csv"
+
+        get_csv_from_s3(S3_BUCKET_NAME, "dewpoint-adjustment-data.csv", temp_local_path)
+        df = pd.read_csv(temp_local_path)
+        # Delete the file from /tmp directory after reading it
+        os.remove(temp_local_path)
+    else:
+        df = pd.read_csv("dewpoint-adjustment-data.csv")
+
     df["DTR"] = df["High_Temp"] - df["Low_Temp"]
     df["Dewpoint_Adjustment"] = df["Actual_Dewpoint"] - df["Predicted_Dewpoint"]
 

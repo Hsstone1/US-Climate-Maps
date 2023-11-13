@@ -34,6 +34,13 @@ def upload_to_s3(bucket_name, object_name, data):
 
 
 def lambda_handler(event, context):
+    if (
+        event.get("source") == "aws.events"
+        and event.get("detail-type") == "Scheduled Event"
+    ):
+        print("Warm-up invocation - exiting early.")
+        return {"statusCode": 200, "body": "Warm-up successful"}
+
     # Parse the incoming JSON from the event body
     body = json.loads(event["body"])
 
@@ -55,7 +62,7 @@ def lambda_handler(event, context):
         }
 
         # Generate a unique file name
-        file_name = f"climate_data/{uuid.uuid4()}.json"
+        file_name = f"climate_data/{uuid.uuid4()}_{latitude}_{longitude}.json"
 
         # Upload the result data to S3
         upload_to_s3(BUCKET_NAME, file_name, result_data)

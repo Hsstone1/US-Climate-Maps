@@ -10,7 +10,19 @@ export type ClimateChartDataset = {
   pointHoverRadius?: number;
   lineTension?: number;
   fill?: boolean | number | string;
+  createGradient?: (
+    context: CanvasRenderingContext2D,
+    chartArea: any
+  ) => CanvasGradient;
   yAxisID:
+    | "Temperature"
+    | "Precip"
+    | "Sun_Angle"
+    | "Percentage"
+    | "Wind"
+    | "Comfort_Index"
+    | "UV_Index";
+  yAxisID_R?:
     | "Temperature"
     | "Precip"
     | "Sun_Angle"

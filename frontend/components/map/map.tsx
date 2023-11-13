@@ -198,7 +198,7 @@ export default function Map() {
           setClickedLocation(null);
         });
     },
-    [selectedMarker, handleCompareMarker, locationName]
+    [selectedMarker, handleCompareMarker]
   );
 
   useEffect(() => {
