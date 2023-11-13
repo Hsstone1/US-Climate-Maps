@@ -6,9 +6,7 @@ import {
   registerables,
 } from "chart.js";
 import { Chart } from "react-chartjs-2";
-import "chartjs-adapter-moment";
 import ChartDataLabels from "chartjs-plugin-datalabels";
-import moment from "moment";
 import { ClimateChartDataset } from "./climatecomparehelpers";
 import zoomPlugin from "chartjs-plugin-zoom";
 
@@ -22,8 +20,8 @@ type ClimateChartProps = {
   isBarChart?: boolean;
   title?: string;
   year?: number;
-  zoomPanState: any;
-  onZoomPanChange: any;
+  xAxisRangeState: { minX: number; maxX: number };
+  onXAxisRangeChange: (newState: { minX: number; maxX: number }) => void;
 };
 
 function formatValueWithUnit(
@@ -62,69 +60,64 @@ function formatValueWithUnit(
   return `${yValue.toFixed(decimalTrunc)}${unit}`;
 }
 
+function dayOfYearToDate(dayIndex: number, year: number): string {
+  const date = new Date(year, 0, dayIndex + 1);
+  return `${date.getMonth() + 1}/${date.getDate()}`;
+}
+
+function debounce(func: () => void, wait: number) {
+  let timeout: NodeJS.Timeout;
+
+  return function executedFunction() {
+    const later = () => {
+      clearTimeout(timeout);
+      func();
+    };
+
+    clearTimeout(timeout);
+    timeout = setTimeout(later, wait);
+  };
+}
+
 function ClimateChart({
   datasetProp,
 
   isBarChart = false,
   title = "",
   year = 2023,
-  zoomPanState,
-  onZoomPanChange,
+  xAxisRangeState,
+  onXAxisRangeChange,
 }: ClimateChartProps) {
   const chartRef = useRef<ChartJS | null>(null);
-  const X_RANGE_MIN = new Date(year, 0, 1).getTime();
-  const X_RANGE_MAX = new Date(year, 11, 31).getTime();
+  const X_RANGE_MIN = 0;
+  const X_RANGE_MAX =
+    year % 4 === 0 && (year % 100 !== 0 || year % 400 === 0) ? 365 : 364;
+  const DEBOUNCE_TIME_MS = 500;
 
-  // Separate handlers for zoom and pan
-  const onZoomComplete = () => {
+  const updateXAxisRange = () => {
     const chart = chartRef.current;
     if (chart) {
-      const newZoomPanState = {
-        ...zoomPanState,
-        zoomStart: chart.scales.x.min,
-        zoomEnd: chart.scales.x.max,
-      };
-      onZoomPanChange(newZoomPanState);
+      onXAxisRangeChange({
+        minX: chart.scales.x.min,
+        maxX: chart.scales.x.max,
+      });
     }
   };
 
-  const onPanComplete = () => {
-    const chart = chartRef.current;
-    if (chart) {
-      const newZoomPanState = {
-        ...zoomPanState,
-        panStart: chart.scales.x.min,
-        panEnd: chart.scales.x.max,
-      };
-      onZoomPanChange(newZoomPanState);
-    }
-  };
+  const debouncedRangeChange = useCallback(
+    debounce(updateXAxisRange, DEBOUNCE_TIME_MS),
+    [onXAxisRangeChange] // Add onXAxisRangeChange to the dependency array
+  );
 
   useEffect(() => {
     const chart = chartRef.current;
-    if (chart) {
-      // Update chart based on the zoom and pan state
-      if (chart.options.scales?.x) {
-        chart.options.scales.x.min =
-          zoomPanState.zoomStart || zoomPanState.panStart;
-        chart.options.scales.x.max =
-          zoomPanState.zoomEnd || zoomPanState.panEnd;
-      }
+    if (chart && chart.options.scales?.x) {
+      chart.options.scales.x.min = xAxisRangeState.minX;
+
+      chart.options.scales.x.max = xAxisRangeState.maxX;
       chart.update();
-
-      // Set event handlers for zoom and pan completion
-      const zoomPluginOptions = chart.options.plugins?.zoom?.zoom as any;
-      if (zoomPluginOptions) {
-        zoomPluginOptions.onZoomComplete = onZoomComplete;
-        //zoomPluginOptions.onPanComplete = onPanComplete;
-      }
     }
-  }, [zoomPanState, onZoomPanChange, onZoomComplete]);
-
-  // Function to convert day index to date string
-  const dayOfYearToDate = (dayIndex: number): string => {
-    return new Date(year, 0, dayIndex + 1).toISOString().split("T")[0];
-  };
+  }, [xAxisRangeState]);
 
   // Transform datasets for line chart
   const transformLineDatasets = (
@@ -133,7 +126,7 @@ function ClimateChart({
     return datasets.map((dataset) => ({
       ...dataset,
       data: dataset.data.map((value: any, index: number) => ({
-        x: dayOfYearToDate(index),
+        x: index,
         y: value,
       })),
       type: "line", // set type to 'line' explicitly
@@ -148,7 +141,7 @@ function ClimateChart({
     const [highDataset, lowDataset] = datasets;
     const barChartData = highDataset.data.map(
       (highValue: any, index: number) => ({
-        x: dayOfYearToDate(index),
+        x: index,
         y: [lowDataset.data[index], highValue], // Create a floating bar
       })
     );
@@ -180,20 +173,16 @@ function ClimateChart({
 
   // Define scale settings as functions or constants for reusability and clarity
   const xAxisOptions = {
-    type: "time",
-    min: X_RANGE_MIN,
-    max: X_RANGE_MAX,
-    time: {
-      unit: "day",
-      tooltipFormat: "MMM DD",
-      displayFormats: {
-        month: "MMM",
-        day: "MMM DD",
-      },
-    },
+    type: "linear",
+    min: xAxisRangeState.minX,
+    max: xAxisRangeState.maxX,
+
     ticks: {
+      callback: function (value: number) {
+        return dayOfYearToDate(value, year);
+      },
       autoSkip: true,
-      maxTicksLimit: 15,
+      maxTicksLimit: 30,
       minRotation: 0,
       maxRotation: 0,
       font: {
@@ -262,12 +251,12 @@ function ClimateChart({
 
   const tooltipCallbacks: any = {
     title: function (context: { label: any }[]) {
-      const dateLabel = context[0].label;
-      return moment(dateLabel).format("MMM DD");
+      const dayIndex = parseInt(context[0].label);
+      // Convert day index to date string
+      return dayOfYearToDate(dayIndex, year); // Assuming 'year' is available in the scope
     },
     label: tooltipLabelCallback,
   };
-
   // Combine them into your main chart options
   const chartOptions: any = useMemo(
     () => ({
@@ -305,23 +294,29 @@ function ClimateChart({
               enabled: true,
             },
             mode: "x",
+            onZoomComplete: function () {
+              debouncedRangeChange();
+            },
           },
           pan: {
             enabled: true,
             mode: "x",
             rangeMin: {
-              x: X_RANGE_MIN, // Assuming this is the min date
+              x: X_RANGE_MIN,
             },
             rangeMax: {
-              x: X_RANGE_MAX, // Assuming this is the max date
+              x: X_RANGE_MAX,
+            },
+            onPanComplete: function () {
+              debouncedRangeChange();
             },
           },
           limits: {
             x: {
-              min: X_RANGE_MIN, // Minimum value to show on the x-axis
-              max: X_RANGE_MAX, // Maximum value to show on the x-axis
-              minRange: 14 * 24 * 60 * 60 * 1000, // 7 days in milliseconds
-              maxRange: 365 * 24 * 60 * 60 * 1000, // 365 days in milliseconds
+              min: X_RANGE_MIN,
+              max: X_RANGE_MAX,
+              minRange: 30, //number of days
+              maxRange: X_RANGE_MAX,
             },
           },
         },
@@ -364,22 +359,12 @@ function ClimateChart({
         // ... Other Y-axis scales
       },
 
-      /*
       animation: {
-        duration: 250,
-        easing: "linear",
+        duration: 500,
+        easing: "easeInOutQuart",
       },
-      */
     }),
-    [
-      title,
-      xAxisOptions,
-      X_RANGE_MIN,
-      X_RANGE_MAX,
-      yAxisOptions,
-      tooltipCallbacks,
-      datalabelsFormatter,
-    ]
+    [title, xAxisOptions, yAxisOptions, tooltipCallbacks, datalabelsFormatter]
   );
 
   return (
