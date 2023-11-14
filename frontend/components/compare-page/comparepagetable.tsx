@@ -97,6 +97,7 @@ const ClimateTable = ({
                 >
                   {/* This creates a box next to the location name with the location color*/}
                   <div
+                    className="table-location-color-box"
                     style={{
                       position: "absolute",
                       top: "50%",

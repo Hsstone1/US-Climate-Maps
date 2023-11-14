@@ -31,19 +31,21 @@ function formatValueWithUnit(
 ): string {
   let unit = "";
 
+  // Conditions where the value should not be printed
+  if ((yAxisID === "Precip" || yAxisID === "Wind") && yValue === 0) {
+    return ""; // Return empty string for 0 precip or wind
+  } else if (yAxisID === "Percentage" && yValue === 100) {
+    return ""; // Return empty string for 100% humidity or comfort index
+  }
+
   switch (yAxisID) {
     case "Temperature":
-      unit = "°F";
-      break;
-    case "Temperature_R":
       unit = "°F";
       break;
     case "Precip":
       unit = "in";
       break;
-    case "Sun_Angle":
-      unit = "°";
-      break;
+
     case "Percentage":
       unit = "%";
       break;
@@ -92,7 +94,7 @@ function ClimateChart({
   const X_RANGE_MIN = 0;
   const X_RANGE_MAX =
     year % 4 === 0 && (year % 100 !== 0 || year % 400 === 0) ? 365 : 364;
-  const DEBOUNCE_TIME_MS = 500;
+  const DEBOUNCE_TIME_MS = 1000;
 
   const updateXAxisRange = () => {
     const chart = chartRef.current;
@@ -106,7 +108,7 @@ function ClimateChart({
 
   const debouncedRangeChange = useCallback(
     debounce(updateXAxisRange, DEBOUNCE_TIME_MS),
-    [onXAxisRangeChange] // Add onXAxisRangeChange to the dependency array
+    [] // Add onXAxisRangeChange to the dependency array
   );
 
   useEffect(() => {
@@ -194,30 +196,27 @@ function ClimateChart({
   const yAxisOptions = (
     axisId: string,
     unit: string,
-    max: number,
-    min?: number,
-    position: "left" | "right" = "left",
-    drawOnGrid: true | false = true
+    suggested_max: number,
+    suggested_min: number = 0,
+    stepsize: number = 10
   ) => ({
     type: "linear",
-    position: position,
+    position: "left",
     id: axisId,
     display: "auto",
     beginAtZero: false,
-    suggestedMax: max,
-    suggestedMin: min,
+    suggestedMin: suggested_min,
+    suggestedMax: suggested_max,
+
     ticks: {
       callback: function (value: any) {
         return `${value}${unit}`;
       },
-      maxTicksLimit: 11,
-      stepSize: max / 10,
+      maxTicksLimit: 12,
+      stepSize: stepsize,
       font: {
         size: 10,
       },
-    },
-    grid: {
-      drawOnChartArea: drawOnGrid, // This ensures grid lines are drawn for the left axis
     },
   });
   const datalabelsFormatter = (value: { y: any[] }, context: any) => {
@@ -264,7 +263,7 @@ function ClimateChart({
       layout: {
         padding: {
           top: 0,
-          left: 10,
+          left: 30,
         },
       },
 
@@ -349,13 +348,14 @@ function ClimateChart({
       },
       scales: {
         x: xAxisOptions,
-        Temperature: yAxisOptions("Temperature", "F", 100, 0, "left", true),
-        Precip: yAxisOptions("Precip", "in", 5, 0),
-        Sun_Angle: yAxisOptions("Sun_Angle", "°", 90, 0),
-        Percentage: yAxisOptions("Percentage", "%", 100, 0),
-        Wind: yAxisOptions("Wind", "mph", 10, 0),
-        Comfort_Index: yAxisOptions("Comfort_Index", "", 100, 0),
-        UV_Index: yAxisOptions("UV_Index", "", 10, 0),
+        Temperature: yAxisOptions("Temperature", "F", 80, -10, 10),
+        Dewpoint: yAxisOptions("Dewpoint", "F", 80, 0, 10),
+        Precip: yAxisOptions("Precip", "in", 5, 0, 1),
+        Percentage: yAxisOptions("Percentage", "%", 100, 0, 10),
+        Wind: yAxisOptions("Wind", "mph", 20, 0, 1),
+        Comfort_Index: yAxisOptions("Comfort_Index", "", 100, 0, 10),
+        UV_Index: yAxisOptions("UV_Index", "", 10, 0, 1),
+
         // ... Other Y-axis scales
       },
 
@@ -364,18 +364,23 @@ function ClimateChart({
         easing: "easeInOutQuart",
       },
     }),
-    [title, xAxisOptions, yAxisOptions, tooltipCallbacks, datalabelsFormatter]
+    [
+      title,
+      xAxisOptions,
+      yAxisOptions,
+      tooltipCallbacks,
+      datalabelsFormatter,
+      debouncedRangeChange,
+    ]
   );
 
   return (
-    <div className="climate_chart">
-      <Chart
-        ref={chartRef}
-        options={chartOptions}
-        data={chartData}
-        type={isBarChart ? "bar" : "line"}
-      />
-    </div>
+    <Chart
+      ref={chartRef}
+      options={chartOptions}
+      data={chartData}
+      type={isBarChart ? "bar" : "line"}
+    />
   );
 }
 

@@ -556,7 +556,7 @@ def process_noaa_station_data(station, weight, elev_diff):
     # This is sort of a magic number, which increases precipitation in respect to the elevation difference
     # between the average elevation of the stations and the target elevation
     # This emulates the orthographic effect, which increases precipitation with elevation
-    ELEV_PRECIP_ADJUSTMENT_FACTOR = 0.2
+    ELEV_PRECIP_ADJUSTMENT_FACTOR = 0.16
 
     # This is sort of a magic number, which increases precipitation days in respect to the elevation difference
     # between the average elevation of the stations and the target elevation
@@ -701,7 +701,7 @@ def process_nws_station_data(provider, city_code, weight, elev_diff):
         df = pd.read_csv(file_path, usecols=USE_COLS)
     elev_diff /= 1000
     # Compute the required averages with elevation adjustments since conditions change with elevation
-    elevation_adjustment_for_wind = min((1 + elev_diff * 0.2), 2)
+    elevation_adjustment_for_wind = min((1 + elev_diff * 0.3), 2)
     elevation_adjustment_for_sunshine = max((1 - elev_diff * 0.03), 0)
 
     # Convert the 'DATE' column to datetime
@@ -850,86 +850,6 @@ def replace_outliers_with_rolling_mean(dataframe, column_name, window_size, std_
     dataframe.loc[is_outlier, column_name] = rolling_mean[is_outlier]
 
     return dataframe
-
-
-"""
-THIS IS IN TESTING, TRYING TO OPTIMIZE DEWPOINT VALUES
-
-def dewpoint_regr_calc_new(Tmax, Tmin, totalPrcp):
-    if is_running_on_aws():
-        # Use the built-in '/tmp' directory in AWS Lambda
-        temp_local_path = "/tmp/dewpoint_model.pkl"
-
-        get_csv_from_s3(S3_BUCKET_NAME, "dewpoint_model.pkl", temp_local_path)
-        best_model = joblib.load(temp_local_path)
-        # Delete the file from /tmp directory after reading it
-        os.remove(temp_local_path)
-    else:
-        # Load the pre-trained and saved model
-        best_model = joblib.load("dewpoint_model.pkl")
-
-    # Transform new data using the pipeline's transformers
-    new_data = pd.DataFrame({"TMax": Tmax, "TMin": Tmin, "Total": totalPrcp})
-
-    # Make predictions using the best model
-    rf_predicted_dewpoint = best_model.predict(new_data)
-    return rf_predicted_dewpoint
-"""
-
-"""
-# This is to be run on local only, used to train dewpoint model which can be loaded later
-def dewpoint_regr_calc_model():
-    # Read the CSV file with temperature and dewpoint data
-    df = pd.read_csv("temperature-humidity-data.csv")
-
-    # Define your input features and target variable
-    X = df[["TMax", "TMin", "Total"]]
-    y = df["DAvg"]
-
-    # Define a pipeline that includes scaling, polynomial feature creation, and Linear Regression
-    pipeline = Pipeline(
-        [
-            ("poly", PolynomialFeatures(degree=2, include_bias=False)),
-            ("scaler", StandardScaler()),
-            ("lin_reg", LinearRegression()),
-        ]
-    )
-
-    # Parameters for GridSearchCV for Lasso Regression
-    param_grid = {
-        "lasso__alpha": [0.001, 0.01, 0.1, 1, 10],  # Different regularization strengths
-    }
-
-    # Replace the Linear Regression with Lasso in the pipeline
-    pipeline.steps[2] = ("lasso", Lasso(random_state=42))
-
-    # Split the data into training and testing sets (if needed)
-    X_train, X_test, y_train, y_test = train_test_split(
-        X, y, test_size=0.2, random_state=42
-    )
-
-    # Initialize GridSearchCV
-    grid_search = GridSearchCV(pipeline, param_grid, cv=5, n_jobs=-1, verbose=1)
-
-    # Fit the model
-    grid_search.fit(X_train, y_train)
-
-    # Best model
-    best_model = grid_search.best_estimator_
-
-    # Evaluate the model
-    y_pred = best_model.predict(X_test)
-    mse = mean_squared_error(y_test, y_pred)
-    mae = mean_absolute_error(y_test, y_pred)
-    print(f"Mean Squared Error: {mse}")
-    print(f"Mean Absolute Error: {mae}")
-
-    # Save the best model to a file
-    model_filename = "dewpoint_model.pkl"
-    joblib.dump(best_model, model_filename)
-
-    print(f"Best Lasso model saved to {model_filename}")
-"""
 
 
 def haversine_distance(lat1, lon1, lat2, lon2):

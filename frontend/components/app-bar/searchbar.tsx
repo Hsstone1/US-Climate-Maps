@@ -51,14 +51,24 @@ export default function SearchBar({ setMarker }: SearchBarProps) {
 
   return (
     <Combobox onSelect={handleSelect} className="combobox">
-      <ComboboxInput
-        value={value}
-        onChange={(e) => setValue(e.target.value)}
-        disabled={!ready}
-        className="combobox-input"
-        placeholder="Search an address"
-      />
-      <ComboboxPopover>
+      <div style={{ position: "relative" }}>
+        <ComboboxInput
+          value={value}
+          onChange={(e) => setValue(e.target.value)}
+          disabled={!ready}
+          className="combobox-input"
+          placeholder="Enter a location or address"
+        />
+        {value && (
+          <button
+            onClick={() => setValue("")}
+            className="combobox-clear-button"
+          >
+            X
+          </button>
+        )}
+      </div>
+      <ComboboxPopover className="combobox-list">
         <ComboboxList>
           {status === "OK" &&
             data

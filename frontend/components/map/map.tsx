@@ -340,8 +340,7 @@ export default function Map() {
                 <>
                   <p className="compare-locations-list-text">
                     Click a location on the map, then navigate to the compare
-                    tab. Up to {NUM_NUM_LOCATIONS} locations can be compared at
-                    once.
+                    tab.
                   </p>
                 </>
               ) : (

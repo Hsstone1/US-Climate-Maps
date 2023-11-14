@@ -193,7 +193,24 @@ a {
   width: 100%;
   padding: .5rem;
   border: 1px solid #fff;
+  padding-right: 2rem;
 
+}
+
+.combobox-list {
+  z-index: 1000; /* Ensure this value is higher than your navbar's z-index */
+    position: relative; /* Required for z-index to work */
+}
+
+.combobox-clear-button {
+  position: absolute;
+  right: 10px;
+  top: 50%;
+  transform: translateY(-50%);
+  cursor: pointer;
+  background: none;
+  border: none;
+  outline: none;
 }
 
 
@@ -233,7 +250,12 @@ a {
 
 .climate_chart {
   width: 100%;
-  height: 100%;
+  height: auto;
+}
+@media screen and (max-width: 768px) {
+  .climate_chart {
+    height: 500vh; /* Or any other value that looks good on mobile */
+  }
 }
 
 .compare_climate_table-div {
@@ -241,6 +263,16 @@ a {
   margin: auto;
   align-items: center;
   display: block;
+}
+
+.table-location-color-box {
+  height: 100%;
+  width: 100%;
+}
+@media screen and (max-width: 768px) {
+  .table-location-color-box {
+    visibility: hidden;
+  }
 }
 
 

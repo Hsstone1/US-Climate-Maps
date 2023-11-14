@@ -9,7 +9,7 @@ export type ClimateChartDataset = {
   pointRadius?: number;
   pointHoverRadius?: number;
   lineTension?: number;
-  fill?: boolean | number | string;
+  fill?: any;
   createGradient?: (
     context: CanvasRenderingContext2D,
     chartArea: any
@@ -21,15 +21,8 @@ export type ClimateChartDataset = {
     | "Percentage"
     | "Wind"
     | "Comfort_Index"
-    | "UV_Index";
-  yAxisID_R?:
-    | "Temperature"
-    | "Precip"
-    | "Sun_Angle"
-    | "Percentage"
-    | "Wind"
-    | "Comfort_Index"
-    | "UV_Index";
+    | "UV_Index"
+    | "Dewpoint";
 };
 
 export const MonthLabels = [
