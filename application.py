@@ -1,7 +1,8 @@
 import os
 import json  # Import the json library
 from flask import Flask, request, jsonify
-from climate_point_interpolation import optimized_climate_data
+
+from lambda_climate_data.climate_point_interpolation import optimized_climate_data
 import time
 from flask_cors import CORS
 

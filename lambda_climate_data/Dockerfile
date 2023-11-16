@@ -5,10 +5,10 @@ FROM public.ecr.aws/lambda/python:3.8
 WORKDIR /var/task
 
 # Copy only the specified files into the container at /var/task
-COPY lambda_climate_data.py climate_point_interpolation.py climate_point_interpolation_helpers.py requirements.txt ./
+COPY climate_point_interpolation.py climate_point_interpolation_helpers.py climate_data_lambda_handler.py requirements.txt ./
 
 # Install any needed packages specified in requirements.txt
 RUN pip install --no-cache-dir -r requirements.txt
 
-# Set the CMD to the handler (lambda_climate_data.lambda_handler)
-CMD ["lambda_climate_data.lambda_handler"]
+# Set the CMD to the handler (climate_data_lambda_handler.lambda_handler)
+CMD ["climate_data_lambda_handler.lambda_handler"]

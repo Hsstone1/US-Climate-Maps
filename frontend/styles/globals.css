@@ -235,7 +235,7 @@ a {
 }
 
 .compare_chart-div {
-  width: 60%;
+  width: 55%;
   margin: auto;
   align-items: center;
   display: block;
@@ -248,22 +248,44 @@ a {
   }
 }
 
-.climate_chart {
+.chart-container {
+  position: relative;
   width: 100%;
-  height: auto;
-}
-@media screen and (max-width: 768px) {
-  .climate_chart {
-    height: 500vh; /* Or any other value that looks good on mobile */
-  }
+  height: 0;
+  padding-top: 56.25%; /* 16:9 Aspect Ratio */
+  overflow: hidden; /* In case the chart overflows */
 }
 
 .compare_climate_table-div {
-  width: 100%;
+  width: auto;
   margin: auto;
   align-items: center;
   display: block;
 }
+
+.compare-climate-table {
+  width: 100%;
+  overflow-x: auto; /* Allows horizontal scrolling on small screens */
+  -webkit-overflow-scrolling: touch; /* Smooth scrolling on iOS devices */
+  align-items: center;
+  box-sizing: border-box; /* Ensures padding does not affect overall width */
+  
+}
+
+/* Add responsive styling for smaller screens */
+@media screen and (max-width: 768px) {
+  .compare-climate-table {
+    margin: 0;
+    padding: 0;
+  }
+
+  /* adjust the styles of table cells for smaller screens */
+  .compare-climate-table .MuiTableCell-root {
+    padding: 2px; /* Reduced padding on smaller screens */
+  }
+}
+
+
 
 .table-location-color-box {
   height: 100%;

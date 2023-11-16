@@ -73,56 +73,57 @@ const ClimateTable = ({
       >
         {heading}
       </Typography>
-      <TableContainer component={Paper}>
-        <Table style={{ borderCollapse: "collapse" }}>
-          <TableHead>
-            <TableRow>
-              <StyledTableCell>Location</StyledTableCell>
-              {MonthLabels.map((month) => (
-                <StyledTableCell key={month}>{month}</StyledTableCell>
-              ))}
-              <StyledTableCell>Annual</StyledTableCell>
-            </TableRow>
-          </TableHead>
-          <TableBody>
-            {/* TODO the mui tables and colored square pass over the nav bar when scrolling */}
-            {locations.map((location, index) => (
-              <TableRow key={location.data.location_data.location}>
-                <StyledTableCell
-                  style={{
-                    whiteSpace: "nowrap",
-                    position: "relative",
-                    paddingLeft: "10px",
-                  }}
-                >
-                  {/* This creates a box next to the location name with the location color*/}
-                  <div
-                    className="table-location-color-box"
-                    style={{
-                      position: "absolute",
-                      top: "50%",
-                      transform: "translateY(-50%)",
-                      width: "10px",
-                      height: "10px",
-                      backgroundColor: LocationColors(1)[index],
-                    }}
-                  ></div>
-                  {location.data.location_data.location}
-                </StyledTableCell>
-
-                {monthlyDataArr[index].map((value: number, i: number) => (
-                  <StyledTableCell key={i}>
-                    {value % 1 === 0 ? 0 : value.toFixed(decimalTrunc)}
-                  </StyledTableCell>
+      <div className="compare-climate-table">
+        <TableContainer component={Paper}>
+          <Table style={{ borderCollapse: "collapse" }}>
+            <TableHead>
+              <TableRow>
+                <StyledTableCell>Location</StyledTableCell>
+                {MonthLabels.map((month) => (
+                  <StyledTableCell key={month}>{month}</StyledTableCell>
                 ))}
-                <StyledTableCell style={{ whiteSpace: "nowrap" }}>
-                  {filteredAnnualDataArr[index].toFixed(decimalTrunc) + units}
-                </StyledTableCell>
+                <StyledTableCell>Annual</StyledTableCell>
               </TableRow>
-            ))}
-          </TableBody>
-        </Table>
-      </TableContainer>
+            </TableHead>
+            <TableBody>
+              {locations.map((location, index) => (
+                <TableRow key={location.data.location_data.location}>
+                  <StyledTableCell
+                    style={{
+                      whiteSpace: "nowrap",
+                      position: "relative",
+                      paddingLeft: "10px",
+                    }}
+                  >
+                    {/* This creates a box next to the location name with the location color*/}
+                    <div
+                      className="table-location-color-box"
+                      style={{
+                        position: "absolute",
+                        top: "50%",
+                        transform: "translateY(-50%)",
+                        width: "10px",
+                        height: "10px",
+                        backgroundColor: LocationColors(1)[index],
+                      }}
+                    ></div>
+                    {location.data.location_data.location}
+                  </StyledTableCell>
+
+                  {monthlyDataArr[index].map((value: number, i: number) => (
+                    <StyledTableCell key={i}>
+                      {value % 1 === 0 ? 0 : value.toFixed(decimalTrunc)}
+                    </StyledTableCell>
+                  ))}
+                  <StyledTableCell style={{ whiteSpace: "nowrap" }}>
+                    {filteredAnnualDataArr[index].toFixed(decimalTrunc) + units}
+                  </StyledTableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        </TableContainer>
+      </div>
       <br />
     </div>
   );

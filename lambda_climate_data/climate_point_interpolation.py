@@ -9,7 +9,6 @@ from sklearn.discriminant_analysis import StandardScaler
 from sklearn.linear_model import Lasso, LinearRegression
 from sklearn.pipeline import Pipeline
 from sklearn.preprocessing import PolynomialFeatures
-from climate_point_interpolation_helpers import *
 import time
 from sklearn.ensemble import RandomForestRegressor
 from sklearn.model_selection import GridSearchCV, train_test_split
@@ -17,6 +16,13 @@ from sklearn.metrics import mean_squared_error, mean_absolute_error, r2_score
 import boto3
 import platform
 from concurrent.futures import ThreadPoolExecutor
+
+"""
+USE RELATIVE IMPORTS FOR LOCAL DEVELOPMENT ONLY
+"""
+# from .climate_point_interpolation_helpers import *
+
+from climate_point_interpolation_helpers import *
 
 
 """
@@ -27,6 +33,8 @@ There are many more NOAA stations, with a much longer history for improved accur
 The NWS stations are used largely to get sunlight data. 
 
 """
+current_file_path = os.path.dirname(os.path.realpath(__file__))
+parent_directory = os.path.dirname(current_file_path)
 
 # TODO if the start date is more recent than 2019-04-01 there is an error involving the regresion
 NUM_NWS_SAMPLE_STATIONS = 5
@@ -60,8 +68,18 @@ def optimized_climate_data(target_lat, target_lon, target_elevation):
         print("FINISHED DOWNLOADING STATIONS NAMES: ", time.time() - start_time)
 
     else:
-        df_stations_NWS_names = pd.read_csv("nws-station-identifiers.csv")
-        df_stations_NOAA_names = pd.read_csv("noaa-station-identifiers.csv")
+        df_stations_NWS_names = pd.read_csv(
+            os.path.join(
+                parent_directory,
+                "nws-station-identifiers.csv",
+            )
+        )
+        df_stations_NOAA_names = pd.read_csv(
+            os.path.join(
+                parent_directory,
+                "noaa-station-identifiers.csv",
+            )
+        )
 
     start_time = time.time()
     # Get a list of closest points to coordinate
@@ -178,19 +196,6 @@ def optimized_climate_data(target_lat, target_lon, target_elevation):
 
     start_time = time.time()
 
-    """
-    #Marcus D. Williams, Scott L. Goodrick, Andrew Grundstein & Marshall
-    #Shepherd (2015) Comparison of dew point temperature estimation methods in Southwestern
-    #Georgia, Physical Geography, 36:4, 255-267, DOI: 10.1080/02723646.2015.1011554
-    
-    noaa_final_data["COEF_DEWPOINT_AVG"] = (
-        1.00681512 * noaa_final_data["DAILY_LOW_AVG"]
-        + 0.17912155
-        * (noaa_final_data["DAILY_HIGH_AVG"] - noaa_final_data["DAILY_LOW_AVG"])
-        + 0.05591049 * noaa_final_data["DAILY_PRECIP_AVG"]
-        - 1.789463
-    )
-    """
     noaa_final_data["REGR_DEWPOINT_AVG"] = dewpoint_regr_calc(
         noaa_final_data["DAILY_HIGH_AVG"],
         noaa_final_data["DAILY_LOW_AVG"],
@@ -208,20 +213,6 @@ def optimized_climate_data(target_lat, target_lon, target_elevation):
         lambda row: adjust_dewpoint(row, a, b, "DTR", "REGR_DEWPOINT_AVG"), axis=1
     )
 
-    """
-    # This serves as the ramp between the two dewpoint calculation methods, at 30 inches of annual precipitation
-    # Since the coefifient method is perfect for higher precip areas, like the us southeast,
-    # and the regression method is better for lower precip areas, like the us southwest
-    
-    PRECIP_RAMP = 0
-    weight = sigmoid((noaa_final_data["DAILY_PRECIP_AVG"].mean() * 365) - PRECIP_RAMP)
-    print("WEIGHT: ", weight)
-    
-    noaa_final_data["DAILY_DEWPOINT_AVG"] = (
-        noaa_final_data["COEF_DEWPOINT_AVG"] * (1 - weight)
-        + noaa_final_data["REGR_DEWPOINT_AVG"] * weight
-    )
-    """
     noaa_final_data["DAILY_DEWPOINT_AVG"] = noaa_final_data["REGR_DEWPOINT_AVG"]
     noaa_final_data = replace_outliers_with_rolling_mean(
         noaa_final_data, "DAILY_DEWPOINT_AVG", 14, 2
@@ -239,6 +230,15 @@ def optimized_climate_data(target_lat, target_lon, target_elevation):
     noaa_final_data["DAILY_MORNING_HUMIDITY_AVG"] = calc_humidity_percentage_vector(
         noaa_final_data["DAILY_DEWPOINT_AVG"], noaa_final_data["DAILY_LOW_AVG"]
     ).clip(0, 100)
+
+    """
+    # Set any 0 values to 100 using numpy.where
+    noaa_final_data["DAILY_MORNING_HUMIDITY_AVG"] = np.where(
+        noaa_final_data["DAILY_MORNING_HUMIDITY_AVG"] == 0,
+        100,
+        noaa_final_data["DAILY_MORNING_HUMIDITY_AVG"],
+    ).clip(0, 100)
+    """
     noaa_final_data["DAILY_AFTERNOON_HUMIDITY_AVG"] = calc_humidity_percentage_vector(
         noaa_final_data["DAILY_DEWPOINT_AVG"], noaa_final_data["DAILY_HIGH_AVG"]
     ).clip(0, 100)
@@ -283,15 +283,6 @@ def optimized_climate_data(target_lat, target_lon, target_elevation):
         )
     nws_all_data_frames, nws_cols_to_aggregate_lists = zip(*nws_results)
 
-    """
-    #This is the original code that was used to process the NWS dataframes not threaded
-    nws_all_data_frames, nws_cols_to_aggregate_lists = zip(
-        *[
-            process_nws_station_data(station[0], station[1], weight, elev_diff)
-            for station, weight in zip(nws_station_identifiers, weights_NWS)
-        ]
-    )
-    """
     nws_all_data = pd.concat(nws_all_data_frames, ignore_index=True)
     nws_cols_to_aggregate = list(
         set([col for sublist in nws_cols_to_aggregate_lists for col in sublist])
@@ -318,7 +309,13 @@ def optimized_climate_data(target_lat, target_lon, target_elevation):
     combined["DATE"] = pd.to_datetime(combined["DATE"])
 
     # predict these columns
-    predict_columns = ["DAILY_WIND_DIR_AVG", "DAILY_WIND_AVG", "DAILY_SUNSHINE_AVG"]
+    predict_columns = [
+        "DAILY_WIND_DIR_AVG",
+        "DAILY_WIND_AVG",
+        "DAILY_SUNSHINE_AVG",
+        "DAILY_WIND_MAX",
+        # "CONDITIONS",
+    ]
 
     # Columns used to make predictions
     feature_columns = [
@@ -339,7 +336,7 @@ def optimized_climate_data(target_lat, target_lon, target_elevation):
     model = RandomForestRegressor(random_state=0)
     model.fit(X_train, y_train)
 
-    # Identify the rows where 'DAILY_WIND_DIR_AVG', 'DAILY_WIND_AVG', 'DAILY_SUNSHINE_AVG' are NaN
+    # Identify the rows where NWS columns are NaN
     # April 1st, 2019 is the start of the nws dataset
     date_limit = pd.Timestamp("2019-04-01")
     missing_data = combined[
@@ -398,9 +395,32 @@ def optimized_climate_data(target_lat, target_lon, target_elevation):
     combined["APPARENT_MEAN_AVG"] = (
         combined["APPARENT_HIGH_AVG"] + combined["APPARENT_LOW_AVG"]
     ) / 2
+
+    combined["DAILY_APPARENT_EXPECTED_MAX"] = calc_aparent_temp_vector(
+        combined["DAILY_EXPECTED_MAX"],
+        combined["DAILY_DEWPOINT_AVG"],
+        combined["DAILY_WIND_AVG"],
+    )
+    combined["DAILY_APPARENT_EXPECTED_MIN"] = calc_aparent_temp_vector(
+        combined["DAILY_EXPECTED_MIN"],
+        combined["DAILY_DEWPOINT_AVG"],
+        combined["DAILY_WIND_AVG"],
+    )
+
+    combined["APPARENT_RECORD_HIGH"] = calc_aparent_temp_vector(
+        combined["DAILY_RECORD_HIGH"],
+        combined["DAILY_DEWPOINT_AVG"],
+        combined["DAILY_WIND_AVG"],
+    )
+    combined["APPARENT_RECORD_LOW"] = calc_aparent_temp_vector(
+        combined["DAILY_RECORD_LOW"],
+        combined["DAILY_DEWPOINT_AVG"],
+        combined["DAILY_WIND_AVG"],
+    )
+
     combined["DAILY_COMFORT_INDEX"] = calc_comfort_index_vector(
         combined["DAILY_MEAN_AVG"],
-        combined["APPARENT_HIGH_AVG"],
+        combined["APPARENT_MEAN_AVG"],
         combined["DAILY_DEWPOINT_AVG"],
         combined["DAILY_SUNSHINE_AVG"],
     )
@@ -430,8 +450,18 @@ def optimized_climate_data(target_lat, target_lon, target_elevation):
     # Calculate averages
     avg_annual = df.mean().to_dict()
 
-    max_columns = ["RECORD_HIGH", "EXPECTED_MAX"]
-    min_columns = ["EXPECTED_MIN", "RECORD_LOW"]
+    max_columns = [
+        "RECORD_HIGH",
+        "EXPECTED_MAX",
+        "APPARENT_RECORD_HIGH",
+        "APPARENT_RECORD_LOW",
+    ]
+    min_columns = [
+        "EXPECTED_MIN",
+        "RECORD_LOW",
+        "APPARENT_EXPECTED_MAX",
+        "APPARENT_EXPECTED_MIN",
+    ]
 
     for column in max_columns:
         avg_annual[column] = df[column].resample("Y").max().mean()
@@ -529,6 +559,7 @@ def optimized_climate_data(target_lat, target_lon, target_elevation):
     # TODO this returns much faster if the handle_nan function is not applied, but
     # the frontend will crash with the json output if this is not applied
     # Find a way around this
+
     climate_data = handle_nan(result)
     # climate_data = result
 
@@ -550,13 +581,13 @@ def process_noaa_station_data(station, weight, elev_diff):
     FREEZING_POINT_F = 32
     # This is sort of a magic number, which reduces snowfall and rpecip in respect to the elevation difference
     # between the average elevation of the stations and the target elevation
-    ELEVATION_PRECIP_ADJUSTMENT_FACTOR = 0.15
-    ELEVATION_SNOW_ADJUSTMENT_FACTOR = 0.5
+    ELEVATION_PRECIP_REDUCTION_FACTOR = 0.15
+    ELEVATION_SNOW_REDUCTION_FACTOR = 0.5
 
     # This is sort of a magic number, which increases precipitation in respect to the elevation difference
     # between the average elevation of the stations and the target elevation
     # This emulates the orthographic effect, which increases precipitation with elevation
-    ELEV_PRECIP_ADJUSTMENT_FACTOR = 0.16
+    ELEV_PRECIP_ADJUSTMENT_FACTOR = 0.125
 
     # This is sort of a magic number, which increases precipitation days in respect to the elevation difference
     # between the average elevation of the stations and the target elevation
@@ -566,6 +597,10 @@ def process_noaa_station_data(station, weight, elev_diff):
     # These values represent the required precip and snow in a day for it to be considered a precip or snow day
     PRECIP_DAY_THRESHOLD_IN = 0.01
     SNOW_DAY_THRESHOLD_IN = 0.1
+
+    # This is sort of a magic number, which limits how much precipitation in respect to the elevation
+    # difference can increase, which again, emuulates the orthographic effect
+    MAX_ELEV_ADJUST_MULTIPLIER = 5
     elev_diff /= 1000
 
     # Read the CSV data
@@ -613,12 +648,12 @@ def process_noaa_station_data(station, weight, elev_diff):
     # if target is bellow the average station elevation
     precip_elevation_adjustment = np.where(
         elev_diff < 0,
-        np.maximum(1 + elev_diff * ELEVATION_PRECIP_ADJUSTMENT_FACTOR, 0),
+        np.maximum(1 + elev_diff * ELEVATION_PRECIP_REDUCTION_FACTOR, 0),
         1,
     )
     snow_elevation_adjustment = np.where(
         elev_diff < 0,
-        np.maximum(1 + elev_diff * ELEVATION_SNOW_ADJUSTMENT_FACTOR, 0),
+        np.maximum(1 + elev_diff * ELEVATION_SNOW_REDUCTION_FACTOR, 0),
         1,
     )
 
@@ -626,7 +661,9 @@ def process_noaa_station_data(station, weight, elev_diff):
     df["DAILY_PRECIP_AVG"] = (
         df["PRCP"]
         / 254
-        * min((1 + elev_diff * ELEV_PRECIP_ADJUSTMENT_FACTOR), 2)
+        * min(
+            (1 + elev_diff * ELEV_PRECIP_ADJUSTMENT_FACTOR), MAX_ELEV_ADJUST_MULTIPLIER
+        )
         * precip_elevation_adjustment
     ).fillna(0)
 
@@ -641,7 +678,9 @@ def process_noaa_station_data(station, weight, elev_diff):
         ~rain_to_snow_condition,
         df["SNOW"]
         / 25.4
-        * min((1 + elev_diff * ELEV_PRECIP_ADJUSTMENT_FACTOR), 2)
+        * min(
+            (1 + elev_diff * ELEV_PRECIP_ADJUSTMENT_FACTOR), MAX_ELEV_ADJUST_MULTIPLIER
+        )
         * snow_elevation_adjustment,
         0,
     )
@@ -678,8 +717,27 @@ def process_noaa_station_data(station, weight, elev_diff):
 
 
 def process_nws_station_data(provider, city_code, weight, elev_diff):
-    # Define the directory path and list of csv files
-    USE_COLS = ["Date", "MAX SPD", "DR", "S-S"]
+    """
+    there is a column naming problem for all the nws csvs,so
+    MAX SPD represents the normal wind speed
+    DIR represents the max wind speed
+    DR represents the normal wind direction
+    S-S represents the sunshine
+    WX represents the weather conditions, 0 if normal
+        WEATHER.GOV CODES:
+        1 = FOG OR MIST
+        2 = FOG REDUCING VISIBILITY
+        3 = THUNDER
+        4 = ICE PELLETS
+        5 = HAIL
+        6 = FREEZING RAIN OR DRIZZLE
+        7 = DUSTSTORM OR SANDSTORM
+        8 = SMOKE OR HAZE
+        9 = BLOWING SNOW
+        X = TORNADO
+    """
+
+    USE_COLS = ["Date", "MAX SPD", "DR", "S-S", "DIR", "WX"]
     if is_running_on_aws():
         # Use the built-in '/tmp' directory in AWS Lambda
         temp_local_path = f"/tmp/{provider}_{city_code}.csv"
@@ -701,7 +759,7 @@ def process_nws_station_data(provider, city_code, weight, elev_diff):
         df = pd.read_csv(file_path, usecols=USE_COLS)
     elev_diff /= 1000
     # Compute the required averages with elevation adjustments since conditions change with elevation
-    elevation_adjustment_for_wind = min((1 + elev_diff * 0.3), 2)
+    elevation_adjustment_for_wind = min((1 + elev_diff * 0.3), 5)
     elevation_adjustment_for_sunshine = max((1 - elev_diff * 0.03), 0)
 
     # Convert the 'DATE' column to datetime
@@ -710,6 +768,9 @@ def process_nws_station_data(provider, city_code, weight, elev_diff):
     # TODO fix -10 values still appearing in the dataset for sunlight, see Hawaii values.
     df["DAILY_WIND_AVG"] = (
         df["MAX SPD"].where(df["MAX SPD"] > 0, 0) * elevation_adjustment_for_wind
+    )
+    df["DAILY_WIND_MAX"] = (
+        df["DIR"].where(df["DIR"] > 0, 0) * elevation_adjustment_for_wind
     )
     df["DAILY_WIND_DIR_AVG"] = df["DR"].where(df["DR"] != 1, 0)
 
@@ -723,12 +784,26 @@ def process_nws_station_data(provider, city_code, weight, elev_diff):
         lower=0
     )
     df["DAILY_SUNSHINE_AVG"] *= elevation_adjustment_for_sunshine
+    # df["CONDITIONS"] = df["WX"].where(df["WX"] != "", 0)
+    # df['CONDITIONS'] = df['CONDITIONS'].apply(lambda x: x.lstrip('0'))
 
     df.dropna(
-        subset=["DAILY_WIND_AVG", "DAILY_WIND_DIR_AVG", "DAILY_SUNSHINE_AVG"],
+        subset=[
+            "DAILY_WIND_AVG",
+            "DAILY_WIND_DIR_AVG",
+            "DAILY_SUNSHINE_AVG",
+            # "CONDITIONS",
+            "DAILY_WIND_MAX",
+        ],
         inplace=True,
     )
-    weighted_cols = ["DAILY_WIND_AVG", "DAILY_WIND_DIR_AVG", "DAILY_SUNSHINE_AVG"]
+    weighted_cols = [
+        "DAILY_WIND_AVG",
+        "DAILY_WIND_DIR_AVG",
+        "DAILY_SUNSHINE_AVG",
+        "DAILY_WIND_MAX",
+        # "CONDITIONS",
+    ]
     df[weighted_cols] = df[weighted_cols].multiply(weight, axis=0)
     df["WEIGHT"] = weight
 
@@ -765,7 +840,12 @@ def dewpoint_regr_calc(Tmax, Tmin, totalPrcp):
         # Delete the file from /tmp directory after reading it
         os.remove(temp_local_path)
     else:
-        df = pd.read_csv("temperature-humidity-data.csv")
+        df = pd.read_csv(
+            os.path.join(
+                parent_directory,
+                "temperature-humidity-data.csv",
+            )
+        )
 
     # Calculate TDiurinal (TMax - TMin)
     df["TDiurinal"] = df["TMax"] - df["TMin"]
@@ -808,7 +888,12 @@ def fit_dewpoint_adjustment_model():
         # Delete the file from /tmp directory after reading it
         os.remove(temp_local_path)
     else:
-        df = pd.read_csv("dewpoint-adjustment-data.csv")
+        df = pd.read_csv(
+            os.path.join(
+                parent_directory,
+                "dewpoint-adjustment-data.csv",
+            )
+        )
 
     df["DTR"] = df["High_Temp"] - df["Low_Temp"]
     df["Dewpoint_Adjustment"] = df["Actual_Dewpoint"] - df["Predicted_Dewpoint"]

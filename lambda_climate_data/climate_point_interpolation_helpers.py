@@ -146,6 +146,11 @@ def calc_humidity_percentage_vector(dew_points_F, temperatures_F):
     # Calculate humidity percentage
     humidity_percentages = (vapor_pressure / saturation_vapor_pressure) * 100
 
+    # Handle the case where dew point is equal to or greater than the temperature
+    humidity_percentages = np.where(
+        dew_points_F >= temperatures_F, 100, humidity_percentages
+    )
+
     return humidity_percentages
 
 

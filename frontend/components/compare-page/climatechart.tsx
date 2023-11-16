@@ -17,7 +17,6 @@ type ClimateChartProps = {
   datasetProp: ClimateChartDataset[];
   units?: string;
   adjustUnitsByVal?: number;
-  isBarChart?: boolean;
   title?: string;
   year?: number;
   xAxisRangeState: { minX: number; maxX: number };
@@ -83,8 +82,6 @@ function debounce(func: () => void, wait: number) {
 
 function ClimateChart({
   datasetProp,
-
-  isBarChart = false,
   title = "",
   year = 2023,
   xAxisRangeState,
@@ -94,7 +91,7 @@ function ClimateChart({
   const X_RANGE_MIN = 0;
   const X_RANGE_MAX =
     year % 4 === 0 && (year % 100 !== 0 || year % 400 === 0) ? 365 : 364;
-  const DEBOUNCE_TIME_MS = 1000;
+  const DEBOUNCE_TIME_MS = 100;
 
   const updateXAxisRange = () => {
     const chart = chartRef.current;
@@ -108,7 +105,7 @@ function ClimateChart({
 
   const debouncedRangeChange = useCallback(
     debounce(updateXAxisRange, DEBOUNCE_TIME_MS),
-    [] // Add onXAxisRangeChange to the dependency array
+    []
   );
 
   useEffect(() => {
@@ -122,27 +119,31 @@ function ClimateChart({
   }, [xAxisRangeState]);
 
   // Transform datasets for line chart
-  const transformLineDatasets = (
-    datasets: ClimateChartDataset[]
-  ): ChartDataset<"line">[] => {
-    return datasets.map((dataset) => ({
-      ...dataset,
-      data: dataset.data.map((value: any, index: number) => ({
-        x: index,
-        y: value,
-      })),
-      type: "line", // set type to 'line' explicitly
-    }));
-  };
+  const transformedLineDatasets = useMemo(() => {
+    return datasetProp
+      .filter((d) => d.type === "line")
+      .map((dataset) => ({
+        ...dataset,
+        data: dataset.data.map((value: any, index: any) => ({
+          x: index,
+          y: value,
+        })),
+        type: "line" as const, // set type to 'line' explicitly
+      }));
+  }, [datasetProp]);
 
   // Transform datasets for bar chart
-  const transformBarDatasets = (
-    datasets: ClimateChartDataset[]
-  ): ChartDataset<"bar", any>[] => {
-    // Assuming datasets[0] contains the high values and datasets[1] contains the low values
-    const [highDataset, lowDataset] = datasets;
+  const transformedBarDatasets = useMemo(() => {
+    if (datasetProp.filter((d) => d.type === "bar").length < 2) {
+      //console.error("Expected 2 datasets, received: ", datasetProp.length);
+      return [];
+    }
+
+    const [highDataset, lowDataset] = datasetProp.filter(
+      (d) => d.type === "bar"
+    );
     const barChartData = highDataset.data.map(
-      (highValue: any, index: number) => ({
+      (highValue: any, index: string | number) => ({
         x: index,
         y: [lowDataset.data[index], highValue], // Create a floating bar
       })
@@ -150,32 +151,33 @@ function ClimateChart({
 
     return [
       {
-        ...highDataset, // Use properties from highDataset for the bar chart
+        ...highDataset,
         data: barChartData,
-        type: "bar",
+        type: "bar" as const,
         borderSkipped: false,
-        categoryPercentage: 0.9,
-        barPercentage: 0.9,
+        categoryPercentage: 0.95,
+        barPercentage: 0.95,
       },
     ];
-  };
+  }, [datasetProp]);
 
-  // Determine the datasets based on the chart type
-  const datasets = isBarChart
-    ? transformBarDatasets(datasetProp)
-    : transformLineDatasets(datasetProp);
+  const lineDatasets = transformedLineDatasets;
+  const barDatasets = transformedBarDatasets;
+  // Combine datasets
+  const combinedDatasets = [...lineDatasets, ...barDatasets];
 
   // Create the chart data
   const chartData: ChartData<"bar" | "line"> = useMemo(
     () => ({
-      datasets, // datasets is now correctly typed
+      datasets: combinedDatasets,
     }),
-    [datasets]
+    [combinedDatasets]
   );
 
   // Define scale settings as functions or constants for reusability and clarity
   const xAxisOptions = {
     type: "linear",
+    offset: false,
     min: xAxisRangeState.minX,
     max: xAxisRangeState.maxX,
 
@@ -201,6 +203,7 @@ function ClimateChart({
     stepsize: number = 10
   ) => ({
     type: "linear",
+    offset: false,
     position: "left",
     id: axisId,
     display: "auto",
@@ -260,6 +263,8 @@ function ClimateChart({
   const chartOptions: any = useMemo(
     () => ({
       responsive: true,
+      maintainAspectRatio: true,
+      aspectRatio: 16 / 9,
       layout: {
         padding: {
           top: 0,
@@ -327,28 +332,30 @@ function ClimateChart({
         },
 
         datalabels: {
-          align: "bottom",
-          anchor: "center",
-          offset: -25,
-          display: "auto",
+          align: "end",
+          offset: -20,
+
           color: "#808080",
           padding: {
-            top: 10,
-            right: 20,
-            bottom: 10,
-            left: 20,
+            top: 20,
+            right: 30,
+            bottom: 20,
+            left: 30,
           },
           font: {
             size: 10,
             style: "oblique",
             family: "Arial",
           },
+
+          display: "auto",
+
           formatter: datalabelsFormatter,
         },
       },
       scales: {
         x: xAxisOptions,
-        Temperature: yAxisOptions("Temperature", "F", 80, -10, 10),
+        Temperature: yAxisOptions("Temperature", "F", 120, -20, 10),
         Dewpoint: yAxisOptions("Dewpoint", "F", 80, 0, 10),
         Precip: yAxisOptions("Precip", "in", 5, 0, 1),
         Percentage: yAxisOptions("Percentage", "%", 100, 0, 10),
@@ -360,8 +367,8 @@ function ClimateChart({
       },
 
       animation: {
-        duration: 500,
-        easing: "easeInOutQuart",
+        duration: 250,
+        easing: "linear",
       },
     }),
     [
@@ -375,12 +382,15 @@ function ClimateChart({
   );
 
   return (
-    <Chart
-      ref={chartRef}
-      options={chartOptions}
-      data={chartData}
-      type={isBarChart ? "bar" : "line"}
-    />
+    <div className="chart-container">
+      <Chart
+        ref={chartRef}
+        options={chartOptions}
+        data={chartData}
+        type={"line"}
+        style={{ position: "absolute", top: 0, left: 0 }}
+      />
+    </div>
   );
 }
 

@@ -17,11 +17,11 @@ type ComparisonPageProps = {
   locations: MarkerType[];
 };
 
-const CHART_BORDER_WIDTH = 2;
+const CHART_BORDER_WIDTH = 1.5;
 //const LINE_TENSION = 0.35;
 const LINE_TENSION = 0.5;
 const LINE_ALPHA = 1;
-const BACKGROUND_ALPHA = 0.05;
+const BACKGROUND_ALPHA = 0.04;
 const PAGINATED_BACKGROUND_ALPHA = 0.5;
 const HEADING_VARIANT = "h5";
 const SMA_SMOOTH_DAYS = 30;
@@ -34,6 +34,8 @@ const excludeFromHistorical = new Set([
   "GROWING_CHANCE",
   "EXPECTED_MAX",
   "EXPECTED_MIN",
+  "APPARENT_EXPECTED_MAX",
+  "APPARENT_EXPECTED_MIN",
   "RECORD_HIGH",
   "RECORD_LOW",
   "SUN_ANGLE",
@@ -66,7 +68,7 @@ export default function ComparisonPage({ locations }: ComparisonPageProps) {
 
   const paginatedTemperatureDataset = useMemo(() => {
     return locations.map((location, index) =>
-      temperature_dataset([location], index, selectedYear)
+      temperature_dataset([location], index, selectedYear, true)
     );
   }, [locations, selectedYear]);
 
@@ -76,12 +78,8 @@ export default function ComparisonPage({ locations }: ComparisonPageProps) {
 
   const paginatedApparentTemperatureDataset = useMemo(() => {
     return locations.map((location, index) =>
-      apparent_temperature_dataset([location], index, selectedYear)
+      apparent_temperature_dataset([location], index, selectedYear, true)
     );
-  }, [locations, selectedYear]);
-
-  const annualTemperatureRangeDataset = useMemo(() => {
-    return temperature_range_dataset(locations, undefined, selectedYear);
   }, [locations, selectedYear]);
 
   const annualComfortDataset = useMemo(() => {
@@ -90,27 +88,27 @@ export default function ComparisonPage({ locations }: ComparisonPageProps) {
 
   const paginatedComfortDataset = useMemo(() => {
     return locations.map((location, index) =>
-      comfort_index_dataset([location], index, selectedYear, true)
+      comfort_index_dataset([location], index, selectedYear)
     );
   }, [locations, selectedYear]);
 
   const annualPrecipDataset = useMemo(() => {
-    return precip_dataset(locations, 30, undefined, selectedYear);
+    return precip_dataset(locations, undefined, selectedYear);
   }, [locations, selectedYear]);
 
   const paginatedPrecipDataset = useMemo(() => {
     return locations.map((location, index) =>
-      precip_dataset([location], 1, index, selectedYear, true)
+      precip_dataset([location], index, selectedYear)
     );
   }, [locations, selectedYear]);
 
   const annualSnowDataset = useMemo(() => {
-    return snow_dataset(locations, 30, undefined, selectedYear);
+    return snow_dataset(locations, undefined, selectedYear);
   }, [locations, selectedYear]);
 
   const paginatedSnowDataset = useMemo(() => {
     return locations.map((location, index) =>
-      snow_dataset([location], 1, index, selectedYear, true)
+      snow_dataset([location], index, selectedYear)
     );
   }, [locations, selectedYear]);
 
@@ -120,7 +118,7 @@ export default function ComparisonPage({ locations }: ComparisonPageProps) {
 
   const paginatedHumidityDataset = useMemo(() => {
     return locations.map((location, index) =>
-      humidity_dataset([location], index, selectedYear, true)
+      humidity_dataset([location], index, selectedYear)
     );
   }, [locations, selectedYear]);
 
@@ -130,7 +128,7 @@ export default function ComparisonPage({ locations }: ComparisonPageProps) {
 
   const paginatedDewpointDataset = useMemo(() => {
     return locations.map((location, index) =>
-      dewpoint_dataset([location], index, selectedYear, true)
+      dewpoint_dataset([location], index, selectedYear)
     );
   }, [locations, selectedYear]);
 
@@ -140,7 +138,7 @@ export default function ComparisonPage({ locations }: ComparisonPageProps) {
 
   const paginatedWindDataset = useMemo(() => {
     return locations.map((location, index) =>
-      wind_dataset([location], index, selectedYear, true)
+      wind_dataset([location], index, selectedYear)
     );
   }, [locations, selectedYear]);
 
@@ -150,7 +148,7 @@ export default function ComparisonPage({ locations }: ComparisonPageProps) {
 
   const paginatedSunshineDataset = useMemo(() => {
     return locations.map((location, index) =>
-      sunshine_dataset([location], index, selectedYear, true)
+      sunshine_dataset([location], index, selectedYear)
     );
   }, [locations, selectedYear]);
 
@@ -160,7 +158,7 @@ export default function ComparisonPage({ locations }: ComparisonPageProps) {
 
   const paginatedUVIndexDataset = useMemo(() => {
     return locations.map((location, index) =>
-      uv_index_dataset([location], index, selectedYear, true)
+      uv_index_dataset([location], index, selectedYear)
     );
   }, [locations, selectedYear]);
 
@@ -212,7 +210,6 @@ export default function ComparisonPage({ locations }: ComparisonPageProps) {
                         data={paginatedTemperatureDataset}
                         units={"°F"}
                         title={location.data.location_data.location}
-                        isBarChart={true}
                         year={parseInt(selectedYear)}
                         xAxisRangeState={xAxisRangeState}
                         onXAxisRangeChange={handleXAxisRangeChange}
@@ -222,10 +219,13 @@ export default function ComparisonPage({ locations }: ComparisonPageProps) {
                 )}
               </LazyLoad>
               <p style={{ textAlign: "center" }}>
-                Average monthly high and low temperatures for each location.
+                Average high and low temperatures for each location. The
+                expected temperature range is the faint area behind the line,
+                which represents the highest and lowest temperatures likely for
+                a day. The table contains the average high and low temperatures
+                for each month.
               </p>
               <div>
-                {/* Change this to be the difference between the aparent temperature and normal between high and low*/}
                 <Table
                   locations={locations}
                   heading="Average High (°F)"
@@ -282,7 +282,6 @@ export default function ComparisonPage({ locations }: ComparisonPageProps) {
                         index={index}
                         data={paginatedApparentTemperatureDataset}
                         units={"°F"}
-                        isBarChart={true}
                         title={location.data.location_data.location}
                         year={parseInt(selectedYear)}
                         xAxisRangeState={xAxisRangeState}
@@ -294,10 +293,11 @@ export default function ComparisonPage({ locations }: ComparisonPageProps) {
               </LazyLoad>
 
               <p style={{ textAlign: "center" }}>
-                Average monthly apparent high and low temperatures for each
-                location. The apparent temperature changes which can change
-                based on humidity and wind speed, which can make it feel warmer
-                or cooler than the actual temperature.
+                Average high and low feels-like temperatures for each location.
+                The expected feels-like temperature range is the faint area
+                behind the line, which represents the highest and lowest
+                apparent temperatures likely for a day.The table contains the
+                average high and low apparent temperatures for each month.
               </p>
               <div>
                 <Table
@@ -316,125 +316,6 @@ export default function ComparisonPage({ locations }: ComparisonPageProps) {
                   annualDataKey={"APPARENT_LOW_AVG"}
                   decimalTrunc={0}
                   units={" °F"}
-                ></Table>
-              </div>
-              <br />
-              <br />
-              <hr />
-              <br />
-              <br />
-
-              <Typography
-                sx={{ flex: "1 1 100%" }}
-                variant={HEADING_VARIANT}
-                component="div"
-                textAlign={"center"}
-              >
-                Annual Temperature Ranges
-              </Typography>
-              <LazyLoad
-                height={LAZY_LOAD_HEIGHT}
-                offset={LAZY_LOAD_OFFSET}
-                once={DO_LAZY_LOAD_ONCE}
-              >
-                <ClimateChart
-                  datasetProp={annualTemperatureRangeDataset}
-                  units={"°F"}
-                  year={
-                    selectedYear === "Annual" ? 2023 : parseInt(selectedYear)
-                  }
-                  xAxisRangeState={xAxisRangeState}
-                  onXAxisRangeChange={handleXAxisRangeChange}
-                />
-              </LazyLoad>
-
-              <p style={{ textAlign: "center" }}>
-                Average monthly high and low temperature ranges for each
-                location. This is the expected maximum and minimum for each day
-                of the year
-              </p>
-              <div>
-                <Table
-                  locations={locations}
-                  heading="Record High (°F)"
-                  monthlyDataKey={"RECORD_HIGH"}
-                  annualDataKey={"RECORD_HIGH"}
-                  decimalTrunc={0}
-                  units={" °F"}
-                ></Table>
-
-                <Table
-                  locations={locations}
-                  heading="Record Low (°F)"
-                  monthlyDataKey={"RECORD_LOW"}
-                  annualDataKey={"RECORD_LOW"}
-                  decimalTrunc={0}
-                  units={" °F"}
-                ></Table>
-              </div>
-              <br />
-              <br />
-              <hr />
-              <br />
-              <br />
-              <Typography
-                sx={{ flex: "1 1 100%" }}
-                variant={HEADING_VARIANT}
-                component="div"
-                textAlign={"center"}
-              >
-                {selectedYear === "Annual" ? "Annual" : selectedYear} Comfort
-                Rating
-              </Typography>
-              <LazyLoad
-                height={LAZY_LOAD_HEIGHT}
-                offset={LAZY_LOAD_OFFSET}
-                once={DO_LAZY_LOAD_ONCE}
-              >
-                {selectedYear === "Annual" ? (
-                  <ClimateChart
-                    datasetProp={annualComfortDataset}
-                    units={""}
-                    xAxisRangeState={xAxisRangeState}
-                    onXAxisRangeChange={handleXAxisRangeChange}
-                  />
-                ) : (
-                  <ClimateChartPaginate
-                    locations={locations}
-                    currentIndex={currentIndex}
-                    setCurrentIndex={setCurrentIndex}
-                  >
-                    {(location, index) => (
-                      <ClimateChartRenderer
-                        index={index}
-                        data={paginatedComfortDataset}
-                        year={parseInt(selectedYear)}
-                        title={location.data.location_data.location}
-                        xAxisRangeState={xAxisRangeState}
-                        onXAxisRangeChange={handleXAxisRangeChange}
-                      />
-                    )}
-                  </ClimateChartPaginate>
-                )}
-              </LazyLoad>
-
-              <p style={{ textAlign: "center" }}>
-                Average comfort rating for each month. The comfort rating is a
-                function of temperature, humidity, amount of sun. The higher the
-                comfort rating, the more pleasant the weather is. A comfort
-                rating lower than 50 is very harsh, and largely unsuitable for
-                normal life. A rating over 90 is considered very ideal, usally
-                accompanied with plentiful sunshine, low humidity and warm
-                temperatures.
-              </p>
-              <div>
-                <Table
-                  locations={locations}
-                  heading="Comfort Rating"
-                  monthlyDataKey={"COMFORT_INDEX"}
-                  annualDataKey={"COMFORT_INDEX"}
-                  decimalTrunc={0}
-                  units={""}
                 ></Table>
               </div>
               <br />
@@ -486,12 +367,12 @@ export default function ComparisonPage({ locations }: ComparisonPageProps) {
               </LazyLoad>
 
               <p style={{ textAlign: "center" }}>
-                Precipitation in inches for each month. Precipitation is the
-                combined total water content of both rain and snow. The total
-                number of rainy days expected for each month, along with the
-                annual precipitation total are displayed in the table. A rainy
-                day is counted if there is more than 0.01 inches of rainfall
-                accumulation.
+                Average precipitation in inches for each location. Precipitation
+                is the combined total water content of both rain and snow. A
+                rainy day is counted if there is more than 0.01 inches of
+                rainfall accumulation. The total number of rainy days expected
+                for each month, along with the annual precipitation total are
+                displayed in the table.
               </p>
               <div>
                 <Table
@@ -559,10 +440,10 @@ export default function ComparisonPage({ locations }: ComparisonPageProps) {
               </LazyLoad>
 
               <p style={{ textAlign: "center" }}>
-                Snowfall in inches for each month. The total number of snowy
-                days expected for each month, along with the annual total are
-                displayed in the table. A snowy day is counted if there is more
-                than 0.1 inches of accumulation.
+                Average snowfall in inches for each location. A snowy day is
+                counted if there is more than 0.1 inches of accumulation. The
+                total number of snowy days expected for each month, along with
+                the annual total are displayed in the table.
               </p>
               <div>
                 <Table
@@ -631,14 +512,12 @@ export default function ComparisonPage({ locations }: ComparisonPageProps) {
               </LazyLoad>
 
               <p style={{ textAlign: "center" }}>
-                Average afternoon humidity for each month. In the morning when
-                the tempearture is lowest, the humidity will be highest. The
-                opposite is the case in the afternoon. The humidity is measured
-                in percentage. A humidity level below 30 percent is considered
-                comfortable, and above 70 percent is considered very humid. The
-                table contains the average humidity for each month, as well as
-                the chance a morning will have frost. Frost is likely when the
-                temperature is below 32 degrees, with high humidity.
+                Average afternoon humidity for each location. In the afternoon
+                when the tempearture is highest, the humidity will be the
+                lowest. The opposite is the case in the morning. A humidity
+                level below 30 percent is considered comfortable, and above 70
+                percent is considered very humid. The table contains the average
+                humidity for each month.
               </p>
               <div>
                 <Table
@@ -649,12 +528,11 @@ export default function ComparisonPage({ locations }: ComparisonPageProps) {
                   decimalTrunc={0}
                   units={" %"}
                 ></Table>
-
                 <Table
                   locations={locations}
-                  heading="Chance of Frost"
-                  monthlyDataKey={"MORNING_FROST_CHANCE"}
-                  annualDataKey={"MORNING_FROST_CHANCE"}
+                  heading="Morning Humidity"
+                  monthlyDataKey={"MORNING_HUMIDITY_AVG"}
+                  annualDataKey={"MORNING_HUMIDITY_AVG"}
                   decimalTrunc={0}
                   units={" %"}
                 ></Table>
@@ -707,11 +585,12 @@ export default function ComparisonPage({ locations }: ComparisonPageProps) {
               </LazyLoad>
 
               <p style={{ textAlign: "center" }}>
-                The dewpoint is a measure of absolute humidity in the air,
-                rather than the relative humidity percentage which changes with
-                temperature. Dewpoint values bellow 50 degrees are plesant,
-                around 60 degrees begins to feel humid, 70 degrees is very
-                muggy, and above 75 is extremely humid.
+                Average dewpoint for each location. The dewpoint is a measure of
+                absolute humidity in the air, rather than the relative humidity
+                percentage which changes with temperature. Dewpoint is generally
+                a better metric for how humid it feels outside. Dewpoint values
+                bellow 50 degrees are plesant, around 60 degrees begins to feel
+                humid, 70 degrees feels muggy, and above 75 feels oppressive.
               </p>
               <div>
                 <Table
@@ -780,8 +659,8 @@ export default function ComparisonPage({ locations }: ComparisonPageProps) {
               </LazyLoad>
 
               <p style={{ textAlign: "center" }}>
-                Average wind speed for each month. The wind speed is measured in
-                miles per hour.
+                Average wind speed for each location. The expected wind gust
+                peak for each location is the faint line.
               </p>
               <div>
                 <Table
@@ -792,6 +671,17 @@ export default function ComparisonPage({ locations }: ComparisonPageProps) {
                   decimalTrunc={0}
                   units={" mph"}
                 ></Table>
+
+                {
+                  <Table
+                    locations={locations}
+                    heading="Average Wind Gust"
+                    monthlyDataKey={"WIND_MAX"}
+                    annualDataKey={"WIND_MAX"}
+                    decimalTrunc={0}
+                    units={" mph"}
+                  ></Table>
+                }
               </div>
               <br />
               <br />
@@ -842,10 +732,11 @@ export default function ComparisonPage({ locations }: ComparisonPageProps) {
               </LazyLoad>
 
               <p style={{ textAlign: "center" }}>
-                Percent possible sunshine for each month. The total number of
-                sunny days expected for each month, along with the annual total
-                are displayed in the table. A sunny day is counted if the sun is
-                out more than 70% of each day.
+                Percentage of sunshine for each location. A day is considered to
+                be sunny if the sun is out more than 70% of each day, Partly
+                Cloudy if its out for more than 40%, and Cloudy if less.The
+                total number of sunny days expected for each month, along with
+                the annual total are displayed in the table.
               </p>
               <div>
                 <Table
@@ -853,6 +744,22 @@ export default function ComparisonPage({ locations }: ComparisonPageProps) {
                   heading="Total Sunny Days"
                   monthlyDataKey={"SUNNY_DAYS"}
                   annualDataKey={"SUNNY_DAYS"}
+                  decimalTrunc={0}
+                  units={" days"}
+                ></Table>
+                <Table
+                  locations={locations}
+                  heading="Total Party Cloudy Days"
+                  monthlyDataKey={"PARTLY_CLOUDY_DAYS"}
+                  annualDataKey={"PARTLY_CLOUDY_DAYS"}
+                  decimalTrunc={0}
+                  units={" days"}
+                ></Table>
+                <Table
+                  locations={locations}
+                  heading="Total Cloudy Days"
+                  monthlyDataKey={"CLOUDY_DAYS"}
+                  annualDataKey={"CLOUDY_DAYS"}
                   decimalTrunc={0}
                   units={" days"}
                 ></Table>
@@ -903,10 +810,11 @@ export default function ComparisonPage({ locations }: ComparisonPageProps) {
               </LazyLoad>
 
               <p style={{ textAlign: "center" }}>
-                Average UV Index. The UV index is a measure of the strength of
-                the suns ultraviolet rays. The UV index is highest in the summer
-                and lowest in the winter. The table contains the average UV
-                index for each month.
+                Average UV Index for each location. The UV index is a measure of
+                the strength of the suns ultraviolet rays. The UV index is
+                highest in the summer and lowest in the winter. Elevation also
+                increases the UV index, so on mountain peaks the sun is often
+                stronger.
               </p>
               <div>
                 <Table
@@ -925,6 +833,71 @@ export default function ComparisonPage({ locations }: ComparisonPageProps) {
                   annualDataKey={"SUN_ANGLE"}
                   decimalTrunc={0}
                   units={"°"}
+                ></Table>
+              </div>
+              <br />
+              <br />
+              <hr />
+              <br />
+              <br />
+              <Typography
+                sx={{ flex: "1 1 100%" }}
+                variant={HEADING_VARIANT}
+                component="div"
+                textAlign={"center"}
+              >
+                {selectedYear === "Annual" ? "Annual" : selectedYear} Comfort
+                Rating
+              </Typography>
+              <LazyLoad
+                height={LAZY_LOAD_HEIGHT}
+                offset={LAZY_LOAD_OFFSET}
+                once={DO_LAZY_LOAD_ONCE}
+              >
+                {selectedYear === "Annual" ? (
+                  <ClimateChart
+                    datasetProp={annualComfortDataset}
+                    units={""}
+                    xAxisRangeState={xAxisRangeState}
+                    onXAxisRangeChange={handleXAxisRangeChange}
+                  />
+                ) : (
+                  <ClimateChartPaginate
+                    locations={locations}
+                    currentIndex={currentIndex}
+                    setCurrentIndex={setCurrentIndex}
+                  >
+                    {(location, index) => (
+                      <ClimateChartRenderer
+                        index={index}
+                        data={paginatedComfortDataset}
+                        year={parseInt(selectedYear)}
+                        title={location.data.location_data.location}
+                        xAxisRangeState={xAxisRangeState}
+                        onXAxisRangeChange={handleXAxisRangeChange}
+                      />
+                    )}
+                  </ClimateChartPaginate>
+                )}
+              </LazyLoad>
+
+              <p style={{ textAlign: "center" }}>
+                Average comfort rating for each location. The comfort rating is
+                a function of temperature, humidity, and amount of sun. The
+                higher the comfort rating, the more pleasant the weather is. A
+                comfort rating lower than 50 is very harsh, and largely
+                unsuitable for normal life. A rating over 90 is considered very
+                ideal, usally accompanied with plentiful sunshine, low humidity
+                and warm temperatures.
+              </p>
+              <div>
+                <Table
+                  locations={locations}
+                  heading="Comfort Rating"
+                  monthlyDataKey={"COMFORT_INDEX"}
+                  annualDataKey={"COMFORT_INDEX"}
+                  decimalTrunc={0}
+                  units={""}
                 ></Table>
               </div>
               <br />
@@ -958,16 +931,26 @@ export default function ComparisonPage({ locations }: ComparisonPageProps) {
               </LazyLoad>
 
               <p style={{ textAlign: "center" }}>
-                Average frost free growing season. The table contains the
-                monthly Cooling Degree Days (CDD) and Heating Degree Days (HDD).
-                Cooling degree days are the number of degrees that a days
-                average temperature is above 65°F. Heating degree days are the
-                number of degrees that a days average temperature is below 65°F.
-                The total number of CDD and HDD for each month, along with the
-                annual total are displayed in the table. These values are a
-                metric in how severe a season is.
+                Average span between freezing temperatures, known as the growing
+                season. The table contains the monthly Cooling Degree Days (CDD)
+                Heating Degree Days (HDD), and chance of frost in the morning.
+                Cooling degree days are a measure of how much cooling is needed,
+                based on the duration the average temperature is above 65°F.
+                Heating degree days are the opposite. HDD and CDD are a good
+                measure in how severe a season is, and can translate into higher
+                utility bills. Frost is likely when the temperature is below 32
+                degrees, with high humidity, which often occurs in the morning.
               </p>
               <div>
+                <Table
+                  locations={locations}
+                  heading="Chance of Frost"
+                  monthlyDataKey={"MORNING_FROST_CHANCE"}
+                  annualDataKey={"MORNING_FROST_CHANCE"}
+                  decimalTrunc={0}
+                  units={" %"}
+                ></Table>
+
                 <Table
                   locations={locations}
                   heading="Cooling Degree Days (CDD)"
@@ -1014,7 +997,6 @@ const ClimateChartRenderer: React.FC<{
   index: number;
   data: any[]; // Replace 'any[]' with the appropriate type for your dataset if known.
   units?: string;
-  isBarChart?: boolean;
   title?: string;
   year?: number;
   xAxisRangeState: { minX: number; maxX: number };
@@ -1023,7 +1005,6 @@ const ClimateChartRenderer: React.FC<{
   index,
   data,
   units = "",
-  isBarChart = false,
   title = "",
   year = 2023,
   xAxisRangeState,
@@ -1036,7 +1017,6 @@ const ClimateChartRenderer: React.FC<{
     <ClimateChart
       datasetProp={data[index]}
       units={units}
-      isBarChart={isBarChart}
       title={title}
       year={year}
       xAxisRangeState={xAxisRangeState}
@@ -1052,7 +1032,6 @@ const mapClimateData = (
   options: { multiplyByVal?: number; windowSize?: number } = {}
 ) => {
   const { multiplyByVal = 1, windowSize } = options;
-
   // This selects the average data for all years if the annual option is selected
   // Otherwise, it selects the data for the selected year
   //console.log(selectedYear);
@@ -1118,7 +1097,8 @@ const mapClimateData = (
 const temperature_dataset = (
   locations: MarkerType[],
   selectedIndex: number | undefined,
-  selectedYear: string
+  selectedYear: string,
+  isBarChart: boolean = false
 ): ClimateChartDataset[] => {
   const datasets: ClimateChartDataset[] = [];
 
@@ -1127,19 +1107,46 @@ const temperature_dataset = (
     const colorIndex =
       typeof selectedIndex !== "undefined" ? selectedIndex : index;
 
+    const isAnnual = selectedYear === "Annual";
+    //const location_name = isAnnual ? location.data.location_data.location : "";
+    const location_name = "";
     const color = LocationColors(LINE_ALPHA)[colorIndex];
     const background_color = LocationColors(BACKGROUND_ALPHA)[colorIndex];
+    const paginated_background_color = LocationColors(
+      PAGINATED_BACKGROUND_ALPHA
+    )[colorIndex];
+    const border_width = isAnnual ? CHART_BORDER_WIDTH : 0;
 
-    const high_dataset: ClimateChartDataset = {
+    const max_dataset: ClimateChartDataset = {
       type: "line",
-      label: location.data.location_data.location,
-      data: mapClimateData(location, "HIGH_AVG", selectedYear, {
+      label: location_name + " Max",
+      data: mapClimateData(location, "EXPECTED_MAX", selectedYear, {
         multiplyByVal: 1,
         windowSize: SMA_SMOOTH_DAYS,
       }),
       backgroundColor: background_color,
+      borderColor: paginated_background_color,
+      borderWidth: CHART_BORDER_WIDTH / 2,
+
+      pointRadius: 0,
+      pointHoverRadius: 0,
+      lineTension: LINE_TENSION,
+
+      fill: isBarChart ? "+1" : "+2",
+      //fill: false,
+      yAxisID: "Temperature",
+    };
+
+    const high_dataset: ClimateChartDataset = {
+      type: isBarChart ? "bar" : "line",
+      label: location_name + " High",
+      data: mapClimateData(location, "HIGH_AVG", selectedYear, {
+        multiplyByVal: 1,
+        windowSize: SMA_SMOOTH_DAYS,
+      }),
+      backgroundColor: isAnnual ? background_color : paginated_background_color,
       borderColor: color,
-      borderWidth: CHART_BORDER_WIDTH,
+      borderWidth: border_width,
 
       pointRadius: 0,
       pointHoverRadius: 0,
@@ -1149,15 +1156,15 @@ const temperature_dataset = (
     };
 
     const low_dataset: ClimateChartDataset = {
-      type: "line",
-      label: location.data.location_data.location,
+      type: isBarChart ? "bar" : "line",
+      label: location_name + " Low",
       data: mapClimateData(location, "LOW_AVG", selectedYear, {
         multiplyByVal: 1,
         windowSize: SMA_SMOOTH_DAYS,
       }),
-      backgroundColor: background_color,
+      backgroundColor: isAnnual ? background_color : paginated_background_color,
       borderColor: color,
-      borderWidth: CHART_BORDER_WIDTH,
+      borderWidth: border_width,
       pointRadius: 0,
       pointHoverRadius: 0,
       lineTension: LINE_TENSION,
@@ -1165,7 +1172,26 @@ const temperature_dataset = (
       yAxisID: "Temperature",
     };
 
-    datasets.push(high_dataset, low_dataset);
+    const min_dataset: ClimateChartDataset = {
+      type: "line",
+      label: location_name + " Min ",
+      data: mapClimateData(location, "EXPECTED_MIN", selectedYear, {
+        multiplyByVal: 1,
+        windowSize: SMA_SMOOTH_DAYS,
+      }),
+      backgroundColor: background_color,
+      borderColor: paginated_background_color,
+      borderWidth: CHART_BORDER_WIDTH / 2,
+      pointRadius: 0,
+      pointHoverRadius: 0,
+      lineTension: LINE_TENSION,
+      fill: isBarChart ? "-1" : "-2",
+      //fill: false,
+
+      yAxisID: "Temperature",
+    };
+
+    datasets.push(max_dataset, high_dataset, low_dataset, min_dataset);
   });
 
   return datasets;
@@ -1174,27 +1200,54 @@ const temperature_dataset = (
 const apparent_temperature_dataset = (
   locations: MarkerType[],
   selectedIndex: number | undefined,
-  selectedYear: string
+  selectedYear: string,
+  isBarChart: boolean = false
 ): ClimateChartDataset[] => {
   const datasets: ClimateChartDataset[] = [];
 
   locations.forEach((location: MarkerType, index) => {
+    const isAnnual = selectedYear === "Annual";
+    //const location_name = isAnnual ? location.data.location_data.location : "";
+    const location_name = "";
+
     const colorIndex =
       typeof selectedIndex !== "undefined" ? selectedIndex : index;
 
     const color = LocationColors(LINE_ALPHA)[colorIndex];
     const background_color = LocationColors(BACKGROUND_ALPHA)[colorIndex];
+    const paginated_background_color = LocationColors(
+      PAGINATED_BACKGROUND_ALPHA
+    )[colorIndex];
+    const border_width = isAnnual ? CHART_BORDER_WIDTH : 0;
 
-    const high_dataset: ClimateChartDataset = {
+    const max_dataset: ClimateChartDataset = {
       type: "line",
-      label: location.data.location_data.location,
-      data: mapClimateData(location, "APPARENT_HIGH_AVG", selectedYear, {
+      label: location_name + " Max",
+      data: mapClimateData(location, "APPARENT_EXPECTED_MAX", selectedYear, {
         multiplyByVal: 1,
         windowSize: SMA_SMOOTH_DAYS,
       }),
       backgroundColor: background_color,
+      borderColor: paginated_background_color,
+      borderWidth: CHART_BORDER_WIDTH / 2,
+
+      pointRadius: 0,
+      pointHoverRadius: 0,
+      lineTension: LINE_TENSION,
+      fill: isBarChart ? "+1" : "+2",
+      yAxisID: "Temperature",
+    };
+
+    const high_dataset: ClimateChartDataset = {
+      type: isBarChart ? "bar" : "line",
+      label: location_name + " High",
+      data: mapClimateData(location, "APPARENT_HIGH_AVG", selectedYear, {
+        multiplyByVal: 1,
+        windowSize: SMA_SMOOTH_DAYS,
+      }),
+      backgroundColor: isAnnual ? background_color : paginated_background_color,
       borderColor: color,
-      borderWidth: CHART_BORDER_WIDTH,
+      borderWidth: border_width,
 
       pointRadius: 0,
       pointHoverRadius: 0,
@@ -1204,93 +1257,40 @@ const apparent_temperature_dataset = (
     };
 
     const low_dataset: ClimateChartDataset = {
-      type: "line",
-      label: location.data.location_data.location,
+      type: isBarChart ? "bar" : "line",
+      label: location_name + " Low",
       data: mapClimateData(location, "APPARENT_LOW_AVG", selectedYear, {
         multiplyByVal: 1,
         windowSize: SMA_SMOOTH_DAYS,
       }),
-      backgroundColor: background_color,
+      backgroundColor: isAnnual ? background_color : paginated_background_color,
       borderColor: color,
-      borderWidth: CHART_BORDER_WIDTH,
+      borderWidth: border_width,
       pointRadius: 0,
       pointHoverRadius: 0,
       lineTension: LINE_TENSION,
       fill: "-1",
-      yAxisID: "Temperature",
-    };
-
-    datasets.push(high_dataset, low_dataset);
-  });
-
-  return datasets;
-};
-
-const temperature_range_dataset = (
-  locations: MarkerType[],
-  selectedIndex: number | undefined,
-  selectedYear: string,
-  isPaginated: boolean = false
-): ClimateChartDataset[] => {
-  const datasets: ClimateChartDataset[] = [];
-
-  const getGradientColor = (
-    ctx: CanvasRenderingContext2D,
-    temperature: number
-  ): CanvasGradient => {
-    const gradient = ctx.createLinearGradient(0, 0, 0, 400); // Adjust gradient dimensions as needed
-
-    // Define your color ranges here
-    if (temperature > 110) gradient.addColorStop(0, "black");
-    else if (temperature > 100) gradient.addColorStop(0, "darkred");
-    // ... continue for other ranges
-
-    return gradient;
-  };
-
-  locations.forEach((location: MarkerType, index) => {
-    const colorIndex =
-      typeof selectedIndex !== "undefined" ? selectedIndex : index;
-
-    const color = LocationColors(LINE_ALPHA)[colorIndex];
-    const background_color = LocationColors(BACKGROUND_ALPHA)[colorIndex];
-
-    const max_dataset: ClimateChartDataset = {
-      type: "line",
-      label: location.data.location_data.location,
-      data: mapClimateData(location, "EXPECTED_MAX", selectedYear, {
-        multiplyByVal: 1,
-        windowSize: SMA_SMOOTH_DAYS,
-      }),
-      backgroundColor: background_color,
-      borderColor: color,
-      borderWidth: CHART_BORDER_WIDTH,
-
-      pointRadius: 0,
-      pointHoverRadius: 0,
-      lineTension: LINE_TENSION,
-      fill: "+1",
       yAxisID: "Temperature",
     };
 
     const min_dataset: ClimateChartDataset = {
       type: "line",
-      label: location.data.location_data.location,
-      data: mapClimateData(location, "EXPECTED_MIN", selectedYear, {
+      label: location_name + " Min ",
+      data: mapClimateData(location, "APPARENT_EXPECTED_MIN", selectedYear, {
         multiplyByVal: 1,
         windowSize: SMA_SMOOTH_DAYS,
       }),
       backgroundColor: background_color,
-      borderColor: color,
-      borderWidth: CHART_BORDER_WIDTH,
+      borderColor: paginated_background_color,
+      borderWidth: CHART_BORDER_WIDTH / 2,
       pointRadius: 0,
       pointHoverRadius: 0,
       lineTension: LINE_TENSION,
-      fill: "-1",
+      fill: isBarChart ? "-1" : "-2",
       yAxisID: "Temperature",
     };
 
-    datasets.push(max_dataset, min_dataset);
+    datasets.push(max_dataset, high_dataset, low_dataset, min_dataset);
   });
 
   return datasets;
@@ -1298,31 +1298,54 @@ const temperature_range_dataset = (
 
 const precip_dataset = (
   locations: MarkerType[],
-  multiplier: number = 1,
   selectedIndex: number | undefined,
-  selectedYear: string,
-  isPaginated: boolean = false
+  selectedYear: string
 ): ClimateChartDataset[] => {
   const datasets: ClimateChartDataset[] = [];
   locations.forEach((location: MarkerType, index) => {
+    const isAnnual = selectedYear === "Annual";
+    //const location_name = isAnnual ? location.data.location_data.location : "";
+    const location_name = "";
+
     const colorIndex =
       typeof selectedIndex !== "undefined" ? selectedIndex : index;
 
     const color = LocationColors(LINE_ALPHA)[colorIndex];
-    const background_color = isPaginated
-      ? LocationColors(PAGINATED_BACKGROUND_ALPHA)[colorIndex]
-      : LocationColors(BACKGROUND_ALPHA)[colorIndex];
-    const borderWidth = isPaginated ? 0 : CHART_BORDER_WIDTH;
+    const paginated_background_color = LocationColors(
+      PAGINATED_BACKGROUND_ALPHA
+    )[colorIndex];
+    const background_color = LocationColors(BACKGROUND_ALPHA)[colorIndex];
+    const borderWidth = isAnnual ? CHART_BORDER_WIDTH : 0;
 
-    const precip: ClimateChartDataset = {
+    const avg: ClimateChartDataset = {
       type: "line",
-      label: location.data.location_data.location,
-      data: mapClimateData(location, "PRECIP_AVG", selectedYear, {
-        multiplyByVal: multiplier,
+      label: location_name + " Avg",
+      data: mapClimateData(location, "PRECIP_AVG", "Annual", {
+        multiplyByVal: 30,
         windowSize: SMA_SMOOTH_DAYS * 2,
       }),
       backgroundColor: background_color,
-      borderColor: color,
+      borderColor: isAnnual ? color : paginated_background_color,
+      borderWidth: 1,
+      pointRadius: 0,
+      pointHoverRadius: 0,
+      lineTension: LINE_TENSION,
+      fill: isAnnual ? true : false,
+      yAxisID: "Precip",
+    };
+
+    datasets.push(avg);
+
+    // Dataset for historical values
+    const historical: ClimateChartDataset = {
+      type: "line",
+      label: location_name + " Act",
+      data: mapClimateData(location, "PRECIP_AVG", selectedYear, {
+        multiplyByVal: 1,
+        windowSize: SMA_SMOOTH_DAYS * 2,
+      }),
+      backgroundColor: paginated_background_color,
+      borderColor: paginated_background_color,
       borderWidth: borderWidth,
       pointRadius: 0,
       pointHoverRadius: 0,
@@ -1331,37 +1354,63 @@ const precip_dataset = (
       yAxisID: "Precip",
     };
 
-    datasets.push(precip);
+    if (selectedYear !== "Annual") {
+      datasets.push(historical);
+    }
   });
   return datasets;
 };
 
 const snow_dataset = (
   locations: MarkerType[],
-  multiplier: number = 1,
   selectedIndex: number | undefined,
-  selectedYear: string,
-  isPaginated: boolean = false
+  selectedYear: string
 ): ClimateChartDataset[] => {
   const datasets: ClimateChartDataset[] = [];
   locations.forEach((location: MarkerType, index) => {
+    const isAnnual = selectedYear === "Annual";
+    //const location_name = isAnnual ? location.data.location_data.location : "";
+    const location_name = "";
+
     const colorIndex =
       typeof selectedIndex !== "undefined" ? selectedIndex : index;
 
     const color = LocationColors(LINE_ALPHA)[colorIndex];
-    const background_color = isPaginated
-      ? LocationColors(PAGINATED_BACKGROUND_ALPHA)[colorIndex]
-      : LocationColors(BACKGROUND_ALPHA)[colorIndex];
-    const borderWidth = isPaginated ? 0 : CHART_BORDER_WIDTH;
-    const snow_dataset: ClimateChartDataset = {
+    const paginated_background_color = LocationColors(
+      PAGINATED_BACKGROUND_ALPHA
+    )[colorIndex];
+    const background_color = LocationColors(BACKGROUND_ALPHA)[colorIndex];
+    const borderWidth = isAnnual ? CHART_BORDER_WIDTH : 0;
+
+    const avg: ClimateChartDataset = {
       type: "line",
-      label: location.data.location_data.location,
-      data: mapClimateData(location, "SNOW_AVG", selectedYear, {
-        multiplyByVal: multiplier,
+      label: location_name + " Avg",
+      data: mapClimateData(location, "SNOW_AVG", "Annual", {
+        multiplyByVal: 30,
         windowSize: SMA_SMOOTH_DAYS * 2,
       }),
       backgroundColor: background_color,
-      borderColor: color,
+      borderColor: isAnnual ? color : paginated_background_color,
+      borderWidth: 1,
+      pointRadius: 0,
+      pointHoverRadius: 0,
+      lineTension: LINE_TENSION,
+      fill: isAnnual ? true : false,
+      yAxisID: "Precip",
+    };
+
+    datasets.push(avg);
+
+    // Dataset for historical values
+    const historical: ClimateChartDataset = {
+      type: "line",
+      label: location_name + " Act",
+      data: mapClimateData(location, "SNOW_AVG", selectedYear, {
+        multiplyByVal: 1,
+        windowSize: SMA_SMOOTH_DAYS * 2,
+      }),
+      backgroundColor: paginated_background_color,
+      borderColor: paginated_background_color,
       borderWidth: borderWidth,
       pointRadius: 0,
       pointHoverRadius: 0,
@@ -1370,7 +1419,9 @@ const snow_dataset = (
       yAxisID: "Precip",
     };
 
-    datasets.push(snow_dataset);
+    if (!isAnnual) {
+      datasets.push(historical);
+    }
   });
   return datasets;
 };
@@ -1378,40 +1429,63 @@ const snow_dataset = (
 const humidity_dataset = (
   locations: MarkerType[],
   selectedIndex: number | undefined,
-  selectedYear: string,
-  isPaginated: boolean = false
+  selectedYear: string
 ): ClimateChartDataset[] => {
   const datasets: ClimateChartDataset[] = [];
   locations.forEach((location: MarkerType, index) => {
+    const isAnnual = selectedYear === "Annual";
+    //const location_name = isAnnual ? location.data.location_data.location : "";
+    const location_name = "";
+
     const colorIndex =
       typeof selectedIndex !== "undefined" ? selectedIndex : index;
 
     const color = LocationColors(LINE_ALPHA)[colorIndex];
-    const background_color = isPaginated
-      ? LocationColors(PAGINATED_BACKGROUND_ALPHA)[colorIndex]
-      : LocationColors(BACKGROUND_ALPHA)[colorIndex];
-    const borderWidth = isPaginated ? 0 : CHART_BORDER_WIDTH;
+    const paginated_background_color = LocationColors(
+      PAGINATED_BACKGROUND_ALPHA
+    )[colorIndex];
+    const background_color = LocationColors(BACKGROUND_ALPHA)[colorIndex];
+    const borderWidth = isAnnual ? CHART_BORDER_WIDTH : 0;
 
-    const afternoon_humidity_dataset: ClimateChartDataset = {
+    const avg: ClimateChartDataset = {
       type: "line",
-      label: location.data.location_data.location,
+      label: location_name + " Avg",
+      data: mapClimateData(location, "AFTERNOON_HUMIDITY_AVG", "Annual", {
+        multiplyByVal: 1,
+        windowSize: SMA_SMOOTH_DAYS,
+      }),
+      backgroundColor: background_color,
+      borderColor: isAnnual ? color : paginated_background_color,
+      borderWidth: 1,
+      pointRadius: 0,
+      pointHoverRadius: 0,
+      lineTension: LINE_TENSION,
+      fill: isAnnual ? true : false,
+      yAxisID: "Percentage",
+    };
+
+    datasets.push(avg);
+
+    const historical: ClimateChartDataset = {
+      type: "line",
+      label: location_name + " Act",
       data: mapClimateData(location, "AFTERNOON_HUMIDITY_AVG", selectedYear, {
         multiplyByVal: 1,
         windowSize: SMA_SMOOTH_DAYS,
       }),
-
-      backgroundColor: background_color,
-      borderColor: color,
+      backgroundColor: paginated_background_color,
+      borderColor: paginated_background_color,
       borderWidth: borderWidth,
       pointRadius: 0,
       pointHoverRadius: 0,
       lineTension: LINE_TENSION,
       fill: true,
-
       yAxisID: "Percentage",
     };
 
-    datasets.push(afternoon_humidity_dataset);
+    if (!isAnnual) {
+      datasets.push(historical);
+    }
   });
   return datasets;
 };
@@ -1419,67 +1493,102 @@ const humidity_dataset = (
 const dewpoint_dataset = (
   locations: MarkerType[],
   selectedIndex: number | undefined,
-  selectedYear: string,
-  isPaginated: boolean = false
+  selectedYear: string
 ): ClimateChartDataset[] => {
   const datasets: ClimateChartDataset[] = [];
+
   locations.forEach((location: MarkerType, index) => {
+    const isAnnual = selectedYear === "Annual";
+    //    const location_name = isAnnual ? location.data.location_data.location : "";
+    const location_name = "";
+
     const colorIndex =
       typeof selectedIndex !== "undefined" ? selectedIndex : index;
 
     const color = LocationColors(LINE_ALPHA)[colorIndex];
-    const background_color = isPaginated
-      ? LocationColors(PAGINATED_BACKGROUND_ALPHA)[colorIndex]
-      : LocationColors(BACKGROUND_ALPHA)[colorIndex];
-    const borderWidth = isPaginated ? 0 : CHART_BORDER_WIDTH;
+    const paginated_background_color = LocationColors(
+      PAGINATED_BACKGROUND_ALPHA
+    )[colorIndex];
+    const background_color = LocationColors(BACKGROUND_ALPHA)[colorIndex];
+    const borderWidth = isAnnual ? CHART_BORDER_WIDTH : 0;
 
-    const dewpoint_dataset: ClimateChartDataset = {
+    const avg: ClimateChartDataset = {
       type: "line",
-      label: location.data.location_data.location,
+      label: location_name + " Avg",
+      data: mapClimateData(location, "DEWPOINT_AVG", "Annual", {
+        multiplyByVal: 1,
+        windowSize: SMA_SMOOTH_DAYS,
+      }),
+      backgroundColor: background_color,
+      borderColor: isAnnual ? color : paginated_background_color,
+      borderWidth: 1,
+      pointRadius: 0,
+      pointHoverRadius: 0,
+      lineTension: LINE_TENSION,
+      fill: isAnnual
+        ? {
+            target: "start", // Fills towards the end of the scale
+            above: background_color, // Color above the data line
+            below: background_color, // Color below the data line
+          }
+        : false,
+      yAxisID: "Dewpoint",
+    };
+
+    datasets.push(avg);
+
+    const historical: ClimateChartDataset = {
+      type: "line",
+      label: location_name + " Act",
       data: mapClimateData(location, "DEWPOINT_AVG", selectedYear, {
         multiplyByVal: 1,
         windowSize: SMA_SMOOTH_DAYS,
       }),
-
-      backgroundColor: background_color,
-      borderColor: color,
+      backgroundColor: paginated_background_color,
+      borderColor: paginated_background_color,
       borderWidth: borderWidth,
       pointRadius: 0,
       pointHoverRadius: 0,
       lineTension: LINE_TENSION,
       fill: {
         target: "start", // Fills towards the end of the scale
-        above: background_color, // Color above the data line
-        below: background_color, // Color below the data line
+        above: paginated_background_color, // Color above the data line
+        below: paginated_background_color, // Color below the data line
       },
       yAxisID: "Dewpoint",
     };
 
-    datasets.push(dewpoint_dataset);
+    if (!isAnnual) {
+      datasets.push(historical);
+    }
   });
+
   return datasets;
 };
 
 const wind_dataset = (
   locations: MarkerType[],
   selectedIndex: number | undefined,
-  selectedYear: string,
-  isPaginated: boolean = false
+  selectedYear: string
 ): ClimateChartDataset[] => {
   const datasets: ClimateChartDataset[] = [];
   locations.forEach((location: MarkerType, index) => {
+    const isAnnual = selectedYear === "Annual";
+    //const location_name = isAnnual ? location.data.location_data.location : "";
+    const location_name = "";
+
     const colorIndex =
       typeof selectedIndex !== "undefined" ? selectedIndex : index;
 
     const color = LocationColors(LINE_ALPHA)[colorIndex];
-    const background_color = isPaginated
-      ? LocationColors(PAGINATED_BACKGROUND_ALPHA)[colorIndex]
-      : LocationColors(BACKGROUND_ALPHA)[colorIndex];
-    const borderWidth = isPaginated ? 0 : CHART_BORDER_WIDTH;
+    const background_color = isAnnual
+      ? LocationColors(BACKGROUND_ALPHA)[colorIndex]
+      : LocationColors(PAGINATED_BACKGROUND_ALPHA)[colorIndex];
+    const borderWidth = isAnnual ? CHART_BORDER_WIDTH : 0;
 
     const wind_dataset: ClimateChartDataset = {
       type: "line",
-      label: location.data.location_data.location,
+      label: location_name + " Avg ",
       data: mapClimateData(location, "WIND_AVG", selectedYear, {
         multiplyByVal: 1,
         windowSize: SMA_SMOOTH_DAYS,
@@ -1495,38 +1604,82 @@ const wind_dataset = (
       yAxisID: "Wind",
     };
 
+    const max_wind_dataset: ClimateChartDataset = {
+      type: "line",
+      label: location_name + " Max",
+      data: mapClimateData(location, "WIND_MAX", selectedYear, {
+        multiplyByVal: 1,
+        windowSize: SMA_SMOOTH_DAYS,
+      }),
+
+      backgroundColor: background_color,
+      borderColor: background_color,
+      borderWidth: borderWidth,
+      pointRadius: 0,
+      pointHoverRadius: 0,
+      lineTension: LINE_TENSION,
+      fill: true,
+      yAxisID: "Wind",
+    };
+
+    datasets.push(wind_dataset, max_wind_dataset);
+
     datasets.push(wind_dataset);
   });
+
   return datasets;
 };
 
 const sunshine_dataset = (
   locations: MarkerType[],
   selectedIndex: number | undefined,
-  selectedYear: string,
-  isPaginated: boolean = false
+  selectedYear: string
 ): ClimateChartDataset[] => {
   const datasets: ClimateChartDataset[] = [];
+
   locations.forEach((location: MarkerType, index) => {
+    const isAnnual = selectedYear === "Annual";
+    //const location_name = isAnnual ? location.data.location_data.location : "";
+    const location_name = "";
+
     const colorIndex =
       typeof selectedIndex !== "undefined" ? selectedIndex : index;
 
     const color = LocationColors(LINE_ALPHA)[colorIndex];
-    const background_color = isPaginated
-      ? LocationColors(PAGINATED_BACKGROUND_ALPHA)[colorIndex]
-      : LocationColors(BACKGROUND_ALPHA)[colorIndex];
-    const borderWidth = isPaginated ? 0 : CHART_BORDER_WIDTH;
+    const paginated_background_color = LocationColors(
+      PAGINATED_BACKGROUND_ALPHA
+    )[colorIndex];
+    const background_color = LocationColors(BACKGROUND_ALPHA)[colorIndex];
+    const borderWidth = isAnnual ? CHART_BORDER_WIDTH : 0;
 
-    const sunshine_dataset: ClimateChartDataset = {
+    const avg: ClimateChartDataset = {
       type: "line",
-      label: location.data.location_data.location,
+      label: location_name + " Avg",
+      data: mapClimateData(location, "SUNSHINE_AVG", "Annual", {
+        multiplyByVal: 1,
+        windowSize: SMA_SMOOTH_DAYS,
+      }),
+      backgroundColor: background_color,
+      borderColor: isAnnual ? color : paginated_background_color,
+      borderWidth: 1,
+      pointRadius: 0,
+      pointHoverRadius: 0,
+      lineTension: LINE_TENSION,
+      fill: isAnnual ? true : false,
+      yAxisID: "Percentage",
+    };
+
+    datasets.push(avg);
+
+    const historical: ClimateChartDataset = {
+      type: "line",
+      label: location_name + " Act",
       data: mapClimateData(location, "SUNSHINE_AVG", selectedYear, {
         multiplyByVal: 1,
         windowSize: SMA_SMOOTH_DAYS,
       }),
-
-      backgroundColor: background_color,
-      borderColor: color,
+      backgroundColor: paginated_background_color,
+      borderColor: paginated_background_color,
       borderWidth: borderWidth,
       pointRadius: 0,
       pointHoverRadius: 0,
@@ -1535,37 +1688,64 @@ const sunshine_dataset = (
       yAxisID: "Percentage",
     };
 
-    datasets.push(sunshine_dataset);
+    if (!isAnnual) {
+      datasets.push(historical);
+    }
   });
+
   return datasets;
 };
 
 const uv_index_dataset = (
   locations: MarkerType[],
   selectedIndex: number | undefined,
-  selectedYear: string,
-  isPaginated: boolean = false
+  selectedYear: string
 ): ClimateChartDataset[] => {
   const datasets: ClimateChartDataset[] = [];
+
   locations.forEach((location: MarkerType, index) => {
+    const isAnnual = selectedYear === "Annual";
+    //const location_name = isAnnual ? location.data.location_data.location : "";
+    const location_name = "";
+
     const colorIndex =
       typeof selectedIndex !== "undefined" ? selectedIndex : index;
 
     const color = LocationColors(LINE_ALPHA)[colorIndex];
-    const background_color = isPaginated
-      ? LocationColors(PAGINATED_BACKGROUND_ALPHA)[colorIndex]
-      : LocationColors(BACKGROUND_ALPHA)[colorIndex];
-    const borderWidth = isPaginated ? 0 : CHART_BORDER_WIDTH;
-    const uv_index: ClimateChartDataset = {
+    const paginated_background_color = LocationColors(
+      PAGINATED_BACKGROUND_ALPHA
+    )[colorIndex];
+    const background_color = LocationColors(BACKGROUND_ALPHA)[colorIndex];
+    const borderWidth = isAnnual ? CHART_BORDER_WIDTH : 0;
+
+    const avg: ClimateChartDataset = {
       type: "line",
-      label: location.data.location_data.location,
+      label: location_name + " Avg",
+      data: mapClimateData(location, "UV_INDEX", "Annual", {
+        multiplyByVal: 1,
+        windowSize: SMA_SMOOTH_DAYS,
+      }),
+      backgroundColor: background_color,
+      borderColor: isAnnual ? color : paginated_background_color,
+      borderWidth: 1,
+      pointRadius: 0,
+      pointHoverRadius: 0,
+      lineTension: LINE_TENSION,
+      fill: isAnnual ? true : false,
+      yAxisID: "UV_Index",
+    };
+
+    datasets.push(avg);
+
+    const historical: ClimateChartDataset = {
+      type: "line",
+      label: location_name + " Act",
       data: mapClimateData(location, "UV_INDEX", selectedYear, {
         multiplyByVal: 1,
         windowSize: SMA_SMOOTH_DAYS,
       }),
-
-      backgroundColor: background_color,
-      borderColor: color,
+      backgroundColor: paginated_background_color,
+      borderColor: paginated_background_color,
       borderWidth: borderWidth,
       pointRadius: 0,
       pointHoverRadius: 0,
@@ -1574,37 +1754,63 @@ const uv_index_dataset = (
       yAxisID: "UV_Index",
     };
 
-    datasets.push(uv_index);
+    if (!isAnnual) {
+      datasets.push(historical);
+    }
   });
+
   return datasets;
 };
 
 const comfort_index_dataset = (
   locations: MarkerType[],
   selectedIndex: number | undefined,
-  selectedYear: string,
-  isPaginated: boolean = false
+  selectedYear: string
 ): ClimateChartDataset[] => {
   const datasets: ClimateChartDataset[] = [];
   locations.forEach((location: MarkerType, index) => {
+    const isAnnual = selectedYear === "Annual";
+    //const location_name = isAnnual ? location.data.location_data.location : "";
+    const location_name = "";
+
     const colorIndex =
       typeof selectedIndex !== "undefined" ? selectedIndex : index;
 
     const color = LocationColors(LINE_ALPHA)[colorIndex];
-    const background_color = isPaginated
-      ? LocationColors(PAGINATED_BACKGROUND_ALPHA)[colorIndex]
-      : LocationColors(BACKGROUND_ALPHA)[colorIndex];
-    const borderWidth = isPaginated ? 0 : CHART_BORDER_WIDTH;
-    const comfort_index_dataset: ClimateChartDataset = {
+    const paginated_background_color = LocationColors(
+      PAGINATED_BACKGROUND_ALPHA
+    )[colorIndex];
+    const background_color = LocationColors(BACKGROUND_ALPHA)[colorIndex];
+    const borderWidth = isAnnual ? CHART_BORDER_WIDTH : 0;
+
+    const avg: ClimateChartDataset = {
       type: "line",
-      label: location.data.location_data.location,
+      label: location_name + " Avg",
+      data: mapClimateData(location, "COMFORT_INDEX", "Annual", {
+        multiplyByVal: 1,
+        windowSize: SMA_SMOOTH_DAYS,
+      }),
+      backgroundColor: background_color,
+      borderColor: isAnnual ? color : paginated_background_color,
+      borderWidth: 1,
+      pointRadius: 0,
+      pointHoverRadius: 0,
+      lineTension: LINE_TENSION,
+      fill: isAnnual ? true : false,
+      yAxisID: "Comfort_Index",
+    };
+
+    datasets.push(avg);
+
+    const historical: ClimateChartDataset = {
+      type: "line",
+      label: location_name + " Act",
       data: mapClimateData(location, "COMFORT_INDEX", selectedYear, {
         multiplyByVal: 1,
         windowSize: SMA_SMOOTH_DAYS,
       }),
-
-      backgroundColor: background_color,
-      borderColor: color,
+      backgroundColor: paginated_background_color,
+      borderColor: paginated_background_color,
       borderWidth: borderWidth,
       pointRadius: 0,
       pointHoverRadius: 0,
@@ -1613,8 +1819,11 @@ const comfort_index_dataset = (
       yAxisID: "Comfort_Index",
     };
 
-    datasets.push(comfort_index_dataset);
+    if (!isAnnual) {
+      datasets.push(historical);
+    }
   });
+
   return datasets;
 };
 
@@ -1625,22 +1834,30 @@ const growing_season_dataset = (
 ): ClimateChartDataset[] => {
   const datasets: ClimateChartDataset[] = [];
   locations.forEach((location: MarkerType, index) => {
+    const isAnnual = selectedYear === "Annual";
+    //const location_name = isAnnual ? location.data.location_data.location : "";
+    const location_name = "";
+
     const colorIndex =
       typeof selectedIndex !== "undefined" ? selectedIndex : index;
 
     const color = LocationColors(LINE_ALPHA)[colorIndex];
+    const paginated_background_color = LocationColors(
+      PAGINATED_BACKGROUND_ALPHA
+    )[colorIndex];
     const background_color = LocationColors(BACKGROUND_ALPHA)[colorIndex];
+    const borderWidth = CHART_BORDER_WIDTH;
 
-    const frostfree_dataset: ClimateChartDataset = {
+    const avg: ClimateChartDataset = {
       type: "line",
-      label: location.data.location_data.location,
-      data: mapClimateData(location, "GROWING_CHANCE", selectedYear, {
+      label: location_name + " Growing",
+      data: mapClimateData(location, "GROWING_CHANCE", "Annual", {
         multiplyByVal: 1,
         windowSize: SMA_SMOOTH_DAYS,
       }),
       backgroundColor: background_color,
       borderColor: color,
-      borderWidth: CHART_BORDER_WIDTH,
+      borderWidth: borderWidth,
       pointRadius: 0,
       pointHoverRadius: 0,
       lineTension: LINE_TENSION,
@@ -1648,7 +1865,27 @@ const growing_season_dataset = (
       yAxisID: "Percentage",
     };
 
-    datasets.push(frostfree_dataset);
+    datasets.push(avg);
+
+    const frost: ClimateChartDataset = {
+      type: "line",
+      label: location_name + " Frost",
+      data: mapClimateData(location, "MORNING_FROST_CHANCE", "Annual", {
+        multiplyByVal: 1,
+        windowSize: SMA_SMOOTH_DAYS,
+      }),
+      backgroundColor: background_color,
+      borderColor: color,
+      borderWidth: borderWidth / 2,
+      pointRadius: 0,
+      pointHoverRadius: 0,
+      lineTension: LINE_TENSION,
+      fill: true,
+      yAxisID: "Percentage",
+    };
+
+    datasets.push(frost);
   });
+
   return datasets;
 };

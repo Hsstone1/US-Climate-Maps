@@ -9,13 +9,15 @@ import CustomInfoWindow from "./custominfowindow";
 import Snackbar from "@mui/material/Snackbar";
 import CircularProgress from "@mui/material/CircularProgress";
 
+const LOCAL_DEVELOPMENT_API_URL = "http://localhost:5000/climate_data";
+const PRODUCTION_API_URL = "https://api.usclimatemaps.com/climate_data";
 type LatLngLiteral = google.maps.LatLngLiteral;
 type MapOptions = google.maps.MapOptions;
 //max number of locations that can be compared at once
 const NUM_NUM_LOCATIONS = 5;
 
-let apiUrl = "http://localhost:5000/climate_data";
-//let apiUrl = "https://api.usclimatemaps.com/climate_data";
+//let apiUrl = LOCAL_DEVELOPMENT_API_URL;
+let apiUrl = PRODUCTION_API_URL;
 
 export default function Map() {
   const mapRef = useRef<GoogleMap>();
@@ -178,7 +180,10 @@ export default function Map() {
                 data: data,
               };
 
-              console.log(data);
+              //Only prints if in testing
+              if (apiUrl === LOCAL_DEVELOPMENT_API_URL) {
+                console.log(data);
+              }
 
               setSelectedMarker((prevMarkers) => [...prevMarkers, newMarker]);
 
