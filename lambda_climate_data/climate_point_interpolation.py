@@ -42,7 +42,7 @@ NUM_NWS_SAMPLE_STATIONS = 5
 NUM_NOAA_SAMPLE_STATIONS = 8
 MAX_THREADS = 10
 
-START_YEAR = 2000
+START_YEAR = 1980
 CURRENT_YEAR = int(time.strftime("%Y"))
 START_DATE = f"{START_YEAR}-01-01"
 END_DATE = f"{CURRENT_YEAR}-12-31"
@@ -338,8 +338,24 @@ def optimized_climate_data(target_lat, target_lon, target_elevation):
     model.fit(X_train, y_train)
 
     # Identify the rows where NWS columns are NaN
-    # April 1st, 2019 is the start of the nws dataset
-    date_limit = pd.Timestamp("2019-04-01")
+
+    # Bounding box for Hawaii
+    sw_corner = (15, -170)
+    ne_corner = (30, -130)
+
+    if (
+        target_lat >= sw_corner[0]
+        and target_lat <= ne_corner[0]
+        and target_lon >= sw_corner[1]
+        and target_lon <= ne_corner[1]
+    ):
+        # Hawaii-specific date, since the NWS data is not available for Hawaii from 2019-04-01 to 2021-02-01
+        date_limit = pd.Timestamp("2021-02-01")
+    else:
+        # April 1st, 2019 is the start of the nws dataset
+        date_limit = pd.Timestamp("2019-04-01")
+
+    print("date_limit: ", date_limit)
     missing_data = combined[
         (combined["DAILY_SUNSHINE_AVG"].isna()) & (combined["DATE"] < date_limit)
     ]
@@ -776,7 +792,7 @@ def process_nws_station_data(provider, city_code, weight, elev_diff):
     df["DAILY_WIND_DIR_AVG"] = df["DR"].where(df["DR"] != 1, 0)
 
     # Initial calculation for DAILY_SUNSHINE_AVG without elevation adjustment
-    df["DAILY_SUNSHINE_AVG"] = (10 * (10 - df["S-S"])).where(df["S-S"] >= 0, 0)
+    df["DAILY_SUNSHINE_AVG"] = (10 * (10 - df["S-S"])).where(df["S-S"] >= 0)
     df["DAILY_SUNSHINE_AVG"] = df["DAILY_SUNSHINE_AVG"].clip(lower=0, upper=100)
 
     # Adjust for elevation using sunshine values
