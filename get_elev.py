@@ -32,7 +32,7 @@ def get_elevation(lat, lon, api_key):
 
 
 def elevation():
-    api_key = "AIzaSyAq_TfamT2GztucwP0IbBfa_kQx5ebfIno"
+    api_key = "API_KEY"
 
     # Replace 'path/to/your/csvfile.csv' with the path to your CSV file
     file_path = f"{os.getcwd()}\\"
