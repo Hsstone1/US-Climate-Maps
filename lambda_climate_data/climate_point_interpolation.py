@@ -20,9 +20,10 @@ from concurrent.futures import ThreadPoolExecutor
 """
 USE RELATIVE IMPORTS FOR LOCAL DEVELOPMENT ONLY
 """
-# from .climate_point_interpolation_helpers import *
-
-from climate_point_interpolation_helpers import *
+if "amzn" in platform.platform():
+    from climate_point_interpolation_helpers import *
+else:
+    from .climate_point_interpolation_helpers import *
 
 
 """
@@ -759,7 +760,7 @@ def process_nws_station_data(provider, city_code, weight, elev_diff):
         df = pd.read_csv(file_path, usecols=USE_COLS)
     elev_diff /= 1000
     # Compute the required averages with elevation adjustments since conditions change with elevation
-    elevation_adjustment_for_wind = min((1 + elev_diff * 0.3), 5)
+    elevation_adjustment_for_wind = min((1 + elev_diff * 0.2), 5)
     elevation_adjustment_for_sunshine = max((1 - elev_diff * 0.03), 0)
 
     # Convert the 'DATE' column to datetime

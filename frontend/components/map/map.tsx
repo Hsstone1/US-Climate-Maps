@@ -9,15 +9,13 @@ import CustomInfoWindow from "./custominfowindow";
 import Snackbar from "@mui/material/Snackbar";
 import CircularProgress from "@mui/material/CircularProgress";
 
-const LOCAL_DEVELOPMENT_API_URL = "http://localhost:5000/climate_data";
-const PRODUCTION_API_URL = "https://api.usclimatemaps.com/climate_data";
+const LOCAL_DEVELOPMENT_API_URL = "http://localhost:5000";
 type LatLngLiteral = google.maps.LatLngLiteral;
 type MapOptions = google.maps.MapOptions;
 //max number of locations that can be compared at once
 const NUM_NUM_LOCATIONS = 5;
 
-//let apiUrl = LOCAL_DEVELOPMENT_API_URL;
-let apiUrl = PRODUCTION_API_URL;
+let apiUrl = process.env.NEXT_PUBLIC_API_URL;
 
 export default function Map() {
   const mapRef = useRef<GoogleMap>();
@@ -66,10 +64,70 @@ export default function Map() {
     mapRef.current = map;
   }, []);
 
+  const fetchGeolocation = async (latitude: any, longitude: any) => {
+    try {
+      const response = await fetch(apiUrl + "/geolocate", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ latitude, longitude }),
+      });
+
+      if (!response.ok) {
+        throw new Error("Network response was not ok.");
+      }
+
+      const data = await response.json();
+
+      return data.geolocation; // Assuming the backend returns the location name
+    } catch (error) {
+      console.error("Error fetching geolocation:", error);
+      throw error;
+    }
+  };
+
+  const fetchElevation = async (latitude: any, longitude: any) => {
+    try {
+      const response = await fetch(apiUrl + "/elevation", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ latitude, longitude }),
+      });
+
+      if (!response.ok) {
+        throw new Error("Network response was not ok.");
+      }
+
+      const data = await response.json();
+
+      return data.elevation; // Assuming the backend returns the elevation in feet
+    } catch (error) {
+      console.error("Error fetching elevation:", error);
+      throw error;
+    }
+  };
+
   useEffect(() => {
     // Only run geolocation if clickedLocation changes
     if (clickedLocation !== null) {
       setLocationName("");
+      /*
+      fetchGeolocation(clickedLocation.lat, clickedLocation.lng)
+        .then((locationName) => {
+          setLocationName(locationName);
+        })
+        .catch((error) => {
+          console.error("Error Cannot Retrieve Address: " + error);
+          setLocationName(
+            `Lat: ${clickedLocation.lat.toFixed(
+              2
+            )}, Lng: ${clickedLocation.lng.toFixed(2)}`
+          );
+        });
+        */
 
       getGeolocate(clickedLocation.lat, clickedLocation.lng)
         .then((locationName) => {
@@ -135,7 +193,7 @@ export default function Map() {
       getElevation(latitude, longitude)
         .then((elevation) => {
           // Send latitude, longitude, and elevationData values to the backend API
-          fetch(apiUrl, {
+          fetch(apiUrl + "/climate_data", {
             method: "POST",
             headers: {
               "Content-Type": "application/json",

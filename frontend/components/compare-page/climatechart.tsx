@@ -355,7 +355,7 @@ function ClimateChart({
       },
       scales: {
         x: xAxisOptions,
-        Temperature: yAxisOptions("Temperature", "F", 120, -20, 10),
+        Temperature: yAxisOptions("Temperature", "F", 100, 0, 10),
         Dewpoint: yAxisOptions("Dewpoint", "F", 80, 0, 10),
         Precip: yAxisOptions("Precip", "in", 5, 0, 1),
         Percentage: yAxisOptions("Percentage", "%", 100, 0, 10),

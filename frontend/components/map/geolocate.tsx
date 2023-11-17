@@ -57,6 +57,11 @@ export const getElevation = async (
       (results, status) => {
         if (status === "OK" && results && results[0]) {
           const elevationInFeet = results[0].elevation * 3.28;
+          if (elevationInFeet < -300) {
+            //console.error("Elevation is negative:", elevationInFeet);
+            resolve(0);
+            //reject(new Error("Elevation is negative"));
+          }
           resolve(elevationInFeet);
         } else {
           console.error("Elevation request failed:", status);
