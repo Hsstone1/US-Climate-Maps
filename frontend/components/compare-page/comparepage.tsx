@@ -4,10 +4,9 @@ import { ClimateChartDataset } from "./climatecomparehelpers";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import Typography from "@mui/material/Typography";
 import { MarkerType, LocationColors } from "../location-props";
-//import ClimateChart from "./climatechart";
 import Table from "./comparepagetable";
 import ClimateChartPaginate from "./climatechartpaginate";
-import YearSelector from "./yearselector";
+//import YearSelector from "./yearselector";
 import LazyLoad from "react-lazyload";
 
 //This is dynamic import function to load components that rely on browser-specific functionalities such as the window object:
@@ -61,6 +60,16 @@ export default function ComparisonPage({ locations }: ComparisonPageProps) {
       return prevState; // Return same reference if no change
     });
   }, []);
+
+  // Function to extract climate data based on a key and time granularity
+  const extractClimateData = (
+    key: string | number,
+    timeGranularity: string | number
+  ) => {
+    return locations.map(
+      (location) => location.data.climate_data[key][timeGranularity]
+    );
+  };
 
   const annualTemperatureDataset = useMemo(() => {
     return temperature_dataset(locations, undefined, selectedYear);
@@ -229,18 +238,24 @@ export default function ComparisonPage({ locations }: ComparisonPageProps) {
                 <Table
                   locations={locations}
                   heading="Average High (°F)"
-                  monthlyDataKey={"HIGH_AVG"}
-                  annualDataKey={"HIGH_AVG"}
-                  decimalTrunc={0}
+                  monthly_data={extractClimateData(
+                    "high_temperature",
+                    "monthly"
+                  )}
+                  annual_data={extractClimateData("high_temperature", "annual")}
+                  numDec={0}
                   units={" °F"}
                 ></Table>
 
                 <Table
                   locations={locations}
                   heading="Average Low (°F)"
-                  monthlyDataKey={"LOW_AVG"}
-                  annualDataKey={"LOW_AVG"}
-                  decimalTrunc={0}
+                  monthly_data={extractClimateData(
+                    "low_temperature",
+                    "monthly"
+                  )}
+                  annual_data={extractClimateData("low_temperature", "annual")}
+                  numDec={0}
                   units={" °F"}
                 ></Table>
               </div>
@@ -303,18 +318,30 @@ export default function ComparisonPage({ locations }: ComparisonPageProps) {
                 <Table
                   locations={locations}
                   heading="Apparent Average High (°F)"
-                  monthlyDataKey={"APPARENT_HIGH_AVG"}
-                  annualDataKey={"APPARENT_HIGH_AVG"}
-                  decimalTrunc={0}
+                  monthly_data={extractClimateData(
+                    "apparent_high_temperature",
+                    "monthly"
+                  )}
+                  annual_data={extractClimateData(
+                    "apparent_high_temperature",
+                    "annual"
+                  )}
+                  numDec={0}
                   units={" °F"}
                 ></Table>
 
                 <Table
                   locations={locations}
                   heading="Apparent Average Low (°F)"
-                  monthlyDataKey={"APPARENT_LOW_AVG"}
-                  annualDataKey={"APPARENT_LOW_AVG"}
-                  decimalTrunc={0}
+                  monthly_data={extractClimateData(
+                    "apparent_low_temperature",
+                    "monthly"
+                  )}
+                  annual_data={extractClimateData(
+                    "apparent_low_temperature",
+                    "annual"
+                  )}
+                  numDec={0}
                   units={" °F"}
                 ></Table>
               </div>
@@ -378,18 +405,18 @@ export default function ComparisonPage({ locations }: ComparisonPageProps) {
                 <Table
                   locations={locations}
                   heading="Total Precipitation"
-                  monthlyDataKey={"PRECIP_AVG"}
-                  annualDataKey={"PRECIP_AVG"}
-                  decimalTrunc={1}
+                  monthly_data={extractClimateData("precipitation", "monthly")}
+                  annual_data={extractClimateData("precipitation", "annual")}
+                  numDec={1}
                   units={" in"}
                 ></Table>
 
                 <Table
                   locations={locations}
                   heading="Total Rainy Days"
-                  monthlyDataKey={"PRECIP_DAYS"}
-                  annualDataKey={"PRECIP_DAYS"}
-                  decimalTrunc={0}
+                  monthly_data={extractClimateData("precip_days", "monthly")}
+                  annual_data={extractClimateData("precip_days", "annual")}
+                  numDec={0}
                   units={" days"}
                 ></Table>
               </div>
@@ -449,18 +476,18 @@ export default function ComparisonPage({ locations }: ComparisonPageProps) {
                 <Table
                   locations={locations}
                   heading="Total Snowfall"
-                  monthlyDataKey={"SNOW_AVG"}
-                  annualDataKey={"SNOW_AVG"}
-                  decimalTrunc={1}
+                  monthly_data={extractClimateData("snow", "monthly")}
+                  annual_data={extractClimateData("snow", "annual")}
+                  numDec={1}
                   units={" in"}
                 ></Table>
 
                 <Table
                   locations={locations}
                   heading="Total Snowy Days"
-                  monthlyDataKey={"SNOW_DAYS"}
-                  annualDataKey={"SNOW_DAYS"}
-                  decimalTrunc={0}
+                  monthly_data={extractClimateData("snow_days", "monthly")}
+                  annual_data={extractClimateData("snow_days", "annual")}
+                  numDec={0}
                   units={" days"}
                 ></Table>
               </div>
@@ -523,17 +550,20 @@ export default function ComparisonPage({ locations }: ComparisonPageProps) {
                 <Table
                   locations={locations}
                   heading="Average Humidity"
-                  monthlyDataKey={"HUMIDITY_AVG"}
-                  annualDataKey={"HUMIDITY_AVG"}
-                  decimalTrunc={0}
+                  monthly_data={extractClimateData("mean_humidity", "monthly")}
+                  annual_data={extractClimateData("mean_humidity", "annual")}
+                  numDec={0}
                   units={" %"}
                 ></Table>
                 <Table
                   locations={locations}
                   heading="Morning Humidity"
-                  monthlyDataKey={"MORNING_HUMIDITY_AVG"}
-                  annualDataKey={"MORNING_HUMIDITY_AVG"}
-                  decimalTrunc={0}
+                  monthly_data={extractClimateData(
+                    "morning_humidity",
+                    "monthly"
+                  )}
+                  annual_data={extractClimateData("morning_humidity", "annual")}
+                  numDec={0}
                   units={" %"}
                 ></Table>
               </div>
@@ -596,18 +626,24 @@ export default function ComparisonPage({ locations }: ComparisonPageProps) {
                 <Table
                   locations={locations}
                   heading="Average Dewpoint"
-                  monthlyDataKey={"DEWPOINT_AVG"}
-                  annualDataKey={"DEWPOINT_AVG"}
-                  decimalTrunc={0}
+                  monthly_data={extractClimateData("dewpoint", "monthly")}
+                  annual_data={extractClimateData("dewpoint", "annual")}
+                  numDec={0}
                   units={" °F"}
                 ></Table>
 
                 <Table
                   locations={locations}
                   heading="Total Muggy Days"
-                  monthlyDataKey={"NUM_HIGH_DEWPOINT_DAYS"}
-                  annualDataKey={"NUM_HIGH_DEWPOINT_DAYS"}
-                  decimalTrunc={0}
+                  monthly_data={extractClimateData(
+                    "dewpoint_muggy_days",
+                    "monthly"
+                  )}
+                  annual_data={extractClimateData(
+                    "dewpoint_muggy_days",
+                    "annual"
+                  )}
+                  numDec={0}
                   units={" days"}
                 ></Table>
               </div>
@@ -666,9 +702,9 @@ export default function ComparisonPage({ locations }: ComparisonPageProps) {
                 <Table
                   locations={locations}
                   heading="Average Wind Speed"
-                  monthlyDataKey={"WIND_AVG"}
-                  annualDataKey={"WIND_AVG"}
-                  decimalTrunc={0}
+                  monthly_data={extractClimateData("wind", "monthly")}
+                  annual_data={extractClimateData("wind", "annual")}
+                  numDec={0}
                   units={" mph"}
                 ></Table>
 
@@ -676,9 +712,9 @@ export default function ComparisonPage({ locations }: ComparisonPageProps) {
                   <Table
                     locations={locations}
                     heading="Average Wind Gust"
-                    monthlyDataKey={"WIND_MAX"}
-                    annualDataKey={"WIND_MAX"}
-                    decimalTrunc={0}
+                    monthly_data={extractClimateData("wind_gust", "monthly")}
+                    annual_data={extractClimateData("wind_gust", "annual")}
+                    numDec={0}
                     units={" mph"}
                   ></Table>
                 }
@@ -742,25 +778,31 @@ export default function ComparisonPage({ locations }: ComparisonPageProps) {
                 <Table
                   locations={locations}
                   heading="Total Sunny Days"
-                  monthlyDataKey={"SUNNY_DAYS"}
-                  annualDataKey={"SUNNY_DAYS"}
-                  decimalTrunc={0}
+                  monthly_data={extractClimateData("clear_days", "monthly")}
+                  annual_data={extractClimateData("clear_days", "annual")}
+                  numDec={0}
                   units={" days"}
                 ></Table>
                 <Table
                   locations={locations}
                   heading="Total Party Cloudy Days"
-                  monthlyDataKey={"PARTLY_CLOUDY_DAYS"}
-                  annualDataKey={"PARTLY_CLOUDY_DAYS"}
-                  decimalTrunc={0}
+                  monthly_data={extractClimateData(
+                    "partly_cloudy_days",
+                    "monthly"
+                  )}
+                  annual_data={extractClimateData(
+                    "partly_cloudy_days",
+                    "annual"
+                  )}
+                  numDec={0}
                   units={" days"}
                 ></Table>
                 <Table
                   locations={locations}
                   heading="Total Cloudy Days"
-                  monthlyDataKey={"CLOUDY_DAYS"}
-                  annualDataKey={"CLOUDY_DAYS"}
-                  decimalTrunc={0}
+                  monthly_data={extractClimateData("cloudy_days", "monthly")}
+                  annual_data={extractClimateData("cloudy_days", "annual")}
+                  numDec={0}
                   units={" days"}
                 ></Table>
               </div>
@@ -820,18 +862,18 @@ export default function ComparisonPage({ locations }: ComparisonPageProps) {
                 <Table
                   locations={locations}
                   heading="Monthly UV Index"
-                  monthlyDataKey={"UV_INDEX"}
-                  annualDataKey={"UV_INDEX"}
-                  decimalTrunc={0}
+                  monthly_data={extractClimateData("uv_index", "monthly")}
+                  annual_data={extractClimateData("uv_index", "annual")}
+                  numDec={0}
                   units={""}
                 ></Table>
 
                 <Table
                   locations={locations}
                   heading="Monthly Sun Angle"
-                  monthlyDataKey={"SUN_ANGLE"}
-                  annualDataKey={"SUN_ANGLE"}
-                  decimalTrunc={0}
+                  monthly_data={extractClimateData("sun_angle", "monthly")}
+                  annual_data={extractClimateData("sun_angle", "annual")}
+                  numDec={0}
                   units={"°"}
                 ></Table>
               </div>
@@ -894,9 +936,9 @@ export default function ComparisonPage({ locations }: ComparisonPageProps) {
                 <Table
                   locations={locations}
                   heading="Comfort Rating"
-                  monthlyDataKey={"COMFORT_INDEX"}
-                  annualDataKey={"COMFORT_INDEX"}
-                  decimalTrunc={0}
+                  monthly_data={extractClimateData("comfort_index", "monthly")}
+                  annual_data={extractClimateData("comfort_index", "annual")}
+                  numDec={0}
                   units={""}
                 ></Table>
               </div>
@@ -945,27 +987,33 @@ export default function ComparisonPage({ locations }: ComparisonPageProps) {
                 <Table
                   locations={locations}
                   heading="Chance of Frost"
-                  monthlyDataKey={"MORNING_FROST_CHANCE"}
-                  annualDataKey={"MORNING_FROST_CHANCE"}
-                  decimalTrunc={0}
+                  monthly_data={extractClimateData(
+                    "morning_frost_chance",
+                    "monthly"
+                  )}
+                  annual_data={extractClimateData(
+                    "morning_frost_chance",
+                    "annual"
+                  )}
+                  numDec={0}
                   units={" %"}
                 ></Table>
 
                 <Table
                   locations={locations}
                   heading="Cooling Degree Days (CDD)"
-                  monthlyDataKey={"CDD"}
-                  annualDataKey={"CDD"}
-                  decimalTrunc={0}
+                  monthly_data={extractClimateData("cdd", "monthly")}
+                  annual_data={extractClimateData("cdd", "annual")}
+                  numDec={0}
                   units={""}
                 ></Table>
 
                 <Table
                   locations={locations}
                   heading="Heating Degree Days (HDD)"
-                  monthlyDataKey={"HDD"}
-                  annualDataKey={"HDD"}
-                  decimalTrunc={0}
+                  monthly_data={extractClimateData("hdd", "monthly")}
+                  annual_data={extractClimateData("hdd", "annual")}
+                  numDec={0}
                   units={""}
                 ></Table>
               </div>
@@ -975,7 +1023,7 @@ export default function ComparisonPage({ locations }: ComparisonPageProps) {
           </div>
         )}
       </div>
-      <div className="year-selector-footer">
+      {/* <div className="year-selector-footer">
         {
           // Check if locations array has data
           locations && locations.length > 0 ? (
@@ -988,7 +1036,7 @@ export default function ComparisonPage({ locations }: ComparisonPageProps) {
             <p />
           )
         }
-      </div>
+      </div> */}
     </div>
   );
 }
@@ -1025,24 +1073,25 @@ const ClimateChartRenderer: React.FC<{
   );
 };
 
-const mapClimateData = (
+const get_climate_data = (
   location: any,
   key: string,
+  time_granularity:
+    | "daily"
+    | "monthly"
+    | "annual"
+    | "annual_max"
+    | "annual_min"
+    | "monthly_max"
+    | "monthly_min",
   selectedYear: string,
   options: { multiplyByVal?: number; windowSize?: number } = {}
 ) => {
   const { multiplyByVal = 1, windowSize } = options;
-  // This selects the average data for all years if the annual option is selected
-  // Otherwise, it selects the data for the selected year
-  //console.log(selectedYear);
-  const rawData =
-    selectedYear === "Annual" || excludeFromHistorical.has(key)
-      ? location.data.climate_data.avg_daily.map(
-          (day: { [key: string]: any }) => day[key] * multiplyByVal
-        )
-      : location.data.climate_data.historical[selectedYear].daily.map(
-          (day: { [key: string]: any }) => day[key] * multiplyByVal
-        );
+
+  //TODO this might crash if the key is missing, likely in expected_min and max
+  let rawData = location.data.climate_data[key][time_granularity];
+  rawData = rawData.map((value: any) => value * multiplyByVal);
 
   // SMA calculation to smooth the data
   const calculateSMA = (data: number[], window_size: number) => {
@@ -1057,7 +1106,6 @@ const mapClimateData = (
 
       let validWindowData;
       if (start_index < 0 || end_index > data.length) {
-        // If the window exceeds array bounds, we handle it by slicing the array differently
         // This step will depend on how you want to handle the boundaries (e.g., repeat, use available data, etc.)
         // Here's an example of using available data:
         validWindowData = data.slice(
@@ -1081,9 +1129,7 @@ const mapClimateData = (
 
     return rollingAverages;
   };
-  // Only calculate the SMA if windowSize is provided and either:
-  // 1. The selectedYear is "Annual", or
-  // 2. The key is in the excludeFromHistorical set
+
   if (
     windowSize &&
     (selectedYear === "Annual" || excludeFromHistorical.has(key))
@@ -1120,7 +1166,7 @@ const temperature_dataset = (
     const max_dataset: ClimateChartDataset = {
       type: "line",
       label: location_name + " Max",
-      data: mapClimateData(location, "EXPECTED_MAX", selectedYear, {
+      data: get_climate_data(location, "expected_max", "daily", selectedYear, {
         multiplyByVal: 1,
         windowSize: SMA_SMOOTH_DAYS,
       }),
@@ -1140,10 +1186,16 @@ const temperature_dataset = (
     const high_dataset: ClimateChartDataset = {
       type: isBarChart ? "bar" : "line",
       label: location_name + " High",
-      data: mapClimateData(location, "HIGH_AVG", selectedYear, {
-        multiplyByVal: 1,
-        windowSize: SMA_SMOOTH_DAYS,
-      }),
+      data: get_climate_data(
+        location,
+        "high_temperature",
+        "daily",
+        selectedYear,
+        {
+          multiplyByVal: 1,
+          windowSize: SMA_SMOOTH_DAYS,
+        }
+      ),
       backgroundColor: isAnnual ? background_color : paginated_background_color,
       borderColor: color,
       borderWidth: border_width,
@@ -1158,10 +1210,16 @@ const temperature_dataset = (
     const low_dataset: ClimateChartDataset = {
       type: isBarChart ? "bar" : "line",
       label: location_name + " Low",
-      data: mapClimateData(location, "LOW_AVG", selectedYear, {
-        multiplyByVal: 1,
-        windowSize: SMA_SMOOTH_DAYS,
-      }),
+      data: get_climate_data(
+        location,
+        "low_temperature",
+        "daily",
+        selectedYear,
+        {
+          multiplyByVal: 1,
+          windowSize: SMA_SMOOTH_DAYS,
+        }
+      ),
       backgroundColor: isAnnual ? background_color : paginated_background_color,
       borderColor: color,
       borderWidth: border_width,
@@ -1175,7 +1233,7 @@ const temperature_dataset = (
     const min_dataset: ClimateChartDataset = {
       type: "line",
       label: location_name + " Min ",
-      data: mapClimateData(location, "EXPECTED_MIN", selectedYear, {
+      data: get_climate_data(location, "expected_min", "daily", selectedYear, {
         multiplyByVal: 1,
         windowSize: SMA_SMOOTH_DAYS,
       }),
@@ -1223,10 +1281,16 @@ const apparent_temperature_dataset = (
     const max_dataset: ClimateChartDataset = {
       type: "line",
       label: location_name + " Max",
-      data: mapClimateData(location, "APPARENT_EXPECTED_MAX", selectedYear, {
-        multiplyByVal: 1,
-        windowSize: SMA_SMOOTH_DAYS,
-      }),
+      data: get_climate_data(
+        location,
+        "apparent_expected_max",
+        "daily",
+        selectedYear,
+        {
+          multiplyByVal: 1,
+          windowSize: SMA_SMOOTH_DAYS,
+        }
+      ),
       backgroundColor: background_color,
       borderColor: paginated_background_color,
       borderWidth: CHART_BORDER_WIDTH / 2,
@@ -1241,10 +1305,16 @@ const apparent_temperature_dataset = (
     const high_dataset: ClimateChartDataset = {
       type: isBarChart ? "bar" : "line",
       label: location_name + " High",
-      data: mapClimateData(location, "APPARENT_HIGH_AVG", selectedYear, {
-        multiplyByVal: 1,
-        windowSize: SMA_SMOOTH_DAYS,
-      }),
+      data: get_climate_data(
+        location,
+        "apparent_high_temperature",
+        "daily",
+        selectedYear,
+        {
+          multiplyByVal: 1,
+          windowSize: SMA_SMOOTH_DAYS,
+        }
+      ),
       backgroundColor: isAnnual ? background_color : paginated_background_color,
       borderColor: color,
       borderWidth: border_width,
@@ -1259,10 +1329,16 @@ const apparent_temperature_dataset = (
     const low_dataset: ClimateChartDataset = {
       type: isBarChart ? "bar" : "line",
       label: location_name + " Low",
-      data: mapClimateData(location, "APPARENT_LOW_AVG", selectedYear, {
-        multiplyByVal: 1,
-        windowSize: SMA_SMOOTH_DAYS,
-      }),
+      data: get_climate_data(
+        location,
+        "apparent_low_temperature",
+        "daily",
+        selectedYear,
+        {
+          multiplyByVal: 1,
+          windowSize: SMA_SMOOTH_DAYS,
+        }
+      ),
       backgroundColor: isAnnual ? background_color : paginated_background_color,
       borderColor: color,
       borderWidth: border_width,
@@ -1276,10 +1352,16 @@ const apparent_temperature_dataset = (
     const min_dataset: ClimateChartDataset = {
       type: "line",
       label: location_name + " Min ",
-      data: mapClimateData(location, "APPARENT_EXPECTED_MIN", selectedYear, {
-        multiplyByVal: 1,
-        windowSize: SMA_SMOOTH_DAYS,
-      }),
+      data: get_climate_data(
+        location,
+        "apparent_expected_min",
+        "daily",
+        selectedYear,
+        {
+          multiplyByVal: 1,
+          windowSize: SMA_SMOOTH_DAYS,
+        }
+      ),
       backgroundColor: background_color,
       borderColor: paginated_background_color,
       borderWidth: CHART_BORDER_WIDTH / 2,
@@ -1320,7 +1402,7 @@ const precip_dataset = (
     const avg: ClimateChartDataset = {
       type: "line",
       label: location_name + " Avg",
-      data: mapClimateData(location, "PRECIP_AVG", "Annual", {
+      data: get_climate_data(location, "precipitation", "daily", "Annual", {
         multiplyByVal: 30,
         windowSize: SMA_SMOOTH_DAYS * 2,
       }),
@@ -1340,7 +1422,7 @@ const precip_dataset = (
     const historical: ClimateChartDataset = {
       type: "line",
       label: location_name + " Act",
-      data: mapClimateData(location, "PRECIP_AVG", selectedYear, {
+      data: get_climate_data(location, "precipitation", "daily", selectedYear, {
         multiplyByVal: 1,
         windowSize: SMA_SMOOTH_DAYS * 2,
       }),
@@ -1385,7 +1467,7 @@ const snow_dataset = (
     const avg: ClimateChartDataset = {
       type: "line",
       label: location_name + " Avg",
-      data: mapClimateData(location, "SNOW_AVG", "Annual", {
+      data: get_climate_data(location, "snow", "daily", "Annual", {
         multiplyByVal: 30,
         windowSize: SMA_SMOOTH_DAYS * 2,
       }),
@@ -1405,7 +1487,7 @@ const snow_dataset = (
     const historical: ClimateChartDataset = {
       type: "line",
       label: location_name + " Act",
-      data: mapClimateData(location, "SNOW_AVG", selectedYear, {
+      data: get_climate_data(location, "snow", "daily", selectedYear, {
         multiplyByVal: 1,
         windowSize: SMA_SMOOTH_DAYS * 2,
       }),
@@ -1450,10 +1532,16 @@ const humidity_dataset = (
     const avg: ClimateChartDataset = {
       type: "line",
       label: location_name + " Avg",
-      data: mapClimateData(location, "AFTERNOON_HUMIDITY_AVG", "Annual", {
-        multiplyByVal: 1,
-        windowSize: SMA_SMOOTH_DAYS,
-      }),
+      data: get_climate_data(
+        location,
+        "afternoon_humidity",
+        "daily",
+        "Annual",
+        {
+          multiplyByVal: 1,
+          windowSize: SMA_SMOOTH_DAYS,
+        }
+      ),
       backgroundColor: background_color,
       borderColor: isAnnual ? color : paginated_background_color,
       borderWidth: 1,
@@ -1469,10 +1557,16 @@ const humidity_dataset = (
     const historical: ClimateChartDataset = {
       type: "line",
       label: location_name + " Act",
-      data: mapClimateData(location, "AFTERNOON_HUMIDITY_AVG", selectedYear, {
-        multiplyByVal: 1,
-        windowSize: SMA_SMOOTH_DAYS,
-      }),
+      data: get_climate_data(
+        location,
+        "afternoon_humidity",
+        "daily",
+        selectedYear,
+        {
+          multiplyByVal: 1,
+          windowSize: SMA_SMOOTH_DAYS,
+        }
+      ),
       backgroundColor: paginated_background_color,
       borderColor: paginated_background_color,
       borderWidth: borderWidth,
@@ -1515,7 +1609,7 @@ const dewpoint_dataset = (
     const avg: ClimateChartDataset = {
       type: "line",
       label: location_name + " Avg",
-      data: mapClimateData(location, "DEWPOINT_AVG", "Annual", {
+      data: get_climate_data(location, "dewpoint", "daily", "Annual", {
         multiplyByVal: 1,
         windowSize: SMA_SMOOTH_DAYS,
       }),
@@ -1540,7 +1634,7 @@ const dewpoint_dataset = (
     const historical: ClimateChartDataset = {
       type: "line",
       label: location_name + " Act",
-      data: mapClimateData(location, "DEWPOINT_AVG", selectedYear, {
+      data: get_climate_data(location, "dewpoint", "daily", selectedYear, {
         multiplyByVal: 1,
         windowSize: SMA_SMOOTH_DAYS,
       }),
@@ -1589,7 +1683,7 @@ const wind_dataset = (
     const wind_dataset: ClimateChartDataset = {
       type: "line",
       label: location_name + " Avg ",
-      data: mapClimateData(location, "WIND_AVG", selectedYear, {
+      data: get_climate_data(location, "wind", "daily", selectedYear, {
         multiplyByVal: 1,
         windowSize: SMA_SMOOTH_DAYS,
       }),
@@ -1607,7 +1701,7 @@ const wind_dataset = (
     const max_wind_dataset: ClimateChartDataset = {
       type: "line",
       label: location_name + " Max",
-      data: mapClimateData(location, "WIND_MAX", selectedYear, {
+      data: get_climate_data(location, "wind_gust", "daily", selectedYear, {
         multiplyByVal: 1,
         windowSize: SMA_SMOOTH_DAYS,
       }),
@@ -1655,7 +1749,7 @@ const sunshine_dataset = (
     const avg: ClimateChartDataset = {
       type: "line",
       label: location_name + " Avg",
-      data: mapClimateData(location, "SUNSHINE_AVG", "Annual", {
+      data: get_climate_data(location, "sun", "daily", "Annual", {
         multiplyByVal: 1,
         windowSize: SMA_SMOOTH_DAYS,
       }),
@@ -1674,7 +1768,7 @@ const sunshine_dataset = (
     const historical: ClimateChartDataset = {
       type: "line",
       label: location_name + " Act",
-      data: mapClimateData(location, "SUNSHINE_AVG", selectedYear, {
+      data: get_climate_data(location, "sun", "daily", selectedYear, {
         multiplyByVal: 1,
         windowSize: SMA_SMOOTH_DAYS,
       }),
@@ -1721,7 +1815,7 @@ const uv_index_dataset = (
     const avg: ClimateChartDataset = {
       type: "line",
       label: location_name + " Avg",
-      data: mapClimateData(location, "UV_INDEX", "Annual", {
+      data: get_climate_data(location, "uv_index", "daily", "Annual", {
         multiplyByVal: 1,
         windowSize: SMA_SMOOTH_DAYS,
       }),
@@ -1740,7 +1834,7 @@ const uv_index_dataset = (
     const historical: ClimateChartDataset = {
       type: "line",
       label: location_name + " Act",
-      data: mapClimateData(location, "UV_INDEX", selectedYear, {
+      data: get_climate_data(location, "uv_index", "daily", selectedYear, {
         multiplyByVal: 1,
         windowSize: SMA_SMOOTH_DAYS,
       }),
@@ -1786,7 +1880,7 @@ const comfort_index_dataset = (
     const avg: ClimateChartDataset = {
       type: "line",
       label: location_name + " Avg",
-      data: mapClimateData(location, "COMFORT_INDEX", "Annual", {
+      data: get_climate_data(location, "comfort_index", "daily", "Annual", {
         multiplyByVal: 1,
         windowSize: SMA_SMOOTH_DAYS,
       }),
@@ -1805,7 +1899,7 @@ const comfort_index_dataset = (
     const historical: ClimateChartDataset = {
       type: "line",
       label: location_name + " Act",
-      data: mapClimateData(location, "COMFORT_INDEX", selectedYear, {
+      data: get_climate_data(location, "comfort_index", "daily", selectedYear, {
         multiplyByVal: 1,
         windowSize: SMA_SMOOTH_DAYS,
       }),
@@ -1851,10 +1945,16 @@ const growing_season_dataset = (
     const avg: ClimateChartDataset = {
       type: "line",
       label: location_name + " Growing",
-      data: mapClimateData(location, "GROWING_CHANCE", "Annual", {
-        multiplyByVal: 1,
-        windowSize: SMA_SMOOTH_DAYS,
-      }),
+      data: get_climate_data(
+        location,
+        "morning_frost_chance",
+        "daily",
+        "Annual",
+        {
+          multiplyByVal: 1,
+          windowSize: SMA_SMOOTH_DAYS,
+        }
+      ),
       backgroundColor: background_color,
       borderColor: color,
       borderWidth: borderWidth,
@@ -1870,10 +1970,16 @@ const growing_season_dataset = (
     const frost: ClimateChartDataset = {
       type: "line",
       label: location_name + " Frost",
-      data: mapClimateData(location, "MORNING_FROST_CHANCE", "Annual", {
-        multiplyByVal: 1,
-        windowSize: SMA_SMOOTH_DAYS,
-      }),
+      data: get_climate_data(
+        location,
+        "morning_frost_chance",
+        "daily",
+        "Annual",
+        {
+          multiplyByVal: 1,
+          windowSize: SMA_SMOOTH_DAYS,
+        }
+      ),
       backgroundColor: background_color,
       borderColor: color,
       borderWidth: borderWidth / 2,

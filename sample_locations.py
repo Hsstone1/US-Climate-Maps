@@ -1,58 +1,141 @@
-import os
-import glob
-import shutil
-import sys
-import joblib
+from math import acos, asin, atan2, cos, degrees, pi, radians, sin, sqrt, tan
+import platform
+import boto3
 import numpy as np
 import pandas as pd
 from sklearn.discriminant_analysis import StandardScaler
-from sklearn.linear_model import Lasso, LinearRegression
-from sklearn.pipeline import Pipeline
-from sklearn.preprocessing import PolynomialFeatures
+from sklearn.linear_model import LinearRegression
 import time
 from sklearn.ensemble import RandomForestRegressor
-from sklearn.model_selection import GridSearchCV, train_test_split
-from sklearn.metrics import mean_squared_error, mean_absolute_error, r2_score
-import boto3
-import platform
 from concurrent.futures import ThreadPoolExecutor
 
-"""
-USE RELATIVE IMPORTS FOR LOCAL DEVELOPMENT ONLY
-"""
-if "amzn" in platform.platform():
-    from climate_point_interpolation_helpers import *
-else:
-    from .climate_point_interpolation_helpers import *
+import psycopg2
+import psycopg2.extras
+from dotenv import load_dotenv
+import os
 
 
-"""
-NWS STATIONS: Has information on the average wind speed, direction, gust and sunlight
-NOAA STATIONS: Has all other information, including temperature, precip, snow
+load_dotenv()
 
-There are many more NOAA stations, with a much longer history for improved accuracy.
-The NWS stations are used largely to get sunlight data. 
 
-"""
+def connect_to_db():
+    try:
+        start_time = time.time()
+
+        connection = psycopg2.connect(
+            user=os.getenv("DB_USER"),
+            password=os.getenv("DB_PASSWORD"),
+            host=os.getenv("DB_HOST"),
+            port=os.getenv("DB_PORT"),
+            database=os.getenv("DB_NAME"),
+        )
+        print("Connected to the database time", time.time() - start_time, "seconds")
+        return connection
+    except (Exception, psycopg2.Error) as error:
+        print("Error while connecting to PostgreSQL", error)
+
+
+def insert_into_location_data_table(connection, latitude, longitude, elevation):
+    try:
+        with connection.cursor() as cursor:  # Use 'with' to ensure the cursor is closed automatically
+            insert_query = """
+            INSERT INTO public.locations (latitude, longitude, elevation, geom)
+            VALUES (%s, %s, %s, ST_SetSRID(ST_MakePoint(%s, %s), 4326))
+            RETURNING id;
+            """
+            cursor.execute(
+                insert_query, (latitude, longitude, elevation, longitude, latitude)
+            )
+            location_id = cursor.fetchone()[0]
+            connection.commit()
+            return location_id
+    except (Exception, psycopg2.Error) as error:
+        print("Error while inserting into locations table", error)
+        if connection:
+            connection.rollback()
+        return None
+
+
+def batch_insert_climate_data(cursor, climate_data_batch, page_size=100):
+    try:
+        insert_query = """
+        INSERT INTO public.climate_data (location_id, date, high_temperature, low_temperature, dewpoint, precipitation, snow, sun, wind, wind_gust, wind_direction, sun_angle, daylight_length)
+        VALUES %s; 
+        """
+        psycopg2.extras.execute_values(
+            cursor, insert_query, climate_data_batch, template=None, page_size=page_size
+        )
+        return True
+    except (Exception, psycopg2.Error) as error:
+        print("Error while inserting into climate_data table", error)
+        return False
+
+
+def process_and_write_data(csv_dataframe):
+    connection = connect_to_db()
+    if connection is None:
+        print("Failed to connect to the database")
+        return
+    try:
+        for index, row in csv_dataframe.iterrows():
+            latitude, longitude, elevation = (
+                row["latitude"],
+                row["longitude"],
+                row["elevation"],
+            )
+            location_id = insert_into_location_data_table(
+                connection, latitude, longitude, elevation
+            )
+            if location_id is None:
+                continue
+
+            climate_df = climate_data(latitude, longitude, elevation)
+            climate_df["date"] = climate_df["date"].dt.strftime("%Y-%m-%d")
+            climate_data_records = climate_df.to_records(index=False)
+            climate_data_batch = [
+                (location_id,) + tuple(record) for record in climate_data_records
+            ]
+
+            with connection.cursor() as cursor:
+                if not batch_insert_climate_data(cursor, climate_data_batch, 1000):
+                    connection.rollback()
+                    print(f"Failed to insert climate data for location {location_id}.")
+                    break
+                connection.commit()
+
+    except (Exception, psycopg2.Error) as error:
+        print("Error while processing data", error)
+        if connection:
+            connection.rollback()
+    finally:
+        if connection:
+            connection.close()
+
+
 current_file_path = os.path.dirname(os.path.realpath(__file__))
-parent_directory = os.path.dirname(current_file_path)
+
+# TODO this might cause issues if not in a sub directory
+parent_directory = current_file_path
+# parent_directory = os.path.dirname(current_file_path)
+
 
 # TODO if the start date is more recent than 2019-04-01 there is an error involving the regresion
 NUM_NWS_SAMPLE_STATIONS = 5
 NUM_NOAA_SAMPLE_STATIONS = 8
 MAX_THREADS = 10
 
-START_YEAR = 2000
+START_YEAR = 1980
 CURRENT_YEAR = int(time.strftime("%Y"))
 START_DATE = f"{START_YEAR}-01-01"
 END_DATE = f"{CURRENT_YEAR}-12-31"
 
 ELEV_TEMPERATURE_CHANGE = 4.5
-
 S3_BUCKET_NAME = "us-climate-maps-bucket"
 
 
-def optimized_climate_data(target_lat, target_lon, target_elevation):
+def climate_data(target_lat, target_lon, target_elevation):
+    start_time = time.time()
+
     if is_running_on_aws():
         start_time = time.time()
         # Use the built-in '/tmp' directory in AWS Lambda
@@ -82,8 +165,6 @@ def optimized_climate_data(target_lat, target_lon, target_elevation):
             )
         )
 
-    start_time = time.time()
-    # Get a list of closest points to coordinate
     closest_points_NWS = nearest_coordinates_to_point_NWS(
         target_lat,
         target_lon,
@@ -124,25 +205,6 @@ def optimized_climate_data(target_lat, target_lon, target_elevation):
     )
     elev_diff = target_elevation - average_weighted_elev
 
-    print("TEST NWS STATIONS: ", nws_station_identifiers)
-    print("TEST NWS WEIGHTS: ", weights_NWS)
-    print("TEST NOAA FILES: ", noaa_station_files)
-    print("TEST NOAA WEIGHTS: ", weights_NOAA)
-    print("ELEV DIFF: ", elev_diff)
-
-    print("FINISHED GETTING WEIGHTS: ", time.time() - start_time)
-
-    """
-    zip function to unpack the tuple thats returned by process_noaa_station_data. 
-    This results in two lists: all_data_frames and cols_to_aggregate_lists. 
-    The former is a list of dataframes and the latter is a list of lists containing column names.
-    The data is flattened and deduplicated the cols_to_aggregate_lists to get the unique cols_to_aggregate list.
-    This is then passed to the aggregate_data function.
-    """
-    # Process each CSV and combine the dataframes into one
-
-    start_time = time.time()
-
     # Process NOAA station data in parallel
     with ThreadPoolExecutor(max_workers=MAX_THREADS) as executor:
         noaa_results = executor.map(
@@ -153,16 +215,6 @@ def optimized_climate_data(target_lat, target_lon, target_elevation):
         )
 
     noaa_all_data_frames, noaa_cols_to_aggregate_lists = zip(*noaa_results)
-
-    """
-    # This is the original code that was used to process the NOAA dataframes not threaded
-    noaa_all_data_frames, noaa_cols_to_aggregate_lists = zip(
-        *[
-            process_noaa_station_data(station, weight, elev_diff)
-            for station, weight in zip(noaa_station_files, weights_NOAA)
-        ]
-    )
-    """
     noaa_all_data = pd.concat(noaa_all_data_frames, ignore_index=True)
     noaa_cols_to_aggregate = list(
         set([col for sublist in noaa_cols_to_aggregate_lists for col in sublist])
@@ -172,10 +224,6 @@ def optimized_climate_data(target_lat, target_lon, target_elevation):
     noaa_final_data = noaa_all_data.groupby("DATE").sum().reset_index()
     noaa_final_data = aggregate_data(noaa_all_data, noaa_cols_to_aggregate)
     noaa_final_data.set_index("DATE", inplace=True)
-
-    print("FINISHED NOAA AGGREGATE FILES: ", time.time() - start_time)
-
-    start_time = time.time()
 
     # Outlier Detection
     ########################################################################
@@ -188,14 +236,6 @@ def optimized_climate_data(target_lat, target_lon, target_elevation):
     noaa_final_data = replace_outliers_with_rolling_mean(
         noaa_final_data, "DAILY_LOW_AVG", WINDOW_SIZE, STD_DEV
     )
-
-    print("FINISHED NOAA OUTLIER DETECTION: ", time.time() - start_time)
-
-    noaa_final_data["DAILY_MEAN_AVG"] = (
-        noaa_final_data["DAILY_HIGH_AVG"] + noaa_final_data["DAILY_LOW_AVG"]
-    ) / 2
-
-    start_time = time.time()
 
     noaa_final_data["REGR_DEWPOINT_AVG"] = dewpoint_regr_calc(
         noaa_final_data["DAILY_HIGH_AVG"],
@@ -218,60 +258,7 @@ def optimized_climate_data(target_lat, target_lon, target_elevation):
     noaa_final_data = replace_outliers_with_rolling_mean(
         noaa_final_data, "DAILY_DEWPOINT_AVG", 14, 2
     )
-
-    print("FINISHED DEWPOINT REGR: ", time.time() - start_time)
-    noaa_final_data["NUM_HIGH_DEWPOINT_DAYS"] = (
-        noaa_final_data["DAILY_DEWPOINT_AVG"] > 70
-    ).astype(int)
-
-    start_time = time.time()
-    noaa_final_data["DAILY_HUMIDITY_AVG"] = calc_humidity_percentage_vector(
-        noaa_final_data["DAILY_DEWPOINT_AVG"], noaa_final_data["DAILY_MEAN_AVG"]
-    ).clip(0, 100)
-    noaa_final_data["DAILY_MORNING_HUMIDITY_AVG"] = calc_humidity_percentage_vector(
-        noaa_final_data["DAILY_DEWPOINT_AVG"], noaa_final_data["DAILY_LOW_AVG"]
-    ).clip(0, 100)
-
-    """
-    # Set any 0 values to 100 using numpy.where
-    noaa_final_data["DAILY_MORNING_HUMIDITY_AVG"] = np.where(
-        noaa_final_data["DAILY_MORNING_HUMIDITY_AVG"] == 0,
-        100,
-        noaa_final_data["DAILY_MORNING_HUMIDITY_AVG"],
-    ).clip(0, 100)
-    """
-    noaa_final_data["DAILY_AFTERNOON_HUMIDITY_AVG"] = calc_humidity_percentage_vector(
-        noaa_final_data["DAILY_DEWPOINT_AVG"], noaa_final_data["DAILY_HIGH_AVG"]
-    ).clip(0, 100)
-
-    noaa_final_data["DAILY_MORNING_FROST_CHANCE"] = 100 * (
-        (noaa_final_data["DAILY_MORNING_HUMIDITY_AVG"] > 90)
-        & (noaa_final_data["DAILY_LOW_AVG"] <= 32)
-    ).astype(int)
-
-    noaa_final_data["HDD"] = np.maximum(65 - noaa_final_data["DAILY_MEAN_AVG"], 0)
-    noaa_final_data["CDD"] = np.maximum(noaa_final_data["DAILY_MEAN_AVG"] - 65, 0)
-    noaa_final_data["DAILY_GROWING_CHANCE"] = calc_growing_chance_vectorized(
-        noaa_final_data, window_size=30
-    )
-
-    noaa_final_data = calculate_statistic_by_date(
-        noaa_final_data, "DAILY_HIGH_AVG", "max", "DAILY_RECORD_HIGH"
-    )
-    noaa_final_data = calculate_statistic_by_date(
-        noaa_final_data, "DAILY_LOW_AVG", "min", "DAILY_RECORD_LOW"
-    )
-    noaa_final_data = calculate_statistic_by_date(
-        noaa_final_data, "DAILY_HIGH_AVG", "percentile", "DAILY_EXPECTED_MAX"
-    )
-    noaa_final_data = calculate_statistic_by_date(
-        noaa_final_data, "DAILY_LOW_AVG", "percentile", "DAILY_EXPECTED_MIN"
-    )
     noaa_final_data["DATE"] = noaa_final_data.index
-    print("FINISHED NOAA CALCULATIONS: ", time.time() - start_time)
-
-    start_time = time.time()
-    # Process each CSV and combine the dataframes into one
 
     # Process NWS station data in parallel
     with ThreadPoolExecutor(max_workers=MAX_THREADS) as executor:
@@ -293,12 +280,10 @@ def optimized_climate_data(target_lat, target_lon, target_elevation):
     nws_final_data = nws_all_data.groupby("DATE").sum().reset_index()
     nws_final_data = aggregate_data(nws_all_data, nws_cols_to_aggregate)
     nws_final_data.set_index("DATE", inplace=True)
-    print("FINISHED NWS AGGREGATE FILES: ", time.time() - start_time)
 
     #####################################################################
     # Regression
 
-    start_time = time.time()
     noaa_final_data = noaa_final_data.drop(columns="DATE").reset_index()
     nws_final_data = nws_final_data.reset_index()
 
@@ -355,7 +340,7 @@ def optimized_climate_data(target_lat, target_lon, target_elevation):
         # April 1st, 2019 is the start of the nws dataset
         date_limit = pd.Timestamp("2019-04-01")
 
-    print("date_limit: ", date_limit)
+    # print("date_limit: ", date_limit)
     missing_data = combined[
         (combined["DAILY_SUNSHINE_AVG"].isna()) & (combined["DATE"] < date_limit)
     ]
@@ -364,13 +349,6 @@ def optimized_climate_data(target_lat, target_lon, target_elevation):
     X_missing = missing_data[feature_columns]
     predictions = model.predict(X_missing)
 
-    # TODO there is warning being raised somewhere here
-    """
-    RuntimeWarning: invalid value encountered in sqrt
-    result = getattr(ufunc, method)(*inputs, **kwargs)
-    """
-
-    # This assumes 'DATE' or any other unique identifier is the index in 'combined' and 'missing_data' DataFrames
     index_for_update = missing_data.index
 
     for i, column in enumerate(predict_columns):
@@ -390,207 +368,83 @@ def optimized_climate_data(target_lat, target_lon, target_elevation):
     )
     combined = combined.merge(sun_df, on="DAY_OF_YEAR", how="left")
     combined.drop(columns=["DAY_OF_YEAR"], inplace=True)
-
-    combined["SUNNY_DAYS"] = (combined["DAILY_SUNSHINE_AVG"] > 70).astype(int)
-    combined["PARTLY_CLOUDY_DAYS"] = (
-        (combined["DAILY_SUNSHINE_AVG"] > 30) & (combined["DAILY_SUNSHINE_AVG"] <= 70)
-    ).astype(int)
-    combined["CLOUDY_DAYS"] = (combined["DAILY_SUNSHINE_AVG"] <= 30).astype(int)
-    combined["UV_INDEX"] = calc_uv_index_vectorized(
-        combined["SUN_ANGLE"], target_elevation, combined["DAILY_SUNSHINE_AVG"]
+    combined.drop(columns=["DTR"], inplace=True)
+    combined.drop(columns=["REGR_DEWPOINT_AVG"], inplace=True)
+    combined.columns = combined.columns.str.replace("DAILY_", "")
+    combined.columns = combined.columns.str.replace("_AVG", "")
+    cols_to_round = combined.select_dtypes(include=["float", "int"]).columns.difference(
+        ["DATE"]
     )
-    combined["APPARENT_HIGH_AVG"] = calc_aparent_temp_vector(
-        combined["DAILY_HIGH_AVG"],
-        combined["DAILY_DEWPOINT_AVG"],
-        combined["DAILY_WIND_AVG"],
-    )
-    combined["APPARENT_LOW_AVG"] = calc_aparent_temp_vector(
-        combined["DAILY_LOW_AVG"],
-        combined["DAILY_DEWPOINT_AVG"],
-        combined["DAILY_WIND_AVG"],
-    )
-    combined["APPARENT_MEAN_AVG"] = (
-        combined["APPARENT_HIGH_AVG"] + combined["APPARENT_LOW_AVG"]
-    ) / 2
+    combined[cols_to_round] = combined[cols_to_round].round(2)
 
-    combined["DAILY_APPARENT_EXPECTED_MAX"] = calc_aparent_temp_vector(
-        combined["DAILY_EXPECTED_MAX"],
-        combined["DAILY_DEWPOINT_AVG"],
-        combined["DAILY_WIND_AVG"],
-    )
-    combined["DAILY_APPARENT_EXPECTED_MIN"] = calc_aparent_temp_vector(
-        combined["DAILY_EXPECTED_MIN"],
-        combined["DAILY_DEWPOINT_AVG"],
-        combined["DAILY_WIND_AVG"],
-    )
-
-    combined["APPARENT_RECORD_HIGH"] = calc_aparent_temp_vector(
-        combined["DAILY_RECORD_HIGH"],
-        combined["DAILY_DEWPOINT_AVG"],
-        combined["DAILY_WIND_AVG"],
-    )
-    combined["APPARENT_RECORD_LOW"] = calc_aparent_temp_vector(
-        combined["DAILY_RECORD_LOW"],
-        combined["DAILY_DEWPOINT_AVG"],
-        combined["DAILY_WIND_AVG"],
-    )
-
-    combined["DAILY_COMFORT_INDEX"] = calc_comfort_index_vector(
-        combined["DAILY_MEAN_AVG"],
-        combined["APPARENT_MEAN_AVG"],
-        combined["DAILY_DEWPOINT_AVG"],
-        combined["DAILY_SUNSHINE_AVG"],
-    )
-    combined["SUNSHINE_HOURS"] = combined["DAYLIGHT_LENGTH"] * (
-        combined["DAILY_SUNSHINE_AVG"] / 100
-    )
-
-    print("FINISHED COMBINED REGRESSION: ", time.time() - start_time)
-
-    # Converting dataframe into useful dictionary for json return
-    #########################################################################
-
-    start_time = time.time()
-    df_numeric = combined.select_dtypes(include=[np.number])
-    df_date = combined[["DATE"]] if "DATE" in combined else None
-
-    if df_date is not None:
-        df = pd.concat([df_date, df_numeric], axis=1)
-    else:
-        raise KeyError("The 'DATE' column was not found in the original DataFrame.")
-
-    df["DATE"] = pd.to_datetime(df["DATE"])
-    df.set_index("DATE", inplace=True)
-
-    df.columns = df.columns.str.replace("DAILY_", "")
-
-    # Calculate averages
-    avg_annual = df.mean().to_dict()
-
-    max_columns = [
-        "RECORD_HIGH",
-        "EXPECTED_MAX",
-        "APPARENT_RECORD_HIGH",
-        "APPARENT_RECORD_LOW",
-    ]
-    min_columns = [
-        "EXPECTED_MIN",
-        "RECORD_LOW",
-        "APPARENT_EXPECTED_MAX",
-        "APPARENT_EXPECTED_MIN",
+    # This is used to re order the columns so they match the insertion into the climate_data table
+    combined = combined[
+        [
+            "DATE",  # Assuming 'DATE' is a string and should be first
+            "HIGH",  # Renamed from 'HIGH' to 'high_temperature'
+            "LOW",  # Renamed from 'LOW' to 'low_temperature'
+            "DEWPOINT",  # Column name is the same
+            "PRECIP",  # Renamed from 'PRECIP' to 'precipitation'
+            "SNOW",  # Column name is the same
+            "SUNSHINE",  # Renamed from 'SUNSHINE' to 'sun'
+            "WIND",  # Column name is the same
+            "WIND_MAX",  # Renamed from 'WIND_MAX' to 'wind_gust'
+            "WIND_DIR",  # Column name is the same
+            "SUN_ANGLE",  # Column name is the same
+            "DAYLIGHT_LENGTH",  # Column name is the same
+        ]
     ]
 
-    for column in max_columns:
-        avg_annual[column] = df[column].resample("Y").max().mean()
-
-    for column in min_columns:
-        avg_annual[column] = df[column].resample("Y").min().mean()
-
-    monthly_averages = df.resample("M").mean().groupby(lambda x: x.month).mean()
-    monthly_max = df[max_columns].resample("M").max().groupby(lambda x: x.month).mean()
-    monthly_min = df[min_columns].resample("M").min().groupby(lambda x: x.month).mean()
-
-    avg_monthly = []
-    for month in range(1, 13):  # Iterating over months
-        month_data = monthly_averages.loc[month].to_dict()
-        for column in max_columns:
-            month_data[column] = monthly_max.loc[month, column]
-        for column in min_columns:
-            month_data[column] = monthly_min.loc[month, column]
-        avg_monthly.append(month_data)
-
-    avg_daily = (
-        df.resample("D")
-        .mean()
-        .groupby(lambda x: (x.month, x.day))
-        .mean()
-        .to_dict(orient="records")
-    )
-
-    # Adjustments for annual and monthly values
-    process_columns = [
-        "CDD",
-        "HDD",
-        "CLOUDY_DAYS",
-        "PARTLY_CLOUDY_DAYS",
-        "SUNNY_DAYS",
-        "SNOW_DAYS",
-        "PRECIP_DAYS",
-        "SNOW_AVG",
-        "PRECIP_AVG",
-        "SUNSHINE_HOURS",
-        "NUM_HIGH_DEWPOINT_DAYS",
+    combined.columns = [
+        "date",
+        "high_temperature",
+        "low_temperature",
+        "dewpoint",
+        "precipitation",
+        "snow",
+        "sun",
+        "wind",
+        "wind_gust",
+        "wind_direction",
+        "sun_angle",
+        "daylight_length",
     ]
-    for column in process_columns:
-        if column in avg_annual:
-            avg_annual[column] *= 365
-        for month_data in avg_monthly:
-            if column in month_data:
-                month_data[column] *= 30
-    # Historical data
-    historical = {}
-    for year, year_df in df.groupby(df.index.year):
-        # Convert Timestamp to string in the desired format
-        annual_data = year_df.mean(numeric_only=True).to_dict()
-        monthly_data = (
-            year_df.resample("M")
-            .mean()
-            .rename(lambda x: x.strftime("%m/%Y"))
-            .to_dict(orient="records")
-        )  # Removed on='DATE'
-        daily_data = (
-            year_df.resample("D")
-            .mean()
-            .rename(lambda x: x.strftime("%m/%d/%Y"))
-            .to_dict(orient="records")
-        )  # Removed on='DATE' and changed to_dict()
 
-        historical[year] = {
-            "annual": annual_data,
-            "monthly": monthly_data,
-            "daily": daily_data,
-        }
+    print("Elapsed Time:", time.time() - start_time, "seconds")
+    # print("SIZE: ", combined.size)
+    # print(combined.head(10))
+    return combined
 
-    # Handle infinite values and NaN
-    def handle_nan(obj):
-        if isinstance(obj, float) and np.isnan(obj):
-            return None
-        elif isinstance(obj, np.float_):  # This checks for NumPy float types
-            return float(obj) if not np.isnan(obj) else None
-        elif isinstance(obj, np.int_):  # This checks for NumPy int types
-            return int(obj)
-        elif isinstance(obj, (list, tuple, np.ndarray)):
-            return [handle_nan(item) for item in obj]
-        elif isinstance(obj, dict):
-            return {k: handle_nan(v) for k, v in obj.items()}
-        return obj
 
-    result = {
-        "avg_annual": avg_annual,
-        "avg_monthly": avg_monthly,
-        "avg_daily": avg_daily,
-        "historical": historical,
-    }
+def calc_sun_angle_and_daylight_length(latitude_degrees):
+    results = []
 
-    # Apply the handle_nan function to clean the entire result structure
-    # TODO this returns much faster if the handle_nan function is not applied, but
-    # the frontend will crash with the json output if this is not applied
-    # Find a way around this
+    for day_of_year in range(1, 366):
+        # declination of the sun as a function of the day of the year
+        delta = -23.45 * cos(radians(360 / 365 * (day_of_year + 10)))
+        phi = radians(latitude_degrees)  # convert latitude to radians
 
-    climate_data = handle_nan(result)
-    # climate_data = result
+        # calculating the hour angle at which the sun sets/rises
+        clamped_value = max(-1, min(1, -tan(phi) * tan(radians(delta))))
 
-    mean_temp_values = [month_data["MEAN_AVG"] for month_data in avg_monthly]
-    precip_values = [month_data["PRECIP_AVG"] for month_data in avg_monthly]
+        # If clamped_value is -1 or 1, the sun never rises or never sets, respectively.
+        if clamped_value == 1:
+            daylight_length = 0  # Polar night
+            elevation_angle = 0  # Sun is below horizon all day
+        elif clamped_value == -1:
+            daylight_length = 24  # Midnight sun
+            # elevation_angle = 90  # Maximum possible solar noon elevation
+        else:
+            omega = acos(clamped_value)
+            daylight_length = 2 * omega * 24 / (2 * pi)  # Convert radians to hours
+            # solar noon elevation
+            elevation_angle = degrees(
+                asin(sin(phi) * sin(radians(delta)) + cos(phi) * cos(radians(delta)))
+            )
 
-    location_data = {
-        "elevation": target_elevation,
-        "koppen": calc_koppen_climate(mean_temp_values, precip_values),
-        "plant_hardiness": calc_plant_hardiness(avg_annual["EXPECTED_MIN"]),
-    }
+        results.append((day_of_year, elevation_angle, daylight_length))
 
-    print("FINISHED CONVERTING TO DICT: ", time.time() - start_time)
-    return climate_data, location_data
+    return results
 
 
 def process_noaa_station_data(station, weight, elev_diff):
@@ -606,21 +460,11 @@ def process_noaa_station_data(station, weight, elev_diff):
     # This emulates the orthographic effect, which increases precipitation with elevation
     ELEV_PRECIP_ADJUSTMENT_FACTOR = 0.125
 
-    # This is sort of a magic number, which increases precipitation days in respect to the elevation difference
-    # between the average elevation of the stations and the target elevation
-    # This emulates the orthographic effect, which increases precipitation days with elevation
-    ELEV_PRECIP_DAYS_ADJUSTMENT_FACTOR = 0.02
-
-    # These values represent the required precip and snow in a day for it to be considered a precip or snow day
-    PRECIP_DAY_THRESHOLD_IN = 0.01
-    SNOW_DAY_THRESHOLD_IN = 0.1
-
     # This is sort of a magic number, which limits how much precipitation in respect to the elevation
     # difference can increase, which again, emuulates the orthographic effect
     MAX_ELEV_ADJUST_MULTIPLIER = 5
     elev_diff /= 1000
 
-    # Read the CSV data
     if is_running_on_aws():
         # Use the built-in '/tmp' directory in AWS Lambda
         temp_local_path = f"/tmp/{station}"
@@ -701,21 +545,6 @@ def process_noaa_station_data(station, weight, elev_diff):
         * snow_elevation_adjustment,
         0,
     )
-    df["PRECIP_DAYS"] = np.where(
-        rain_to_snow_condition,
-        0,
-        (df["DAILY_PRECIP_AVG"] > PRECIP_DAY_THRESHOLD_IN).astype(int),
-    )
-    df["PRECIP_DAYS"] = df["PRECIP_DAYS"] * min(
-        (1 + elev_diff * ELEV_PRECIP_DAYS_ADJUSTMENT_FACTOR)
-        * precip_elevation_adjustment,
-        2,
-    )
-    df["SNOW_DAYS"] = (df["DAILY_SNOW_AVG"] > SNOW_DAY_THRESHOLD_IN).astype(int) * min(
-        (1 + elev_diff * ELEV_PRECIP_DAYS_ADJUSTMENT_FACTOR)
-        * snow_elevation_adjustment,
-        2,
-    )
 
     # Apply the weights
     weighted_cols = [
@@ -723,8 +552,6 @@ def process_noaa_station_data(station, weight, elev_diff):
         "DAILY_LOW_AVG",
         "DAILY_PRECIP_AVG",
         "DAILY_SNOW_AVG",
-        "PRECIP_DAYS",
-        "SNOW_DAYS",
     ]
 
     df[weighted_cols] = df[weighted_cols].multiply(weight, axis=0)
@@ -755,6 +582,7 @@ def process_nws_station_data(provider, city_code, weight, elev_diff):
     """
 
     USE_COLS = ["Date", "MAX SPD", "DR", "S-S", "DIR", "WX"]
+
     if is_running_on_aws():
         # Use the built-in '/tmp' directory in AWS Lambda
         temp_local_path = f"/tmp/{provider}_{city_code}.csv"
@@ -774,6 +602,7 @@ def process_nws_station_data(provider, city_code, weight, elev_diff):
             + f"{provider}_{city_code}.csv"
         )
         df = pd.read_csv(file_path, usecols=USE_COLS)
+
     elev_diff /= 1000
     # Compute the required averages with elevation adjustments since conditions change with elevation
     elevation_adjustment_for_wind = min((1 + elev_diff * 0.2), 5)
@@ -801,15 +630,12 @@ def process_nws_station_data(provider, city_code, weight, elev_diff):
         lower=0
     )
     df["DAILY_SUNSHINE_AVG"] *= elevation_adjustment_for_sunshine
-    # df["CONDITIONS"] = df["WX"].where(df["WX"] != "", 0)
-    # df['CONDITIONS'] = df['CONDITIONS'].apply(lambda x: x.lstrip('0'))
 
     df.dropna(
         subset=[
             "DAILY_WIND_AVG",
             "DAILY_WIND_DIR_AVG",
             "DAILY_SUNSHINE_AVG",
-            # "CONDITIONS",
             "DAILY_WIND_MAX",
         ],
         inplace=True,
@@ -896,6 +722,7 @@ def dewpoint_regr_calc(Tmax, Tmin, totalPrcp):
 
 def fit_dewpoint_adjustment_model():
     # Sample data
+
     if is_running_on_aws():
         # Use the built-in '/tmp' directory in AWS Lambda
         temp_local_path = "/tmp/dewpoint-adjustment-data.csv"
@@ -990,8 +817,6 @@ def nearest_coordinates_to_point_NWS(target_lat, target_lon, df, num_results=3):
 
 
 def nearest_coordinates_to_point_NOAA(target_lat, target_lon, df, num_results=3):
-    start_time = time.time()
-
     latitudes = df["LAT"].values
     longitudes = df["LON"].values
     distances = haversine_vectorized(target_lat, target_lon, latitudes, longitudes)
@@ -1009,7 +834,6 @@ def nearest_coordinates_to_point_NOAA(target_lat, target_lon, df, num_results=3)
     )
     closest = results[np.argsort(results[:, 5])][:num_results]
 
-    print("NOAA DISTANCES Elapsed Time:", time.time() - start_time, "seconds")
     return closest
 
 
@@ -1030,10 +854,6 @@ def inverse_dist_weights(closest_points_list, weight_power=0.5):
     return weights
 
 
-def is_running_on_aws():
-    return "amzn" in platform.platform()
-
-
 def get_csv_from_s3(bucket_name, file_key, local_path):
     try:
         s3 = boto3.client("s3")
@@ -1047,3 +867,22 @@ def get_csv_from_s3(bucket_name, file_key, local_path):
         else:
             print(f"An error occurred: {e}")
         raise
+
+
+def is_running_on_aws():
+    return "amzn" in platform.platform()
+
+
+if __name__ == "__main__":
+    # df = pd.read_csv("geo_elev_grid_points_updated.csv")
+    # first_row_df = df.iloc[
+    #    0:1
+    # ]  # This slices the DataFrame to include only the first row
+    # start_time = time.time()
+    # process_and_write_data(first_row_df)
+    # print("TOTAL Elapsed Time:", time.time() - start_time, "seconds")
+    # df = climate_data(19, -156.5, 0)
+    # df.to_csv("temp_climate_data.csv")
+    start_time = time.time()
+
+    print("GET Elapsed Time:", time.time() - start_time, "seconds")

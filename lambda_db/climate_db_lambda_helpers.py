@@ -1,117 +1,233 @@
-import math
-import pandas as pd
-from math import radians, sin, cos, sqrt, atan2
+from datetime import time
 import numpy as np
-from scipy.stats import norm
+import pandas as pd
+import time
 
 
-def calc_growing_chance_vectorized(noaa_final_data, window_size=14):
-    # Calculate rolling mean and standard deviation
-    rolling_mean = (
-        noaa_final_data["DAILY_LOW_AVG"]
-        .rolling(window=window_size, min_periods=1)
-        .mean()
-    )
-    rolling_std = (
-        noaa_final_data["DAILY_LOW_AVG"]
-        .rolling(window=window_size, min_periods=1)
-        .std()
-    )
-
-    # Avoid division by zero by replacing zero standard deviations with NaN
-    rolling_std = rolling_std.replace(0, np.nan)
-
-    # Calculate z-scores; use .fillna(0) to handle NaNs resulting from zero standard deviation
-    z_scores = (35 - rolling_mean) / rolling_std
-    z_scores = z_scores.fillna(0)
-    cumulative_probs = norm.cdf(z_scores)
-
-    # Calculate the percentiles
-    percentiles_below_32 = (1 - cumulative_probs) * 100
-    percentiles_below_32 = np.where(
-        percentiles_below_32 <= 50,
-        0,
-        np.where(percentiles_below_32 >= 80, 100, percentiles_below_32),
-    )
-
-    # Calculate the final growing chance
-    growing_chance = 100 * ((percentiles_below_32 / 100) ** 2)
-
-    return growing_chance
-
-
-def fast_percentile(group, percentile):
-    return np.percentile(group, percentile)
-
-
-def calculate_statistic_by_date(
-    dataframe,
-    temp_col,
-    stat_function,
-    new_col_name,
-    percentile_high=90,
-    percentile_low=10,
+def calc_additional_climate_parameters(
+    df, target_elevation, average_weighted_elev, num_days
 ):
-    dataframe = dataframe.copy()
+    elev_diff = (target_elevation - average_weighted_elev) / 1000
+    print("Elevation difference:", elev_diff * 1000)
 
-    # Ensure the DataFrame's index is a DatetimeIndex
-    if not isinstance(dataframe.index, pd.DatetimeIndex):
-        dataframe.index = pd.to_datetime(dataframe.index)
+    ELEV_TEMPERATURE_ADJUSTMENT = 4.5
+    ELEV_DEWPOINT_ADJUSTMENT = 3
+    # These reduce snowfall and precip in respect to the elevation difference
+    ELEV_PRECIP_REDUCTION_FACTOR = 0.15
+    ELEV_SNOW_REDUCTION_FACTOR = 0.5
 
-    dataframe["MONTH_DAY"] = dataframe.index.strftime("%m-%d")
+    # This increases precipitation in respect to the elevation difference
+    # between the average elevation of the stations and the target elevation
+    # This emulates the orthographic effect, which increases precipitation with elevation
+    ELEV_PRECIP_ADJUSTMENT_FACTOR = 0.125
 
-    if stat_function == "percentile":
-        if temp_col == "DAILY_HIGH_AVG":
-            dataframe[new_col_name] = dataframe.groupby("MONTH_DAY")[
-                temp_col
-            ].transform(lambda x: fast_percentile(x, percentile_high))
-        else:  # 'DAILY_LOW_AVG'
-            dataframe[new_col_name] = dataframe.groupby("MONTH_DAY")[
-                temp_col
-            ].transform(lambda x: fast_percentile(x, percentile_low))
-    else:
-        dataframe[new_col_name] = dataframe.groupby("MONTH_DAY")[temp_col].transform(
-            stat_function
+    # This increases precipitation days in respect to the elevation difference
+    # between the average elevation of the stations and the target elevation
+    # This emulates the orthographic effect, which increases precipitation days with elevation
+    ELEV_PRECIP_DAYS_ADJUSTMENT_FACTOR = 0.02
+
+    # These values represent the required precip and snow in a day for it to be considered a precip or snow day
+    PRECIP_DAY_THRESHOLD_IN = 0.01
+    SNOW_DAY_THRESHOLD_IN = 0.1
+
+    # This is the maximum multiplier of how much precipitation can increase in respect to the elevation
+    # difference, which again, emuulates the orthographic effect
+    MAX_ELEV_ADJUST_MULTIPLIER = 5
+
+    # This changes the wind speed with elevation, as generally wind speed increases with elevation
+    ELEV_WIND_ADJUSTMENT = min((1 + elev_diff * 0.2), 5)
+
+    # This changes the sun with elevation, as generally sun decreases with elevation
+    # However, when the percentage of sunshine is high, generally the sun does not change with elevation as much
+    # This tries to emulate high pressure systems, which are more stable and have less variation with elevation
+    ELEV_SUN_ADJUSTMENT = (1 - elev_diff * 0.1 * (100 - df["sun"]) / 100).clip(lower=0)
+
+    FREEZING_POINT_F = 32
+
+    df["wind"] *= ELEV_WIND_ADJUSTMENT
+    df["wind_gust"] *= ELEV_WIND_ADJUSTMENT
+    df["sun"] *= ELEV_SUN_ADJUSTMENT
+
+    df["high_temperature"] = (
+        df["high_temperature"] - elev_diff * ELEV_TEMPERATURE_ADJUSTMENT
+    )
+    df["low_temperature"] = (
+        df["low_temperature"] - elev_diff * ELEV_TEMPERATURE_ADJUSTMENT
+    )
+
+    if "expected_max" in df.columns and "expected_min" in df.columns:
+        df["expected_max_dewpoint"] = (
+            df["expected_max_dewpoint"] - elev_diff * ELEV_DEWPOINT_ADJUSTMENT
+        )
+        df["expected_min_dewpoint"] = (
+            df["expected_min_dewpoint"] - elev_diff * ELEV_DEWPOINT_ADJUSTMENT
+        )
+        df["expected_max"] = (
+            df["expected_max"] - elev_diff * ELEV_TEMPERATURE_ADJUSTMENT
+        )
+        df["expected_min"] = (
+            df["expected_min"] - elev_diff * ELEV_TEMPERATURE_ADJUSTMENT
+        )
+        df["apparent_expected_max"] = calc_aparent_temp_vector(
+            df["expected_max"],
+            df["expected_max_dewpoint"],
+            df["wind_gust"],
+        )
+        df["apparent_expected_min"] = calc_aparent_temp_vector(
+            df["expected_min"],
+            df["expected_min_dewpoint"],
+            df["wind_gust"],
         )
 
-    dataframe.drop(columns="MONTH_DAY", inplace=True)
+    if "record_high" in df.columns and "record_low" in df.columns:
+        df["record_high"] = df["record_high"] - elev_diff * ELEV_TEMPERATURE_ADJUSTMENT
+        df["record_low"] = df["record_low"] - elev_diff * ELEV_TEMPERATURE_ADJUSTMENT
+        df["record_high_dewpoint"] = (
+            df["record_high_dewpoint"] - elev_diff * ELEV_DEWPOINT_ADJUSTMENT
+        )
+        df["record_low_dewpoint"] = (
+            df["record_low_dewpoint"] - elev_diff * ELEV_DEWPOINT_ADJUSTMENT
+        )
+        df["record_high_wind_gust"] = df["record_high_wind_gust"] * ELEV_WIND_ADJUSTMENT
 
-    return dataframe
+        df["apparent_record_high"] = calc_aparent_temp_vector(
+            df["record_high"],
+            df["record_high_dewpoint"],
+            df["record_high_wind_gust"],
+        )
+        df["apparent_record_low"] = calc_aparent_temp_vector(
+            df["record_low"],
+            df["record_low_dewpoint"],
+            df["record_high_wind_gust"],
+        )
+
+    df["dewpoint"] = df["dewpoint"] - elev_diff * ELEV_DEWPOINT_ADJUSTMENT
+    df["mean_temperature"] = (df["high_temperature"] + df["low_temperature"]) / 2
+    df["apparent_high_temperature"] = calc_aparent_temp_vector(
+        df["high_temperature"],
+        df["dewpoint"],
+        df["wind"],
+    )
+    df["apparent_low_temperature"] = calc_aparent_temp_vector(
+        df["low_temperature"],
+        df["dewpoint"],
+        df["wind"],
+    )
+
+    df["apparent_mean_temperature"] = (
+        df["apparent_high_temperature"] + df["apparent_low_temperature"]
+    ) / 2
+
+    # This aproximates how much moisture is in the air.
+    # If the diurinal temperature range is high, then the snow will be lighter and less dense,
+    # and if it is low, then the snow will be wetter and denser, so less inches of snow per inch of precip.
+    df["DTR"] = df["high_temperature"] - df["low_temperature"]
+    df["RAIN_TO_SNOW_CONVERSION"] = (df["DTR"] / 2).clip(lower=5, upper=20)
+
+    # Calculate snow averages using vectorized operations
+    # Set DAILY_SNOW_AVG to 0 if DAILY_LOW_AVG is above the freezing point
+    rain_to_snow_condition = (df["high_temperature"] < FREEZING_POINT_F) | (
+        (df["low_temperature"] < FREEZING_POINT_F)
+        & (df["mean_temperature"] < FREEZING_POINT_F)
+    )
+
+    # This reduces snowfall in respect to the elevation difference,
+    # if target is bellow the average station elevation
+    precip_elevation_adjustment = np.where(
+        elev_diff < 0,
+        np.maximum(1 + elev_diff * ELEV_PRECIP_REDUCTION_FACTOR, 0),
+        1,
+    )
+    snow_elevation_adjustment = np.where(
+        elev_diff < 0,
+        np.maximum(1 + elev_diff * ELEV_SNOW_REDUCTION_FACTOR, 0),
+        1,
+    )
+
+    # Adjusts precipitation for elevation
+    df["precipitation"] = (
+        df["precipitation"]
+        * min(
+            (1 + elev_diff * ELEV_PRECIP_ADJUSTMENT_FACTOR), MAX_ELEV_ADJUST_MULTIPLIER
+        )
+        * precip_elevation_adjustment
+    )
+
+    df["snow"] = np.where(
+        rain_to_snow_condition,
+        df["precipitation"] * df["RAIN_TO_SNOW_CONVERSION"] * snow_elevation_adjustment,
+        0,
+    )
+    df["snow"] += np.where(
+        ~rain_to_snow_condition,
+        df["snow"]
+        * min(
+            (1 + elev_diff * ELEV_PRECIP_ADJUSTMENT_FACTOR),
+            MAX_ELEV_ADJUST_MULTIPLIER,
+        )
+        * snow_elevation_adjustment,
+        0,
+    )
+
+    day_columns = [col for col in df.columns if col.endswith("_days")]
+    for col in day_columns:
+        df[col] = df[col] / (num_days / 365.25)
+
+    df["precip_days"] = df["precip_days"] * min(
+        (1 + elev_diff * ELEV_PRECIP_DAYS_ADJUSTMENT_FACTOR)
+        * precip_elevation_adjustment,
+        2,
+    )
+    df["snow_days"] = df["snow_days"] * min(
+        (1 + elev_diff * ELEV_PRECIP_DAYS_ADJUSTMENT_FACTOR)
+        * snow_elevation_adjustment,
+        2,
+    )
+
+    df["morning_humidity"] = calc_humidity_percentage_vector(
+        df["dewpoint"], df["low_temperature"]
+    )
+    df["afternoon_humidity"] = calc_humidity_percentage_vector(
+        df["dewpoint"], df["high_temperature"]
+    )
+    df["mean_humidity"] = calc_humidity_percentage_vector(
+        df["dewpoint"], df["mean_temperature"]
+    )
+
+    df["morning_frost_chance"] = 100 * (
+        (df["morning_humidity"] > 90) & (df["low_temperature"] <= 32)
+    ).astype(int)
+
+    df["uv_index"] = calc_uv_index_vectorized(
+        df["sun_angle"], target_elevation, df["sun"]
+    )
+
+    df["comfort_index"] = calc_comfort_index_vector(
+        df["mean_temperature"],
+        df["apparent_mean_temperature"],
+        df["dewpoint"],
+        df["sun"],
+    )
+    df["sunlight_hours"] = df["daylight_length"] * (df["sun"] / 100)
+    df["cdd"] = calc_degree_days_vectorized(df["mean_temperature"], "cdd")
+    df["hdd"] = calc_degree_days_vectorized(df["mean_temperature"], "hdd")
+    df["gdd"] = calc_degree_days_vectorized(df["mean_temperature"], "gdd")
+    df["cumulative_gdd"] = df["gdd"].cumsum()
+    if "day_of_year" in df.columns:
+        df.drop(columns=["day_of_year"], inplace=True)
+    df.drop(columns=["DTR"], inplace=True)
+    df.drop(columns=["RAIN_TO_SNOW_CONVERSION"], inplace=True)
 
 
-# TODO This needs to take leap years into account
-def calc_sun_angle_and_daylight_length(latitude_degrees):
-    results = []
-
-    for day_of_year in range(1, 366):
-        # declination of the sun as a function of the day of the year
-        delta = -23.45 * math.cos(math.radians(360 / 365 * (day_of_year + 10)))
-        phi = math.radians(latitude_degrees)  # convert latitude to radians
-
-        # calculating the hour angle at which the sun sets/rises
-        clamped_value = max(-1, min(1, -math.tan(phi) * math.tan(math.radians(delta))))
-
-        # If clamped_value is -1 or 1, the sun never rises or never sets, respectively.
-        if clamped_value == 1:
-            daylight_length = 0  # Polar night
-            elevation_angle = 0  # Sun is below horizon all day
-        elif clamped_value == -1:
-            daylight_length = 24  # Midnight sun
-            # elevation_angle = 90  # Maximum possible solar noon elevation
-        else:
-            omega = math.acos(clamped_value)
-            daylight_length = 2 * omega * 24 / (2 * math.pi)  # Convert radians to hours
-            # solar noon elevation
-            elevation_angle = math.degrees(
-                math.asin(
-                    math.sin(phi) * math.sin(math.radians(delta))
-                    + math.cos(phi) * math.cos(math.radians(delta))
-                )
-            )
-
-        results.append((day_of_year, elevation_angle, daylight_length))
-
-    return results
+def calc_degree_days_vectorized(temperatures, degree_day_type):
+    if degree_day_type == "cdd":
+        return (temperatures - 65).clip(lower=0)
+    elif degree_day_type == "hdd":
+        return (65 - temperatures).clip(lower=0)
+    elif degree_day_type == "gdd":
+        return (temperatures - 50).clip(lower=0)
+    else:
+        return None
 
 
 def calc_uv_index_vectorized(sun_angle, altitude, sunshine_percentage):
@@ -490,7 +606,3 @@ def calc_plant_hardiness(mean_annual_min):
 
 def get_highest_N_values(values, numValues):
     return sorted(values, reverse=True)[:numValues]
-
-
-def sigmoid(x):
-    return 1 / (1 + np.exp(-x))

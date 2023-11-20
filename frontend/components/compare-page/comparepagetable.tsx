@@ -14,10 +14,10 @@ import Typography from "@mui/material/Typography";
 
 type ComparisonPageProps = {
   locations: MarkerType[];
-  heading: string; //'Mean Maximum'
-  monthlyDataKey: string; //'monthly_mean_maximum'
-  annualDataKey: string; //'annual_record_high'
-  decimalTrunc: number;
+  heading: string;
+  monthly_data: any;
+  annual_data: any;
+  numDec?: number;
   units?: string;
 };
 
@@ -42,27 +42,11 @@ const StyledTableCell = styled(TableCell)(() => ({
 const ClimateTable = ({
   locations,
   heading,
-  monthlyDataKey: monthlyDataStr,
-  annualDataKey: annualDataStr,
-  decimalTrunc,
+  monthly_data,
+  annual_data,
+  numDec = 0,
   units = "",
 }: ComparisonPageProps) => {
-  const mapClimateData = (location: any, key: string) =>
-    location.data.climate_data.avg_monthly.map(
-      (month: { [key: string]: any }) => month[key]
-    );
-
-  const monthlyDataArr = locations.map((location) =>
-    mapClimateData(location, monthlyDataStr)
-  );
-
-  const annualDataArr = locations.map(
-    (location) => location.data.climate_data.avg_annual
-  );
-  const filteredAnnualDataArr = annualDataArr.map(
-    (data) => data[annualDataStr]
-  );
-
   return (
     <div>
       <Typography
@@ -86,40 +70,45 @@ const ClimateTable = ({
               </TableRow>
             </TableHead>
             <TableBody>
-              {locations.map((location, index) => (
-                <TableRow key={location.data.location_data.location}>
-                  <StyledTableCell
-                    style={{
-                      whiteSpace: "nowrap",
-                      position: "relative",
-                      paddingLeft: "10px",
-                    }}
-                  >
-                    {/* This creates a box next to the location name with the location color*/}
-                    <div
-                      className="table-location-color-box"
-                      style={{
-                        position: "absolute",
-                        top: "50%",
-                        transform: "translateY(-50%)",
-                        width: "10px",
-                        height: "10px",
-                        backgroundColor: LocationColors(1)[index],
-                      }}
-                    ></div>
-                    {location.data.location_data.location}
-                  </StyledTableCell>
+              {locations.map((location, locIndex) => {
+                const combinedData = [
+                  ...monthly_data[locIndex],
+                  annual_data[locIndex],
+                ];
 
-                  {monthlyDataArr[index].map((value: number, i: number) => (
-                    <StyledTableCell key={i}>
-                      {value % 1 === 0 ? 0 : value.toFixed(decimalTrunc)}
+                return (
+                  <TableRow key={location.data.location_data.location}>
+                    <StyledTableCell
+                      style={{
+                        whiteSpace: "nowrap",
+                        position: "relative",
+                        paddingLeft: "10px",
+                      }}
+                    >
+                      <div
+                        className="table-location-color-box"
+                        style={{
+                          position: "absolute",
+                          top: "50%",
+                          transform: "translateY(-50%)",
+                          width: "10px",
+                          height: "10px",
+                          backgroundColor: LocationColors(1)[locIndex],
+                        }}
+                      ></div>
+                      {location.data.location_data.location}
                     </StyledTableCell>
-                  ))}
-                  <StyledTableCell style={{ whiteSpace: "nowrap" }}>
-                    {filteredAnnualDataArr[index].toFixed(decimalTrunc) + units}
-                  </StyledTableCell>
-                </TableRow>
-              ))}
+
+                    {combinedData.map((value, i) => (
+                      <StyledTableCell key={i}>
+                        {i === combinedData.length - 1
+                          ? `${value.toFixed(numDec)}${units}`
+                          : value.toFixed(numDec)}
+                      </StyledTableCell>
+                    ))}
+                  </TableRow>
+                );
+              })}
             </TableBody>
           </Table>
         </TableContainer>
