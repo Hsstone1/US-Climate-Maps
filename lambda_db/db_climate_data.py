@@ -5,8 +5,13 @@ import time
 
 
 def calc_additional_climate_parameters(
-    df, target_elevation, average_weighted_elev, num_days
+    df, target_elevation, average_weighted_elev, num_days=1
 ):
+    day_columns = [col for col in df.columns if col.endswith("_days")]
+    for col in day_columns:
+        if num_days != 1:
+            df[col] = df[col] / (num_days / 365.25)
+
     elev_diff = (target_elevation - average_weighted_elev) / 1000
     print("Elevation difference:", elev_diff * 1000)
 
@@ -169,10 +174,6 @@ def calc_additional_climate_parameters(
         0,
     )
 
-    day_columns = [col for col in df.columns if col.endswith("_days")]
-    for col in day_columns:
-        df[col] = df[col] / (num_days / 365.25)
-
     df["precip_days"] = df["precip_days"] * min(
         (1 + elev_diff * ELEV_PRECIP_DAYS_ADJUSTMENT_FACTOR)
         * precip_elevation_adjustment,
@@ -212,6 +213,7 @@ def calc_additional_climate_parameters(
     df["cdd"] = calc_degree_days_vectorized(df["mean_temperature"], "cdd")
     df["hdd"] = calc_degree_days_vectorized(df["mean_temperature"], "hdd")
     df["gdd"] = calc_degree_days_vectorized(df["mean_temperature"], "gdd")
+    df["growing_season"] = (df["gdd"] * 10).clip(0, 100)
     df["cumulative_gdd"] = df["gdd"].cumsum()
     if "day_of_year" in df.columns:
         df.drop(columns=["day_of_year"], inplace=True)

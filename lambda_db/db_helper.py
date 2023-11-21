@@ -1,211 +1,25 @@
 from datetime import time
-import re
 import pandas as pd
 import psycopg2
 import psycopg2.extras
-from psycopg2.pool import SimpleConnectionPool
 import os
 import time
 import platform
 from dotenv import load_dotenv
-from flask import Flask, request, jsonify, g
 import json
-from flask_cors import CORS
 from collections import defaultdict
-from climate_db_lambda_helpers import *
+from db_climate_data import *
 
-load_dotenv()  # This loads the variables from .env
-app = Flask(__name__)
-CORS(app)
+
 NUM_NEAREST_LOCATIONS = 4
+load_dotenv()  # This loads the variables from .env
 
 
-# Initialize the connection pool
-db_pool = SimpleConnectionPool(
-    1,
-    10,
-    user=os.getenv("DB_USER"),
-    password=os.getenv("DB_PASSWORD"),
-    host=os.getenv("DB_HOST"),
-    port=os.getenv("DB_PORT"),
-    database=os.getenv("DB_NAME"),
-)
-
-
-# This function is used to get a db connection from the pool, which saves on request time
-# As a db connection does not need to be created for each request, just use an existing one
-def get_db():
-    start_time = time.time()
-    if "db" not in g:
-        g.db = db_pool.getconn()
-        print("Get DB Connection Time:", time.time() - start_time, "seconds")
-    return g.db
-
-
-# This function is used to close the db connection and return it to the pool
-@app.teardown_appcontext
-def close_db(e=None):
-    db = g.pop("db", None)
-    if db is not None:
-        db_pool.putconn(db)
-
-
-# This function is used to get the climate data for the given latitude, longitude, and elevation
-# This is only called once on locaiton creation, so the location_data is returned with the climate_data
-@app.route("/climate_data_db", methods=["POST"])
-def get_climate_data():
-    # Get the raw JSON from the request
-    data = request.get_json()
-    print(data)
-
-    # Check if the 'body' key is in the data dictionary
-    if "body" in data:
-        # Parse the inner JSON string
-        inner_data = json.loads(data["body"])
-
-        # Now we expect inner_data to be a dictionary, check for the expected keys
-        if (
-            "latitude" in inner_data
-            and "longitude" in inner_data
-            and "elevation" in inner_data
-        ):
-            try:
-                latitude = float(inner_data["latitude"])
-                longitude = float(inner_data["longitude"])
-                elevation = float(inner_data["elevation"])
-
-            except ValueError:
-                # Handle the error if the values cannot be converted to float
-                return (
-                    jsonify(
-                        {"error": "Invalid latitude, longitude, or elevation format."}
-                    ),
-                    400,
-                )
-
-            start_time = time.time()  # Start timer
-            result = find_closest_from_db(latitude, longitude)
-
-            if result is not None:
-                climate_data, weighted_elevation, num_days = result
-                calc_additional_climate_parameters(
-                    climate_data, elevation, weighted_elevation, num_days
-                )
-                print(
-                    "Total Retrieval Elapsed Time:", time.time() - start_time, "seconds"
-                )
-                # climate_data.to_csv("climate_data.csv")
-
-                climate_data_json = dataframe_time_granularity_agg_to_json(climate_data)
-
-                # json.dump(climate_data_json, open("climate_data.json", "w"))
-
-                location_data = {
-                    "elevation": elevation,
-                    "koppen": calc_koppen_climate(
-                        climate_data_json["mean_temperature"]["monthly"],
-                        climate_data_json["precipitation"]["monthly"],
-                    ),
-                    "plant_hardiness": calc_plant_hardiness(
-                        climate_data_json["record_low"]["annual"]
-                    ),
-                }
-                data = {
-                    "climate_data": climate_data_json,
-                    "location_data": location_data,
-                }
-                return jsonify(data)
-
-            else:
-                print("Failed to retrieve data.")
-
-        else:
-            # If one of the keys is missing, send an appropriate response
-            return (
-                jsonify(
-                    {"error": "Missing data for latitude, longitude, or elevation."}
-                ),
-                400,
-            )
+def find_closest_from_db(latitude, longitude, year=None, connection_to_db=None):
+    if connection_to_db is None:
+        connection = connect_to_db()
     else:
-        # If 'body' key is not in data, send an appropriate response
-        return jsonify({"error": "No body key in JSON."}), 400
-
-
-# This function is used to get the climate data for a given year
-@app.route("/climate_data_db_year", methods=["POST"])
-def get_climate_data_year():
-    # Get the raw JSON from the request
-    data = request.get_json()
-    print(data)
-
-    # Check if the 'body' key is in the data dictionary
-    if "body" in data:
-        # Parse the inner JSON string
-        inner_data = json.loads(data["body"])
-
-        # Now we expect inner_data to be a dictionary, check for the expected keys
-        if (
-            "latitude" in inner_data
-            and "longitude" in inner_data
-            and "elevation" in inner_data
-            and "year" in inner_data
-        ):
-            try:
-                latitude = float(inner_data["latitude"])
-                longitude = float(inner_data["longitude"])
-                elevation = float(inner_data["elevation"])
-                year = int(inner_data["year"])
-
-            except ValueError:
-                # Handle the error if the values cannot be converted to float
-                return (
-                    jsonify(
-                        {"error": "Invalid latitude, longitude, or elevation format."}
-                    ),
-                    400,
-                )
-
-            start_time = time.time()  # Start timer
-            result = find_closest_from_db(latitude, longitude, year)
-
-            if result is not None:
-                climate_data, weighted_elevation = result
-
-                calc_additional_climate_parameters(
-                    climate_data, elevation, weighted_elevation
-                )
-                print(
-                    "Total Retrieval Year Elapsed Time:",
-                    time.time() - start_time,
-                    "seconds",
-                )
-
-                climate_data_json = dataframe_time_granularity_agg_to_json(climate_data)
-
-                data = {
-                    "climate_data": climate_data_json,
-                }
-                return jsonify(data)
-
-            else:
-                print("Failed to retrieve data.")
-
-        else:
-            # If one of the keys is missing, send an appropriate response
-            return (
-                jsonify(
-                    {"error": "Missing data for latitude, longitude, or elevation."}
-                ),
-                400,
-            )
-    else:
-        # If 'body' key is not in data, send an appropriate response
-        return jsonify({"error": "No body key in JSON."}), 400
-
-
-def find_closest_from_db(latitude, longitude, year=None):
-    connection = get_db()
+        connection = connection_to_db
     if connection is None:
         print("Failed to connect to the database")
         return None
@@ -370,14 +184,6 @@ def idw_aggregation(location_ids, weights, cursor, year=None):
             data_query = RAW_DAILY_DATA_QUERY
             data = execute_query_to_dataframe(cursor, data_query, (location_id, year))
 
-        # Apply weight only to numeric columns
-        # if "record_high" and "record_low" in data.columns:
-        #    data["record_high"] = data["record_high"].astype(float)
-        #    data["record_low"] = data["record_low"].astype(float)
-        # if "expected_max" and "expected_min" in data.columns:
-        #    data["expected_max"] = data["expected_max"].astype(float)
-        #    data["expected_min"] = data["expected_min"].astype(float)
-
         numeric_data = data.select_dtypes(include=["float64", "int64"]) * weight
         data.update(numeric_data)
 
@@ -463,7 +269,7 @@ NUM_DAYS_IN_DB_QUERY = """
 
 RAW_DAILY_DATA_QUERY = """
     SELECT date, high_temperature, low_temperature, dewpoint, precipitation,
-           snow, sun, wind, wind_gust, wind_direction, sun_angle, daylight_length
+           snow, sun, wind, wind_gust, wind_direction, sun_angle, daylight_length,
            CASE WHEN precipitation > 0.01 THEN 1 ELSE 0 END AS precip_days,
            CASE WHEN snow > 0.1 THEN 1 ELSE 0 END AS snow_days,
            CASE WHEN sun > 70 THEN 1 ELSE 0 END AS clear_days,
@@ -479,7 +285,7 @@ RAW_DAILY_DATA_QUERY = """
     ORDER BY date;
 """
 
-"""
+
 def connect_to_db():
     try:
         start_time = time.time()
@@ -495,14 +301,3 @@ def connect_to_db():
         return connection
     except (Exception, psycopg2.Error) as error:
         print("Error while connecting to PostgreSQL", error)
-"""
-
-"""
-This function is used to find the closest location to the given latitude and longitude.
-It returns the aggregated data for the closest location, as well as the weighted elevation.
-"""
-
-
-if __name__ == "__main__":
-    # Run the application
-    app.run(debug=True, host="")

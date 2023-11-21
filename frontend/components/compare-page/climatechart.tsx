@@ -163,16 +163,14 @@ function ClimateChart({
 
   const lineDatasets = transformedLineDatasets;
   const barDatasets = transformedBarDatasets;
-  // Combine datasets
-  const combinedDatasets = [...lineDatasets, ...barDatasets];
 
-  // Create the chart data
-  const chartData: ChartData<"bar" | "line"> = useMemo(
-    () => ({
+  const chartData: ChartData<"bar" | "line"> = useMemo(() => {
+    const combinedDatasets = [...lineDatasets, ...barDatasets];
+
+    return {
       datasets: combinedDatasets,
-    }),
-    [combinedDatasets]
-  );
+    };
+  }, [lineDatasets, barDatasets]); // Dependencies are the arrays used inside combinedDatasets
 
   // Define scale settings as functions or constants for reusability and clarity
   const xAxisOptions = {
@@ -200,7 +198,8 @@ function ClimateChart({
     unit: string,
     suggested_max: number,
     suggested_min: number = 0,
-    stepsize: number = 10
+    stepsize: number = 10,
+    max?: number
   ) => ({
     type: "linear",
     offset: false,
@@ -210,6 +209,7 @@ function ClimateChart({
     beginAtZero: false,
     suggestedMin: suggested_min,
     suggestedMax: suggested_max,
+    max: max,
 
     ticks: {
       callback: function (value: any) {
@@ -358,7 +358,7 @@ function ClimateChart({
         Temperature: yAxisOptions("Temperature", "F", 100, 0, 10),
         Dewpoint: yAxisOptions("Dewpoint", "F", 80, 0, 10),
         Precip: yAxisOptions("Precip", "in", 5, 0, 1),
-        Percentage: yAxisOptions("Percentage", "%", 100, 0, 10),
+        Percentage: yAxisOptions("Percentage", "%", 100, 0, 10, 100),
         Wind: yAxisOptions("Wind", "mph", 20, 0, 1),
         Comfort_Index: yAxisOptions("Comfort_Index", "", 100, 0, 10),
         UV_Index: yAxisOptions("UV_Index", "", 10, 0, 1),

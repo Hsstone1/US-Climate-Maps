@@ -25,6 +25,15 @@ export type ClimateChartDataset = {
     | "Dewpoint";
 };
 
+export type TimeGranularity =
+  | "daily"
+  | "monthly"
+  | "annual"
+  | "annual_max"
+  | "annual_min"
+  | "monthly_max"
+  | "monthly_min";
+
 export const MonthLabels = [
   "Jan",
   "Feb",

@@ -9,7 +9,6 @@ import CustomInfoWindow from "./custominfowindow";
 import Snackbar from "@mui/material/Snackbar";
 import CircularProgress from "@mui/material/CircularProgress";
 
-const LOCAL_DEVELOPMENT_API_URL = "http://localhost:5000";
 type LatLngLiteral = google.maps.LatLngLiteral;
 type MapOptions = google.maps.MapOptions;
 //max number of locations that can be compared at once
@@ -138,38 +137,23 @@ export default function Map() {
             headers: {
               "Content-Type": "application/json",
             },
+
             body: JSON.stringify({
-              body: JSON.stringify({
-                latitude,
-                longitude,
-                elevation,
-              }),
+              latitude,
+              longitude,
+              elevation,
             }),
           })
             .then((response) => {
               if (response.ok) {
-                return response.json();
+                return response.json(); // Parse JSON body
               } else {
                 return Promise.reject(
                   new Error("Network response was not ok.")
                 );
               }
             })
-            .then((data) => {
-              if (typeof data.body === "string") {
-                // Parse the body to JSON if it's a string
-                data = JSON.parse(data.body);
-              }
-              if (data && data.url) {
-                return fetch(data.url)
-                  .then((s3Response) => s3Response.json())
-                  .then((s3Data) => {
-                    return s3Data;
-                  });
-              } else {
-                return data;
-              }
-            })
+
             .then((data) => {
               const newMarker: MarkerType = {
                 id: markerId,
@@ -179,8 +163,8 @@ export default function Map() {
               };
 
               //Only prints if in testing
-              if (apiUrl === LOCAL_DEVELOPMENT_API_URL) {
-                console.log(data);
+              if (apiUrl === "http://localhost:5000") {
+                console.log("LOCATION ", newMarker);
               }
 
               setSelectedMarker((prevMarkers) => [...prevMarkers, newMarker]);

@@ -1,19 +1,26 @@
 import dynamic from "next/dynamic";
 
-import { ClimateChartDataset } from "./climatecomparehelpers";
+import { ClimateChartDataset, TimeGranularity } from "./climatecomparehelpers";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import Typography from "@mui/material/Typography";
 import { MarkerType, LocationColors } from "../location-props";
 import Table from "./comparepagetable";
 import ClimateChartPaginate from "./climatechartpaginate";
-//import YearSelector from "./yearselector";
+import YearSelector from "./yearselector";
 import LazyLoad from "react-lazyload";
 
-//This is dynamic import function to load components that rely on browser-specific functionalities such as the window object:
+//This is dynamic import function to load components that rely on
+// browser-specific functionalities such as the window object:
 const ClimateChart = dynamic(() => import("./climatechart"), { ssr: false });
 
 type ComparisonPageProps = {
   locations: MarkerType[];
+};
+
+type YearlyData = {
+  [locationId: string]: {
+    [year: string]: any;
+  };
 };
 
 const CHART_BORDER_WIDTH = 1.5;
@@ -27,6 +34,8 @@ const SMA_SMOOTH_DAYS = 30;
 const LAZY_LOAD_HEIGHT = 300;
 const LAZY_LOAD_OFFSET = 0;
 const DO_LAZY_LOAD_ONCE = false;
+
+let apiUrl = process.env.NEXT_PUBLIC_API_URL;
 
 //These values are not graphed for the select year data, as they do not change year to year
 const excludeFromHistorical = new Set([
@@ -43,10 +52,13 @@ const excludeFromHistorical = new Set([
 export default function ComparisonPage({ locations }: ComparisonPageProps) {
   const [selectedYear, setSelectedYear] = useState<string>("Annual");
   const [currentIndex, setCurrentIndex] = useState(0);
+  const [locationsWithYearlyData, setLocationsWithYearlyData] =
+    useState(locations);
+  const [yearlyData, setYearlyData] = useState<YearlyData>({});
 
   const [xAxisRangeState, setXAxisRangeState] = useState({
-    minX: 0, // Initial minX
-    maxX: 365, // Initial maxX
+    minX: 0,
+    maxX: 365,
   });
 
   const handleXAxisRangeChange = useCallback((newState) => {
@@ -61,119 +73,197 @@ export default function ComparisonPage({ locations }: ComparisonPageProps) {
     });
   }, []);
 
-  // Function to extract climate data based on a key and time granularity
+  // Function to extract climate data based on a key and time range, like daily, monthly, annual
   const extractClimateData = (
     key: string | number,
-    timeGranularity: string | number
+    TimeGranularity: string | number
   ) => {
     return locations.map(
-      (location) => location.data.climate_data[key][timeGranularity]
+      (location) => location.data.climate_data[key][TimeGranularity]
     );
   };
 
+  const fetchYearData = useCallback(
+    async (location: any, year: any) => {
+      // Avoid refetching if data already exists
+      if (yearlyData[location.id] && yearlyData[location.id][year]) {
+        return;
+      }
+
+      try {
+        const response = await fetch(apiUrl + `/climate_data_db_year`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+
+          body: JSON.stringify({
+            latitude: location.lat,
+            longitude: location.lng,
+            elevation: location.data.location_data.elevation,
+            year: year,
+          }),
+        });
+
+        const climateData = await response.json();
+
+        // Append the fetched data to the correct location in the state
+        setYearlyData((prevData: YearlyData) => {
+          // Get the existing data for this location, or an empty object if none exists
+          const existingLocationData = prevData[location.id] || {};
+
+          // add the new data for this location
+          const updatedLocationData = {
+            ...existingLocationData,
+            [year]: climateData,
+          };
+
+          // Return the new state with the updated data for this location
+          return {
+            ...prevData,
+            [location.id]: updatedLocationData,
+          };
+        });
+      } catch (error) {
+        console.error("Failed to fetch data:", error);
+      }
+    },
+    [yearlyData]
+  );
+
+  // Fetch the yearly data for the selected year and location when they change
+  useEffect(() => {
+    const location = locations[currentIndex];
+
+    if (selectedYear !== "Annual") {
+      fetchYearData(location, selectedYear);
+    }
+  }, [selectedYear, currentIndex, locations, fetchYearData]);
+
   const annualTemperatureDataset = useMemo(() => {
-    return temperature_dataset(locations, undefined, selectedYear);
-  }, [locations, selectedYear]);
+    return temperature_dataset(locations, undefined, selectedYear, yearlyData);
+  }, [locations, selectedYear, yearlyData]);
 
   const paginatedTemperatureDataset = useMemo(() => {
     return locations.map((location, index) =>
-      temperature_dataset([location], index, selectedYear, true)
+      temperature_dataset([location], index, selectedYear, yearlyData, true)
     );
-  }, [locations, selectedYear]);
+  }, [locations, selectedYear, yearlyData]);
 
   const annualApparentTemperatureDataset = useMemo(() => {
-    return apparent_temperature_dataset(locations, undefined, selectedYear);
-  }, [locations, selectedYear]);
+    return apparent_temperature_dataset(
+      locations,
+      undefined,
+      selectedYear,
+      yearlyData
+    );
+  }, [locations, selectedYear, yearlyData]);
 
   const paginatedApparentTemperatureDataset = useMemo(() => {
     return locations.map((location, index) =>
-      apparent_temperature_dataset([location], index, selectedYear, true)
+      apparent_temperature_dataset(
+        [location],
+        index,
+        selectedYear,
+        yearlyData,
+        true
+      )
     );
-  }, [locations, selectedYear]);
+  }, [locations, selectedYear, yearlyData]);
 
   const annualComfortDataset = useMemo(() => {
-    return comfort_index_dataset(locations, undefined, selectedYear);
-  }, [locations, selectedYear]);
+    return comfort_index_dataset(
+      locations,
+      undefined,
+      selectedYear,
+      yearlyData
+    );
+  }, [locations, selectedYear, yearlyData]);
 
   const paginatedComfortDataset = useMemo(() => {
     return locations.map((location, index) =>
-      comfort_index_dataset([location], index, selectedYear)
+      comfort_index_dataset([location], index, selectedYear, yearlyData)
     );
-  }, [locations, selectedYear]);
+  }, [locations, selectedYear, yearlyData]);
 
   const annualPrecipDataset = useMemo(() => {
-    return precip_dataset(locations, undefined, selectedYear);
-  }, [locations, selectedYear]);
+    return precip_dataset(locations, undefined, selectedYear, yearlyData);
+  }, [locations, selectedYear, yearlyData]);
 
   const paginatedPrecipDataset = useMemo(() => {
     return locations.map((location, index) =>
-      precip_dataset([location], index, selectedYear)
+      precip_dataset([location], index, selectedYear, yearlyData)
     );
-  }, [locations, selectedYear]);
+  }, [locations, selectedYear, yearlyData]);
 
   const annualSnowDataset = useMemo(() => {
-    return snow_dataset(locations, undefined, selectedYear);
-  }, [locations, selectedYear]);
+    return snow_dataset(locations, undefined, selectedYear, yearlyData);
+  }, [locations, selectedYear, yearlyData]);
 
   const paginatedSnowDataset = useMemo(() => {
     return locations.map((location, index) =>
-      snow_dataset([location], index, selectedYear)
+      snow_dataset([location], index, selectedYear, yearlyData)
     );
-  }, [locations, selectedYear]);
+  }, [locations, selectedYear, yearlyData]);
 
   const annualHumidityDataset = useMemo(() => {
-    return humidity_dataset(locations, undefined, selectedYear);
-  }, [locations, selectedYear]);
+    return humidity_dataset(locations, undefined, selectedYear, yearlyData);
+  }, [locations, selectedYear, yearlyData]);
 
   const paginatedHumidityDataset = useMemo(() => {
     return locations.map((location, index) =>
-      humidity_dataset([location], index, selectedYear)
+      humidity_dataset([location], index, selectedYear, yearlyData)
     );
-  }, [locations, selectedYear]);
+  }, [locations, selectedYear, yearlyData]);
 
   const annualDewpointDataset = useMemo(() => {
-    return dewpoint_dataset(locations, undefined, selectedYear);
-  }, [locations, selectedYear]);
+    return dewpoint_dataset(locations, undefined, selectedYear, yearlyData);
+  }, [locations, selectedYear, yearlyData]);
 
   const paginatedDewpointDataset = useMemo(() => {
     return locations.map((location, index) =>
-      dewpoint_dataset([location], index, selectedYear)
+      dewpoint_dataset([location], index, selectedYear, yearlyData)
     );
-  }, [locations, selectedYear]);
+  }, [locations, selectedYear, yearlyData]);
 
   const annualWindDataset = useMemo(() => {
-    return wind_dataset(locations, undefined, selectedYear);
-  }, [locations, selectedYear]);
+    return wind_dataset(locations, undefined, selectedYear, yearlyData);
+  }, [locations, selectedYear, yearlyData]);
 
   const paginatedWindDataset = useMemo(() => {
     return locations.map((location, index) =>
-      wind_dataset([location], index, selectedYear)
+      wind_dataset([location], index, selectedYear, yearlyData)
     );
-  }, [locations, selectedYear]);
+  }, [locations, selectedYear, yearlyData]);
 
   const annualSunshineDataset = useMemo(() => {
-    return sunshine_dataset(locations, undefined, selectedYear);
-  }, [locations, selectedYear]);
+    return sunshine_dataset(locations, undefined, selectedYear, yearlyData);
+  }, [locations, selectedYear, yearlyData]);
 
   const paginatedSunshineDataset = useMemo(() => {
     return locations.map((location, index) =>
-      sunshine_dataset([location], index, selectedYear)
+      sunshine_dataset([location], index, selectedYear, yearlyData)
     );
-  }, [locations, selectedYear]);
+  }, [locations, selectedYear, yearlyData]);
 
   const annualUVIndexDataset = useMemo(() => {
-    return uv_index_dataset(locations, undefined, selectedYear);
-  }, [locations, selectedYear]);
+    return uv_index_dataset(locations, undefined, selectedYear, yearlyData);
+  }, [locations, selectedYear, yearlyData]);
 
   const paginatedUVIndexDataset = useMemo(() => {
     return locations.map((location, index) =>
-      uv_index_dataset([location], index, selectedYear)
+      uv_index_dataset([location], index, selectedYear, yearlyData)
     );
-  }, [locations, selectedYear]);
+  }, [locations, selectedYear, yearlyData]);
 
   const annualGrowingSeasonDataset = useMemo(() => {
-    return growing_season_dataset(locations, undefined, selectedYear);
-  }, [locations, selectedYear]);
+    return growing_season_dataset(
+      locations,
+      undefined,
+      selectedYear,
+      yearlyData
+    );
+  }, [locations, selectedYear, yearlyData]);
 
   return (
     <div className="compare-page">
@@ -1023,20 +1113,9 @@ export default function ComparisonPage({ locations }: ComparisonPageProps) {
           </div>
         )}
       </div>
-      {/* <div className="year-selector-footer">
-        {
-          // Check if locations array has data
-          locations && locations.length > 0 ? (
-            <YearSelector
-              historical={locations[0].data.climate_data.historical}
-              onYearChange={setSelectedYear}
-            />
-          ) : (
-            // Fallback UI: Display a message (or any other component) when no locations are available
-            <p />
-          )
-        }
-      </div> */}
+      <div className="year-selector-footer">
+        <YearSelector onYearChange={setSelectedYear} />
+      </div>
     </div>
   );
 }
@@ -1076,22 +1155,22 @@ const ClimateChartRenderer: React.FC<{
 const get_climate_data = (
   location: any,
   key: string,
-  time_granularity:
-    | "daily"
-    | "monthly"
-    | "annual"
-    | "annual_max"
-    | "annual_min"
-    | "monthly_max"
-    | "monthly_min",
-  selectedYear: string,
+  time_granularity: TimeGranularity,
+  selectedYear: "Annual" | string,
+  yearlyData: null | any,
   options: { multiplyByVal?: number; windowSize?: number } = {}
 ) => {
   const { multiplyByVal = 1, windowSize } = options;
 
   //TODO this might crash if the key is missing, likely in expected_min and max
-  let rawData = location.data.climate_data[key][time_granularity];
-  rawData = rawData.map((value: any) => value * multiplyByVal);
+  let rawData;
+  if (selectedYear !== "Annual" && yearlyData?.[location.id]?.[selectedYear]) {
+    rawData =
+      yearlyData[location.id][selectedYear].climate_data[key][time_granularity];
+  } else {
+    rawData = location.data.climate_data[key][time_granularity];
+  }
+  rawData = rawData.map((val: number) => val * multiplyByVal);
 
   // SMA calculation to smooth the data
   const calculateSMA = (data: number[], window_size: number) => {
@@ -1144,6 +1223,7 @@ const temperature_dataset = (
   locations: MarkerType[],
   selectedIndex: number | undefined,
   selectedYear: string,
+  yearlyData: any,
   isBarChart: boolean = false
 ): ClimateChartDataset[] => {
   const datasets: ClimateChartDataset[] = [];
@@ -1166,10 +1246,17 @@ const temperature_dataset = (
     const max_dataset: ClimateChartDataset = {
       type: "line",
       label: location_name + " Max",
-      data: get_climate_data(location, "expected_max", "daily", selectedYear, {
-        multiplyByVal: 1,
-        windowSize: SMA_SMOOTH_DAYS,
-      }),
+      data: get_climate_data(
+        location,
+        "expected_max",
+        "daily",
+        "Annual",
+        null,
+        {
+          multiplyByVal: 1,
+          windowSize: SMA_SMOOTH_DAYS,
+        }
+      ),
       backgroundColor: background_color,
       borderColor: paginated_background_color,
       borderWidth: CHART_BORDER_WIDTH / 2,
@@ -1191,6 +1278,8 @@ const temperature_dataset = (
         "high_temperature",
         "daily",
         selectedYear,
+        yearlyData,
+
         {
           multiplyByVal: 1,
           windowSize: SMA_SMOOTH_DAYS,
@@ -1215,6 +1304,8 @@ const temperature_dataset = (
         "low_temperature",
         "daily",
         selectedYear,
+        yearlyData,
+
         {
           multiplyByVal: 1,
           windowSize: SMA_SMOOTH_DAYS,
@@ -1233,10 +1324,17 @@ const temperature_dataset = (
     const min_dataset: ClimateChartDataset = {
       type: "line",
       label: location_name + " Min ",
-      data: get_climate_data(location, "expected_min", "daily", selectedYear, {
-        multiplyByVal: 1,
-        windowSize: SMA_SMOOTH_DAYS,
-      }),
+      data: get_climate_data(
+        location,
+        "expected_min",
+        "daily",
+        "Annual",
+        null,
+        {
+          multiplyByVal: 1,
+          windowSize: SMA_SMOOTH_DAYS,
+        }
+      ),
       backgroundColor: background_color,
       borderColor: paginated_background_color,
       borderWidth: CHART_BORDER_WIDTH / 2,
@@ -1259,6 +1357,7 @@ const apparent_temperature_dataset = (
   locations: MarkerType[],
   selectedIndex: number | undefined,
   selectedYear: string,
+  yearlyData: any,
   isBarChart: boolean = false
 ): ClimateChartDataset[] => {
   const datasets: ClimateChartDataset[] = [];
@@ -1285,7 +1384,8 @@ const apparent_temperature_dataset = (
         location,
         "apparent_expected_max",
         "daily",
-        selectedYear,
+        "Annual",
+        null,
         {
           multiplyByVal: 1,
           windowSize: SMA_SMOOTH_DAYS,
@@ -1310,6 +1410,8 @@ const apparent_temperature_dataset = (
         "apparent_high_temperature",
         "daily",
         selectedYear,
+        yearlyData,
+
         {
           multiplyByVal: 1,
           windowSize: SMA_SMOOTH_DAYS,
@@ -1334,6 +1436,8 @@ const apparent_temperature_dataset = (
         "apparent_low_temperature",
         "daily",
         selectedYear,
+        yearlyData,
+
         {
           multiplyByVal: 1,
           windowSize: SMA_SMOOTH_DAYS,
@@ -1356,7 +1460,8 @@ const apparent_temperature_dataset = (
         location,
         "apparent_expected_min",
         "daily",
-        selectedYear,
+        "Annual",
+        null,
         {
           multiplyByVal: 1,
           windowSize: SMA_SMOOTH_DAYS,
@@ -1381,7 +1486,8 @@ const apparent_temperature_dataset = (
 const precip_dataset = (
   locations: MarkerType[],
   selectedIndex: number | undefined,
-  selectedYear: string
+  selectedYear: string,
+  yearlyData: any
 ): ClimateChartDataset[] => {
   const datasets: ClimateChartDataset[] = [];
   locations.forEach((location: MarkerType, index) => {
@@ -1402,10 +1508,17 @@ const precip_dataset = (
     const avg: ClimateChartDataset = {
       type: "line",
       label: location_name + " Avg",
-      data: get_climate_data(location, "precipitation", "daily", "Annual", {
-        multiplyByVal: 30,
-        windowSize: SMA_SMOOTH_DAYS * 2,
-      }),
+      data: get_climate_data(
+        location,
+        "precipitation",
+        "daily",
+        "Annual",
+        null,
+        {
+          multiplyByVal: 30,
+          windowSize: SMA_SMOOTH_DAYS * 2,
+        }
+      ),
       backgroundColor: background_color,
       borderColor: isAnnual ? color : paginated_background_color,
       borderWidth: 1,
@@ -1422,10 +1535,18 @@ const precip_dataset = (
     const historical: ClimateChartDataset = {
       type: "line",
       label: location_name + " Act",
-      data: get_climate_data(location, "precipitation", "daily", selectedYear, {
-        multiplyByVal: 1,
-        windowSize: SMA_SMOOTH_DAYS * 2,
-      }),
+      data: get_climate_data(
+        location,
+        "precipitation",
+        "daily",
+        selectedYear,
+        yearlyData,
+
+        {
+          multiplyByVal: 1,
+          windowSize: SMA_SMOOTH_DAYS * 2,
+        }
+      ),
       backgroundColor: paginated_background_color,
       borderColor: paginated_background_color,
       borderWidth: borderWidth,
@@ -1446,7 +1567,8 @@ const precip_dataset = (
 const snow_dataset = (
   locations: MarkerType[],
   selectedIndex: number | undefined,
-  selectedYear: string
+  selectedYear: string,
+  yearlyData: any
 ): ClimateChartDataset[] => {
   const datasets: ClimateChartDataset[] = [];
   locations.forEach((location: MarkerType, index) => {
@@ -1467,7 +1589,7 @@ const snow_dataset = (
     const avg: ClimateChartDataset = {
       type: "line",
       label: location_name + " Avg",
-      data: get_climate_data(location, "snow", "daily", "Annual", {
+      data: get_climate_data(location, "snow", "daily", "Annual", null, {
         multiplyByVal: 30,
         windowSize: SMA_SMOOTH_DAYS * 2,
       }),
@@ -1487,10 +1609,18 @@ const snow_dataset = (
     const historical: ClimateChartDataset = {
       type: "line",
       label: location_name + " Act",
-      data: get_climate_data(location, "snow", "daily", selectedYear, {
-        multiplyByVal: 1,
-        windowSize: SMA_SMOOTH_DAYS * 2,
-      }),
+      data: get_climate_data(
+        location,
+        "snow",
+        "daily",
+        selectedYear,
+        yearlyData,
+
+        {
+          multiplyByVal: 1,
+          windowSize: SMA_SMOOTH_DAYS * 2,
+        }
+      ),
       backgroundColor: paginated_background_color,
       borderColor: paginated_background_color,
       borderWidth: borderWidth,
@@ -1511,7 +1641,8 @@ const snow_dataset = (
 const humidity_dataset = (
   locations: MarkerType[],
   selectedIndex: number | undefined,
-  selectedYear: string
+  selectedYear: string,
+  yearlyData: any
 ): ClimateChartDataset[] => {
   const datasets: ClimateChartDataset[] = [];
   locations.forEach((location: MarkerType, index) => {
@@ -1537,6 +1668,7 @@ const humidity_dataset = (
         "afternoon_humidity",
         "daily",
         "Annual",
+        null,
         {
           multiplyByVal: 1,
           windowSize: SMA_SMOOTH_DAYS,
@@ -1562,6 +1694,8 @@ const humidity_dataset = (
         "afternoon_humidity",
         "daily",
         selectedYear,
+        yearlyData,
+
         {
           multiplyByVal: 1,
           windowSize: SMA_SMOOTH_DAYS,
@@ -1587,7 +1721,8 @@ const humidity_dataset = (
 const dewpoint_dataset = (
   locations: MarkerType[],
   selectedIndex: number | undefined,
-  selectedYear: string
+  selectedYear: string,
+  yearlyData: any
 ): ClimateChartDataset[] => {
   const datasets: ClimateChartDataset[] = [];
 
@@ -1609,7 +1744,7 @@ const dewpoint_dataset = (
     const avg: ClimateChartDataset = {
       type: "line",
       label: location_name + " Avg",
-      data: get_climate_data(location, "dewpoint", "daily", "Annual", {
+      data: get_climate_data(location, "dewpoint", "daily", "Annual", null, {
         multiplyByVal: 1,
         windowSize: SMA_SMOOTH_DAYS,
       }),
@@ -1634,10 +1769,18 @@ const dewpoint_dataset = (
     const historical: ClimateChartDataset = {
       type: "line",
       label: location_name + " Act",
-      data: get_climate_data(location, "dewpoint", "daily", selectedYear, {
-        multiplyByVal: 1,
-        windowSize: SMA_SMOOTH_DAYS,
-      }),
+      data: get_climate_data(
+        location,
+        "dewpoint",
+        "daily",
+        selectedYear,
+        yearlyData,
+
+        {
+          multiplyByVal: 1,
+          windowSize: SMA_SMOOTH_DAYS,
+        }
+      ),
       backgroundColor: paginated_background_color,
       borderColor: paginated_background_color,
       borderWidth: borderWidth,
@@ -1663,7 +1806,8 @@ const dewpoint_dataset = (
 const wind_dataset = (
   locations: MarkerType[],
   selectedIndex: number | undefined,
-  selectedYear: string
+  selectedYear: string,
+  yearlyData: any
 ): ClimateChartDataset[] => {
   const datasets: ClimateChartDataset[] = [];
   locations.forEach((location: MarkerType, index) => {
@@ -1683,10 +1827,18 @@ const wind_dataset = (
     const wind_dataset: ClimateChartDataset = {
       type: "line",
       label: location_name + " Avg ",
-      data: get_climate_data(location, "wind", "daily", selectedYear, {
-        multiplyByVal: 1,
-        windowSize: SMA_SMOOTH_DAYS,
-      }),
+      data: get_climate_data(
+        location,
+        "wind",
+        "daily",
+        selectedYear,
+        yearlyData,
+
+        {
+          multiplyByVal: 1,
+          windowSize: SMA_SMOOTH_DAYS,
+        }
+      ),
 
       backgroundColor: background_color,
       borderColor: color,
@@ -1701,10 +1853,18 @@ const wind_dataset = (
     const max_wind_dataset: ClimateChartDataset = {
       type: "line",
       label: location_name + " Max",
-      data: get_climate_data(location, "wind_gust", "daily", selectedYear, {
-        multiplyByVal: 1,
-        windowSize: SMA_SMOOTH_DAYS,
-      }),
+      data: get_climate_data(
+        location,
+        "wind_gust",
+        "daily",
+        selectedYear,
+        yearlyData,
+
+        {
+          multiplyByVal: 1,
+          windowSize: SMA_SMOOTH_DAYS,
+        }
+      ),
 
       backgroundColor: background_color,
       borderColor: background_color,
@@ -1727,7 +1887,8 @@ const wind_dataset = (
 const sunshine_dataset = (
   locations: MarkerType[],
   selectedIndex: number | undefined,
-  selectedYear: string
+  selectedYear: string,
+  yearlyData: any
 ): ClimateChartDataset[] => {
   const datasets: ClimateChartDataset[] = [];
 
@@ -1749,7 +1910,7 @@ const sunshine_dataset = (
     const avg: ClimateChartDataset = {
       type: "line",
       label: location_name + " Avg",
-      data: get_climate_data(location, "sun", "daily", "Annual", {
+      data: get_climate_data(location, "sun", "daily", "Annual", null, {
         multiplyByVal: 1,
         windowSize: SMA_SMOOTH_DAYS,
       }),
@@ -1768,10 +1929,18 @@ const sunshine_dataset = (
     const historical: ClimateChartDataset = {
       type: "line",
       label: location_name + " Act",
-      data: get_climate_data(location, "sun", "daily", selectedYear, {
-        multiplyByVal: 1,
-        windowSize: SMA_SMOOTH_DAYS,
-      }),
+      data: get_climate_data(
+        location,
+        "sun",
+        "daily",
+        selectedYear,
+        yearlyData,
+
+        {
+          multiplyByVal: 1,
+          windowSize: SMA_SMOOTH_DAYS,
+        }
+      ),
       backgroundColor: paginated_background_color,
       borderColor: paginated_background_color,
       borderWidth: borderWidth,
@@ -1793,7 +1962,8 @@ const sunshine_dataset = (
 const uv_index_dataset = (
   locations: MarkerType[],
   selectedIndex: number | undefined,
-  selectedYear: string
+  selectedYear: string,
+  yearlyData: any
 ): ClimateChartDataset[] => {
   const datasets: ClimateChartDataset[] = [];
 
@@ -1815,7 +1985,7 @@ const uv_index_dataset = (
     const avg: ClimateChartDataset = {
       type: "line",
       label: location_name + " Avg",
-      data: get_climate_data(location, "uv_index", "daily", "Annual", {
+      data: get_climate_data(location, "uv_index", "daily", "Annual", null, {
         multiplyByVal: 1,
         windowSize: SMA_SMOOTH_DAYS,
       }),
@@ -1834,10 +2004,18 @@ const uv_index_dataset = (
     const historical: ClimateChartDataset = {
       type: "line",
       label: location_name + " Act",
-      data: get_climate_data(location, "uv_index", "daily", selectedYear, {
-        multiplyByVal: 1,
-        windowSize: SMA_SMOOTH_DAYS,
-      }),
+      data: get_climate_data(
+        location,
+        "uv_index",
+        "daily",
+        selectedYear,
+        yearlyData,
+
+        {
+          multiplyByVal: 1,
+          windowSize: SMA_SMOOTH_DAYS,
+        }
+      ),
       backgroundColor: paginated_background_color,
       borderColor: paginated_background_color,
       borderWidth: borderWidth,
@@ -1859,7 +2037,8 @@ const uv_index_dataset = (
 const comfort_index_dataset = (
   locations: MarkerType[],
   selectedIndex: number | undefined,
-  selectedYear: string
+  selectedYear: string,
+  yearlyData: any
 ): ClimateChartDataset[] => {
   const datasets: ClimateChartDataset[] = [];
   locations.forEach((location: MarkerType, index) => {
@@ -1880,10 +2059,17 @@ const comfort_index_dataset = (
     const avg: ClimateChartDataset = {
       type: "line",
       label: location_name + " Avg",
-      data: get_climate_data(location, "comfort_index", "daily", "Annual", {
-        multiplyByVal: 1,
-        windowSize: SMA_SMOOTH_DAYS,
-      }),
+      data: get_climate_data(
+        location,
+        "comfort_index",
+        "daily",
+        "Annual",
+        null,
+        {
+          multiplyByVal: 1,
+          windowSize: SMA_SMOOTH_DAYS,
+        }
+      ),
       backgroundColor: background_color,
       borderColor: isAnnual ? color : paginated_background_color,
       borderWidth: 1,
@@ -1899,10 +2085,18 @@ const comfort_index_dataset = (
     const historical: ClimateChartDataset = {
       type: "line",
       label: location_name + " Act",
-      data: get_climate_data(location, "comfort_index", "daily", selectedYear, {
-        multiplyByVal: 1,
-        windowSize: SMA_SMOOTH_DAYS,
-      }),
+      data: get_climate_data(
+        location,
+        "comfort_index",
+        "daily",
+        selectedYear,
+        yearlyData,
+
+        {
+          multiplyByVal: 1,
+          windowSize: SMA_SMOOTH_DAYS,
+        }
+      ),
       backgroundColor: paginated_background_color,
       borderColor: paginated_background_color,
       borderWidth: borderWidth,
@@ -1924,7 +2118,8 @@ const comfort_index_dataset = (
 const growing_season_dataset = (
   locations: MarkerType[],
   selectedIndex: number | undefined,
-  selectedYear: string
+  selectedYear: string,
+  yearlyData: any
 ): ClimateChartDataset[] => {
   const datasets: ClimateChartDataset[] = [];
   locations.forEach((location: MarkerType, index) => {
@@ -1947,9 +2142,11 @@ const growing_season_dataset = (
       label: location_name + " Growing",
       data: get_climate_data(
         location,
-        "morning_frost_chance",
+        "growing_season",
         "daily",
         "Annual",
+        null,
+
         {
           multiplyByVal: 1,
           windowSize: SMA_SMOOTH_DAYS,
@@ -1966,31 +2163,6 @@ const growing_season_dataset = (
     };
 
     datasets.push(avg);
-
-    const frost: ClimateChartDataset = {
-      type: "line",
-      label: location_name + " Frost",
-      data: get_climate_data(
-        location,
-        "morning_frost_chance",
-        "daily",
-        "Annual",
-        {
-          multiplyByVal: 1,
-          windowSize: SMA_SMOOTH_DAYS,
-        }
-      ),
-      backgroundColor: background_color,
-      borderColor: color,
-      borderWidth: borderWidth / 2,
-      pointRadius: 0,
-      pointHoverRadius: 0,
-      lineTension: LINE_TENSION,
-      fill: true,
-      yAxisID: "Percentage",
-    };
-
-    datasets.push(frost);
   });
 
   return datasets;
