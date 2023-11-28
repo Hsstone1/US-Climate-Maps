@@ -1,11 +1,11 @@
 import { useState, useMemo, useCallback, useRef, useEffect } from "react";
 import { GoogleMap, Marker } from "@react-google-maps/api";
-import SearchBar from "../app-bar/searchbar";
-import CompareLocationsList from "../app-bar/comparisonlist";
-import ComparePage from "../compare-page/comparepage";
+import SearchBar from "../app-bar/SearchBar";
+import CompareLocationsList from "../app-bar/ComparisonList";
+import ComparePage from "../compare-page/ComparePage";
 import { MarkerType } from "../location-props";
-import { getGeolocate, getElevation } from "./geolocate";
-import CustomInfoWindow from "./custominfowindow";
+import { getGeolocate, getElevation } from "./map-geolocate";
+import CustomInfoWindow from "./CustomInfoWindow";
 import Snackbar from "@mui/material/Snackbar";
 import CircularProgress from "@mui/material/CircularProgress";
 

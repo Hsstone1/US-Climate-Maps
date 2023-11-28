@@ -6,7 +6,7 @@ import {
   PrecipColors,
   SunColors,
   UV_Index_Colors,
-} from "./colors";
+} from "./climate-table-colors";
 
 type ClimateTableRowProps = {
   monthly_data: any;

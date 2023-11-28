@@ -1,7 +1,7 @@
 import React, { useState } from "react";
 import { InfoWindow } from "@react-google-maps/api";
 import { MarkerType } from "../location-props";
-import ClimateTable from "../climate-table/climatetable";
+import ClimateTable from "../climate-table/ClimateTable";
 
 type CustomInfoWindowProps = {
   marker: MarkerType;

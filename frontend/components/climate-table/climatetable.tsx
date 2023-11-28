@@ -1,4 +1,4 @@
-import ClimateTableRow from "./climatetablerow";
+import ClimateTableRow from "./ClimateTableRow";
 import TableCell, { tableCellClasses } from "@mui/material/TableCell";
 import * as React from "react";
 import { styled } from "@mui/material/styles";

@@ -31,6 +31,7 @@ def find_closest_from_db(latitude, longitude, year=None, connection_to_db=None):
                 CLOSEST_LOCATION_QUERY,
                 (longitude, latitude, longitude, latitude, NUM_NEAREST_LOCATIONS),
             )
+            print("time to execute query", time.time() - start_time, "seconds")
             closest_locations = cursor.fetchall()
             location_ids = []
             elevations = []
@@ -48,10 +49,12 @@ def find_closest_from_db(latitude, longitude, year=None, connection_to_db=None):
             weighted_elevation = sum(
                 elev * w for elev, w in zip(elevations, normalized_weights)
             )
+
             # Aggregate the data using IDW
             aggregated_data = idw_aggregation(
                 location_ids, normalized_weights, cursor, year
             )
+
             num_days = execute_query_to_dataframe(
                 cursor, NUM_DAYS_IN_DB_QUERY, (location_ids[0],)
             )["total_days"].values[0]
@@ -245,8 +248,8 @@ DAILY_AVG_ALL_QUERY = """
             PERCENTILE_CONT(0.05) WITHIN GROUP (ORDER BY low_temperature) AS expected_min,
             PERCENTILE_CONT(0.95) WITHIN GROUP (ORDER BY dewpoint) AS expected_max_dewpoint,
             PERCENTILE_CONT(0.05) WITHIN GROUP (ORDER BY dewpoint) AS expected_min_dewpoint,
-            SUM(CASE WHEN precipitation > 0.01 THEN 1 ELSE 0 END) AS precip_days,
-            SUM(CASE WHEN snow > 0.1 THEN 1 ELSE 0 END) AS snow_days,
+            SUM(CASE WHEN precipitation >= 0.05 THEN 1 ELSE 0 END) AS precip_days,
+            SUM(CASE WHEN snow >= 0.5 THEN 1 ELSE 0 END) AS snow_days,
             SUM(CASE WHEN sun > 70 THEN 1 ELSE 0 END) AS clear_days,
             SUM(CASE WHEN sun > 30 AND sun <= 70 THEN 1 ELSE 0 END) AS partly_cloudy_days,
             SUM(CASE WHEN sun <= 30 THEN 1 ELSE 0 END) AS cloudy_days,
@@ -270,8 +273,8 @@ NUM_DAYS_IN_DB_QUERY = """
 RAW_DAILY_DATA_QUERY = """
     SELECT date, high_temperature, low_temperature, dewpoint, precipitation,
            snow, sun, wind, wind_gust, wind_direction, sun_angle, daylight_length,
-           CASE WHEN precipitation > 0.01 THEN 1 ELSE 0 END AS precip_days,
-           CASE WHEN snow > 0.1 THEN 1 ELSE 0 END AS snow_days,
+           CASE WHEN precipitation >= 0.05 THEN 1 ELSE 0 END AS precip_days,
+           CASE WHEN snow >= 0.5 THEN 1 ELSE 0 END AS snow_days,
            CASE WHEN sun > 70 THEN 1 ELSE 0 END AS clear_days,
            CASE WHEN sun > 30 AND sun <= 70 THEN 1 ELSE 0 END AS partly_cloudy_days,
            CASE WHEN sun <= 30 THEN 1 ELSE 0 END AS cloudy_days,

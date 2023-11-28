@@ -12,25 +12,30 @@ app = Flask(__name__)
 CORS(app)
 
 
+def get_connection():
+    return psycopg2.connect(
+        user=os.getenv("DB_USER"),
+        password=os.getenv("DB_PASSWORD"),
+        host=os.getenv("DB_HOST"),
+        port=os.getenv("DB_PORT"),
+        database=os.getenv("DB_NAME"),
+    )
+
+
 # This function is used to get the climate data for the given latitude, longitude, and elevation
 # This is only called once on locaiton creation, so the location_data is returned with the climate_data
 @app.route("/climate_data_db", methods=["POST"])
 def get_climate_data():
     data = request.get_json()
-    # print(data)
 
-    if "body" in data:
-        inner_data = json.loads(data["body"])
+    try:
+        conn = get_connection()
 
-        if (
-            "latitude" in inner_data
-            and "longitude" in inner_data
-            and "elevation" in inner_data
-        ):
+        if "latitude" in data and "longitude" in data and "elevation" in data:
             try:
-                latitude = float(inner_data["latitude"])
-                longitude = float(inner_data["longitude"])
-                elevation = float(inner_data["elevation"])
+                latitude = float(data["latitude"])
+                longitude = float(data["longitude"])
+                elevation = float(data["elevation"])
 
             except ValueError:
                 # The values cannot be converted to float
@@ -42,7 +47,7 @@ def get_climate_data():
                 )
 
             start_time = time.time()  # Start timer
-            result = find_closest_from_db(latitude, longitude)
+            result = find_closest_from_db(latitude, longitude, None, conn)
 
             if result is not None:
                 climate_data, weighted_elevation, num_days = result
@@ -52,11 +57,8 @@ def get_climate_data():
                 print(
                     "Total Retrieval Elapsed Time:", time.time() - start_time, "seconds"
                 )
-                # climate_data.to_csv("climate_data.csv")
 
                 climate_data_json = dataframe_time_granularity_agg_to_json(climate_data)
-
-                # json.dump(climate_data_json, open("climate_data.json", "w"))
 
                 location_data = {
                     "elevation": elevation,
@@ -76,52 +78,56 @@ def get_climate_data():
 
             else:
                 print("Failed to retrieve data.")
+                return jsonify({"error": "Failed to retrieve data"}), 500
 
         else:
             print("400 ERROR: Missing data for latitude, longitude, or elevation.")
-            # If one of the keys is missing, send an appropriate response
             return (
                 jsonify(
                     {"error": "Missing data for latitude, longitude, or elevation."}
                 ),
                 400,
             )
-    else:
-        # If 'body' key is not in data, send an appropriate response
-        return jsonify({"error": "No body key in JSON."}), 400
+
+    except Exception as e:
+        print(f"An error occurred: {e}")
+        return jsonify({"error": "Internal server error"}), 500
+
+    finally:
+        if conn:
+            conn.close()
 
 
 # This function is used to get the climate data for a given year
 @app.route("/climate_data_db_year", methods=["POST"])
 def get_climate_data_year():
     data = request.get_json()
-    # print(data)
-    if "body" in data:
-        inner_data = json.loads(data["body"])
 
-        if (
-            "latitude" in inner_data
-            and "longitude" in inner_data
-            and "elevation" in inner_data
-            and "year" in inner_data
-        ):
-            try:
-                latitude = float(inner_data["latitude"])
-                longitude = float(inner_data["longitude"])
-                elevation = float(inner_data["elevation"])
-                year = int(inner_data["year"])
+    if (
+        "latitude" in data
+        and "longitude" in data
+        and "elevation" in data
+        and "year" in data
+    ):
+        try:
+            latitude = float(data["latitude"])
+            longitude = float(data["longitude"])
+            elevation = float(data["elevation"])
+            year = int(data["year"])
 
-            except ValueError:
-                # The values cannot be converted to float
-                return (
-                    jsonify(
-                        {"error": "Invalid latitude, longitude, or elevation format."}
-                    ),
-                    400,
-                )
+        except ValueError:
+            # The values cannot be converted to float or int
+            return (
+                jsonify(
+                    {"error": "Invalid latitude, longitude, elevation, or year format."}
+                ),
+                400,
+            )
 
+        try:
+            conn = get_connection()
             start_time = time.time()  # Start timer
-            result = find_closest_from_db(latitude, longitude, year)
+            result = find_closest_from_db(latitude, longitude, year, conn)
 
             if result is not None:
                 climate_data, weighted_elevation, num_days = result
@@ -136,7 +142,6 @@ def get_climate_data_year():
                 )
 
                 climate_data_json = dataframe_time_granularity_agg_to_json(climate_data)
-                # json.dump(climate_data_json, open("climate_data.json", "w"))
 
                 data = {
                     "climate_data": climate_data_json,
@@ -145,19 +150,25 @@ def get_climate_data_year():
 
             else:
                 print("Failed to retrieve data.")
+                return jsonify({"error": "Failed to retrieve data"}), 500
 
-        else:
-            # If one of the keys is missing, send an appropriate response
-            print("400 ERROR: Missing data for latitude, longitude, or elevation.")
-            return (
-                jsonify(
-                    {"error": "Missing data for latitude, longitude, or elevation."}
-                ),
-                400,
-            )
+        except Exception as e:
+            print(f"An error occurred: {e}")
+            return jsonify({"error": "Internal server error"}), 500
+
+        finally:
+            if conn:
+                conn.close()
+
     else:
-        # If 'body' key is not in data, send an appropriate response
-        return jsonify({"error": "No body key in JSON."}), 400
+        # If one of the keys is missing, send an appropriate response
+        print("400 ERROR: Missing data for latitude, longitude, elevation, or year.")
+        return (
+            jsonify(
+                {"error": "Missing data for latitude, longitude, elevation, or year."}
+            ),
+            400,
+        )
 
 
 if __name__ == "__main__":

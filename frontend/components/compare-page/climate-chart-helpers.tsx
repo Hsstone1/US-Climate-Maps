@@ -1,3 +1,30 @@
+type ChartConfig = {
+  chartBorderWidth: number;
+  lineTension: number;
+  lineAlpha: number;
+  backgroundAlpha: number;
+  paginatedBackgroundAlpha: number;
+  headingVariant: any;
+  smaSmoothDays: number;
+  lazyLoadHeight: number;
+  lazyLoadOffset: number;
+  doLazyLoadOnce: boolean;
+};
+
+// Create and export the constant object
+export const chartConfig: ChartConfig = {
+  chartBorderWidth: 1,
+  lineTension: 0.5,
+  lineAlpha: 1,
+  backgroundAlpha: 0.05,
+  paginatedBackgroundAlpha: 0.5,
+  headingVariant: "h5",
+  smaSmoothDays: 30,
+  lazyLoadHeight: 300,
+  lazyLoadOffset: 0,
+  doLazyLoadOnce: false,
+};
+
 export type ClimateChartDataset = {
   type: "line" | "bar";
   label: string; //Location Name

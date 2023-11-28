@@ -7,7 +7,7 @@ import {
 } from "chart.js";
 import { Chart } from "react-chartjs-2";
 import ChartDataLabels from "chartjs-plugin-datalabels";
-import { ClimateChartDataset } from "./climatecomparehelpers";
+import { ClimateChartDataset } from "./climate-chart-helpers";
 import zoomPlugin from "chartjs-plugin-zoom";
 
 ChartJS.register(...registerables, ChartDataLabels, zoomPlugin);

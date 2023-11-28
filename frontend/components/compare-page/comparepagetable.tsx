@@ -8,7 +8,7 @@ import TableHead from "@mui/material/TableHead";
 import TableRow from "@mui/material/TableRow";
 import Paper from "@mui/material/Paper";
 
-import { MonthLabels } from "./climatecomparehelpers";
+import { MonthLabels } from "./climate-chart-helpers";
 import { LocationColors, MarkerType } from "../location-props";
 import Typography from "@mui/material/Typography";
 

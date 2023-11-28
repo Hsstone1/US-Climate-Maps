@@ -7,8 +7,8 @@ import time
 def calc_additional_climate_parameters(
     df, target_elevation, average_weighted_elev, num_days=1
 ):
-    day_columns = [col for col in df.columns if col.endswith("_days")]
-    for col in day_columns:
+    DAY_COLUMNS = [col for col in df.columns if col.endswith("_days")]
+    for col in DAY_COLUMNS:
         if num_days != 1:
             df[col] = df[col] / (num_days / 365.25)
 
@@ -17,27 +17,19 @@ def calc_additional_climate_parameters(
 
     ELEV_TEMPERATURE_ADJUSTMENT = 4.5
     ELEV_DEWPOINT_ADJUSTMENT = 3
-    # These reduce snowfall and precip in respect to the elevation difference
-    ELEV_PRECIP_REDUCTION_FACTOR = 0.15
-    ELEV_SNOW_REDUCTION_FACTOR = 0.5
 
-    # This increases precipitation in respect to the elevation difference
+    # These constant change precipitation in respect to the elevation difference
     # between the average elevation of the stations and the target elevation
     # This emulates the orthographic effect, which increases precipitation with elevation
     ELEV_PRECIP_ADJUSTMENT_FACTOR = 0.125
-
-    # This increases precipitation days in respect to the elevation difference
-    # between the average elevation of the stations and the target elevation
-    # This emulates the orthographic effect, which increases precipitation days with elevation
+    ELEVATION_PRECIP_REDUCTION_FACTOR = 0.2
     ELEV_PRECIP_DAYS_ADJUSTMENT_FACTOR = 0.02
-
-    # These values represent the required precip and snow in a day for it to be considered a precip or snow day
-    PRECIP_DAY_THRESHOLD_IN = 0.01
-    SNOW_DAY_THRESHOLD_IN = 0.1
+    ELEV_PRECIP_DAYS_REDUCTION_FACTOR = 0.03
+    SNOW_DEGREE_THRESHOLD = 32
 
     # This is the maximum multiplier of how much precipitation can increase in respect to the elevation
     # difference, which again, emuulates the orthographic effect
-    MAX_ELEV_ADJUST_MULTIPLIER = 5
+    MAX_ELEV_ADJUST_MULTIPLIER = 2
 
     # This changes the wind speed with elevation, as generally wind speed increases with elevation
     ELEV_WIND_ADJUSTMENT = min((1 + elev_diff * 0.2), 5)
@@ -47,32 +39,18 @@ def calc_additional_climate_parameters(
     # This tries to emulate high pressure systems, which are more stable and have less variation with elevation
     ELEV_SUN_ADJUSTMENT = (1 - elev_diff * 0.1 * (100 - df["sun"]) / 100).clip(lower=0)
 
-    FREEZING_POINT_F = 32
-
     df["wind"] *= ELEV_WIND_ADJUSTMENT
     df["wind_gust"] *= ELEV_WIND_ADJUSTMENT
     df["sun"] *= ELEV_SUN_ADJUSTMENT
 
-    df["high_temperature"] = (
-        df["high_temperature"] - elev_diff * ELEV_TEMPERATURE_ADJUSTMENT
-    )
-    df["low_temperature"] = (
-        df["low_temperature"] - elev_diff * ELEV_TEMPERATURE_ADJUSTMENT
-    )
+    df["high_temperature"] -= elev_diff * ELEV_TEMPERATURE_ADJUSTMENT
+    df["low_temperature"] -= elev_diff * ELEV_TEMPERATURE_ADJUSTMENT
 
     if "expected_max" in df.columns and "expected_min" in df.columns:
-        df["expected_max_dewpoint"] = (
-            df["expected_max_dewpoint"] - elev_diff * ELEV_DEWPOINT_ADJUSTMENT
-        )
-        df["expected_min_dewpoint"] = (
-            df["expected_min_dewpoint"] - elev_diff * ELEV_DEWPOINT_ADJUSTMENT
-        )
-        df["expected_max"] = (
-            df["expected_max"] - elev_diff * ELEV_TEMPERATURE_ADJUSTMENT
-        )
-        df["expected_min"] = (
-            df["expected_min"] - elev_diff * ELEV_TEMPERATURE_ADJUSTMENT
-        )
+        df["expected_max_dewpoint"] -= elev_diff * ELEV_DEWPOINT_ADJUSTMENT
+        df["expected_min_dewpoint"] -= elev_diff * ELEV_DEWPOINT_ADJUSTMENT
+        df["expected_max"] -= elev_diff * ELEV_TEMPERATURE_ADJUSTMENT
+        df["expected_min"] -= elev_diff * ELEV_TEMPERATURE_ADJUSTMENT
         df["apparent_expected_max"] = calc_aparent_temp_vector(
             df["expected_max"],
             df["expected_max_dewpoint"],
@@ -85,15 +63,11 @@ def calc_additional_climate_parameters(
         )
 
     if "record_high" in df.columns and "record_low" in df.columns:
-        df["record_high"] = df["record_high"] - elev_diff * ELEV_TEMPERATURE_ADJUSTMENT
-        df["record_low"] = df["record_low"] - elev_diff * ELEV_TEMPERATURE_ADJUSTMENT
-        df["record_high_dewpoint"] = (
-            df["record_high_dewpoint"] - elev_diff * ELEV_DEWPOINT_ADJUSTMENT
-        )
-        df["record_low_dewpoint"] = (
-            df["record_low_dewpoint"] - elev_diff * ELEV_DEWPOINT_ADJUSTMENT
-        )
-        df["record_high_wind_gust"] = df["record_high_wind_gust"] * ELEV_WIND_ADJUSTMENT
+        df["record_high"] -= elev_diff * ELEV_TEMPERATURE_ADJUSTMENT
+        df["record_low"] -= elev_diff * ELEV_TEMPERATURE_ADJUSTMENT
+        df["record_high_dewpoint"] -= elev_diff * ELEV_DEWPOINT_ADJUSTMENT
+        df["record_low_dewpoint"] -= elev_diff * ELEV_DEWPOINT_ADJUSTMENT
+        df["record_high_wind_gust"] *= ELEV_WIND_ADJUSTMENT
 
         df["apparent_record_high"] = calc_aparent_temp_vector(
             df["record_high"],
@@ -106,7 +80,7 @@ def calc_additional_climate_parameters(
             df["record_high_wind_gust"],
         )
 
-    df["dewpoint"] = df["dewpoint"] - elev_diff * ELEV_DEWPOINT_ADJUSTMENT
+    df["dewpoint"] -= elev_diff * ELEV_DEWPOINT_ADJUSTMENT
     df["mean_temperature"] = (df["high_temperature"] + df["low_temperature"]) / 2
     df["apparent_high_temperature"] = calc_aparent_temp_vector(
         df["high_temperature"],
@@ -131,58 +105,70 @@ def calc_additional_climate_parameters(
 
     # Calculate snow averages using vectorized operations
     # Set DAILY_SNOW_AVG to 0 if DAILY_LOW_AVG is above the freezing point
-    rain_to_snow_condition = (df["high_temperature"] < FREEZING_POINT_F) | (
-        (df["low_temperature"] < FREEZING_POINT_F)
-        & (df["mean_temperature"] < FREEZING_POINT_F)
+
+    # TODO need to implement a ramping feature, so the probability is not just 1,0.5, 0
+    df["PROB_OF_SNOW"] = np.where(
+        df["high_temperature"] <= SNOW_DEGREE_THRESHOLD,
+        1,
+        np.where(df["low_temperature"] > SNOW_DEGREE_THRESHOLD, 0, 0.5),
     )
 
-    # This reduces snowfall in respect to the elevation difference,
-    # if target is bellow the average station elevation
-    precip_elevation_adjustment = np.where(
-        elev_diff < 0,
-        np.maximum(1 + elev_diff * ELEV_PRECIP_REDUCTION_FACTOR, 0),
-        1,
-    )
-    snow_elevation_adjustment = np.where(
-        elev_diff < 0,
-        np.maximum(1 + elev_diff * ELEV_SNOW_REDUCTION_FACTOR, 0),
-        1,
-    )
+    # df['PROB_OF_SNOW'] = 0.0
 
-    # Adjusts precipitation for elevation
-    df["precipitation"] = (
-        df["precipitation"]
-        * min(
+    # # Probability is 1 when the high temperature is <= 32
+    # df.loc[df['high_temperature'] <= SNOW_DEGREE_THRESHOLD, 'PROB_OF_SNOW'] = 1.0
+
+    # # Calculating for in-between temperatures
+    # in_between = (df['high_temperature'] > SNOW_DEGREE_THRESHOLD) & (df['low_temperature'] <= SNOW_DEGREE_THRESHOLD)
+    # df.loc[in_between, 'PROB_OF_SNOW'] = (SNOW_DEGREE_THRESHOLD - df['mean_temperature']) / (SNOW_DEGREE_THRESHOLD - df['low_temperature'])
+
+    # # Handling cases where low_temperature is exactly at the threshold to avoid division by zero
+    # df.loc[df['low_temperature'] == SNOW_DEGREE_THRESHOLD, 'PROB_OF_SNOW'] = 0.5
+
+    if elev_diff < 0:  # Elevation decrease
+        reverse_factor = np.maximum(
+            1 + elev_diff * ELEVATION_PRECIP_REDUCTION_FACTOR, 0
+        )
+        days_reverse_factor = np.maximum(
+            1 + elev_diff * ELEV_PRECIP_DAYS_REDUCTION_FACTOR, 0
+        )
+
+    else:  # Elevation increase
+        reverse_factor = min(
             (1 + elev_diff * ELEV_PRECIP_ADJUSTMENT_FACTOR), MAX_ELEV_ADJUST_MULTIPLIER
         )
-        * precip_elevation_adjustment
-    )
-
-    df["snow"] = np.where(
-        rain_to_snow_condition,
-        df["precipitation"] * df["RAIN_TO_SNOW_CONVERSION"] * snow_elevation_adjustment,
-        0,
-    )
-    df["snow"] += np.where(
-        ~rain_to_snow_condition,
-        df["snow"]
-        * min(
-            (1 + elev_diff * ELEV_PRECIP_ADJUSTMENT_FACTOR),
+        days_reverse_factor = min(
+            (1 + elev_diff * ELEV_PRECIP_DAYS_ADJUSTMENT_FACTOR),
             MAX_ELEV_ADJUST_MULTIPLIER,
         )
-        * snow_elevation_adjustment,
-        0,
-    )
 
-    df["precip_days"] = df["precip_days"] * min(
-        (1 + elev_diff * ELEV_PRECIP_DAYS_ADJUSTMENT_FACTOR)
-        * precip_elevation_adjustment,
-        2,
-    )
-    df["snow_days"] = df["snow_days"] * min(
-        (1 + elev_diff * ELEV_PRECIP_DAYS_ADJUSTMENT_FACTOR)
-        * snow_elevation_adjustment,
-        2,
+    df["precipitation"] *= reverse_factor
+    df["precip_days"] *= days_reverse_factor
+    df["snow"] *= reverse_factor
+    df["snow_days"] *= days_reverse_factor
+
+    print("SNOW PROBABILITY MAX:", max(df["PROB_OF_SNOW"]))
+
+    # df["precipitation"] *= min(
+    #     (1 + elev_diff * ELEV_PRECIP_ADJUSTMENT_FACTOR), MAX_ELEV_ADJUST_MULTIPLIER
+    # )
+
+    # df["precip_days"] *= min(
+    #     (1 + elev_diff * ELEV_PRECIP_DAYS_ADJUSTMENT_FACTOR), MAX_ELEV_ADJUST_MULTIPLIER
+    # )
+
+    df["precip_days"] *= max((1 + elev_diff * ELEV_PRECIP_DAYS_REDUCTION_FACTOR), 0)
+    weight_factor = min(abs(elev_diff) / 10, 1)
+
+    df["snow"] = (
+        df["precipitation"]
+        * df["PROB_OF_SNOW"]
+        * df["RAIN_TO_SNOW_CONVERSION"]
+        * weight_factor
+    ) + (df["snow"] * df["PROB_OF_SNOW"] * (1 - weight_factor))
+
+    df["snow_days"] = (df["precip_days"] * df["PROB_OF_SNOW"] * weight_factor) + (
+        df["snow_days"] * df["PROB_OF_SNOW"] * (1 - weight_factor)
     )
 
     df["morning_humidity"] = calc_humidity_percentage_vector(
@@ -217,8 +203,11 @@ def calc_additional_climate_parameters(
     df["cumulative_gdd"] = df["gdd"].cumsum()
     if "day_of_year" in df.columns:
         df.drop(columns=["day_of_year"], inplace=True)
+    for col in DAY_COLUMNS:
+        df[col] = df[col].round(1)
     df.drop(columns=["DTR"], inplace=True)
     df.drop(columns=["RAIN_TO_SNOW_CONVERSION"], inplace=True)
+    df.drop(columns=["PROB_OF_SNOW"], inplace=True)
 
 
 def calc_degree_days_vectorized(temperatures, degree_day_type):
