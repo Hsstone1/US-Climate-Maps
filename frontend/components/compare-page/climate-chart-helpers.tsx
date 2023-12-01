@@ -1,3 +1,5 @@
+import { TempeartureDataKeys, ClimateDataKeys } from "./climate-chart-datasets";
+
 type ChartConfig = {
   chartBorderWidth: number;
   lineTension: number;
@@ -16,7 +18,7 @@ export const chartConfig: ChartConfig = {
   chartBorderWidth: 1,
   lineTension: 0.5,
   lineAlpha: 1,
-  backgroundAlpha: 0.05,
+  backgroundAlpha: 0.04,
   paginatedBackgroundAlpha: 0.5,
   headingVariant: "h5",
   smaSmoothDays: 30,
@@ -29,6 +31,7 @@ export type ClimateChartDataset = {
   type: "line" | "bar";
   label: string; //Location Name
   data: any;
+  pointBackgroundColor?: string; //rgba(N, N, N, 0.N)
   backgroundColor?: string; //rgba(N, N, N, 0.N)
   borderColor: string; //rgba(N, N, N, 0.N)
   borderWidth?: number;
@@ -75,3 +78,91 @@ export const MonthLabels = [
   "Nov",
   "Dec",
 ];
+
+export const temperatureKeys: TempeartureDataKeys = {
+  Max: "expected_max",
+  High: "high_temperature",
+  Low: "low_temperature",
+  Min: "expected_min",
+};
+
+export const apparentTemperatureKeys: TempeartureDataKeys = {
+  Max: "apparent_expected_max",
+  High: "apparent_high_temperature",
+  Low: "apparent_low_temperature",
+  Min: "apparent_expected_min",
+};
+
+export const annualPrecipKeys: ClimateDataKeys = {
+  Avg: "precipitation",
+};
+
+export const paginatedPrecipKeys: ClimateDataKeys = {
+  Avg: "precipitation",
+  Historical: "precipitation",
+};
+
+export const annualSnowKeys: ClimateDataKeys = {
+  Avg: "snow",
+};
+
+export const paginatedSnowKeys: ClimateDataKeys = {
+  Avg: "snow",
+  Historical: "snow",
+};
+
+export const annualHumidityKeys: ClimateDataKeys = {
+  Avg: "afternoon_humidity",
+};
+export const paginatedHumidityKeys: ClimateDataKeys = {
+  Avg: "afternoon_humidity",
+  Historical: "afternoon_humidity",
+};
+
+export const annualDewpointKeys: ClimateDataKeys = {
+  High: "expected_max_dewpoint",
+  Low: "expected_min_dewpoint",
+  //Avg: "dewpoint",
+};
+export const paginatedDewpointKeys: ClimateDataKeys = {
+  Avg: "dewpoint",
+  Historical: "dewpoint",
+};
+export const annualWindKeys: ClimateDataKeys = {
+  Avg: "wind_gust",
+};
+
+//This uses Gust instead of avg, since both values are historical
+//TODO make this more clear, maybe allowing arrays of same Historical value
+export const paginatedWindKeys: ClimateDataKeys = {
+  Historical: "wind",
+  Gust: "wind_gust",
+};
+
+export const annualSunshineKeys: ClimateDataKeys = {
+  Avg: "sun",
+};
+export const paginatedSunshineKeys: ClimateDataKeys = {
+  Avg: "sun",
+  Historical: "sun",
+};
+
+export const annualUVIndexKeys: ClimateDataKeys = {
+  Avg: "uv_index",
+};
+export const paginatedUVIndexKeys: ClimateDataKeys = {
+  Avg: "uv_index",
+  Historical: "uv_index",
+};
+
+export const annualComfortKeys: ClimateDataKeys = {
+  Avg: "comfort_index",
+};
+export const paginatedComfortKeys: ClimateDataKeys = {
+  Avg: "comfort_index",
+  Historical: "comfort_index",
+};
+
+export const annualGrowingSeasonKeys: ClimateDataKeys = {
+  Avg: "growing_season",
+};

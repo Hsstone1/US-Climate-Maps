@@ -324,6 +324,7 @@ function ClimateChart({
             },
           },
         },
+
         tooltip: {
           mode: "nearest",
           axis: "x",

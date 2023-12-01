@@ -1,8 +1,28 @@
 import dynamic from "next/dynamic";
-import { chartConfig } from "./climate-chart-helpers";
 import {
-  TempeartureDataKeys,
-  ClimateDataKeys,
+  chartConfig,
+  TimeGranularity,
+  temperatureKeys,
+  apparentTemperatureKeys,
+  annualPrecipKeys,
+  paginatedPrecipKeys,
+  annualSnowKeys,
+  paginatedSnowKeys,
+  annualHumidityKeys,
+  paginatedHumidityKeys,
+  annualDewpointKeys,
+  paginatedDewpointKeys,
+  annualWindKeys,
+  paginatedWindKeys,
+  annualSunshineKeys,
+  paginatedSunshineKeys,
+  annualUVIndexKeys,
+  paginatedUVIndexKeys,
+  annualComfortKeys,
+  paginatedComfortKeys,
+  annualGrowingSeasonKeys,
+} from "./climate-chart-helpers";
+import {
   createTemperatureDataset,
   createClimateDataset,
 } from "./climate-chart-datasets";
@@ -28,17 +48,18 @@ type YearlyData = {
   };
 };
 
-let apiUrl = process.env.NEXT_PUBLIC_API_URL;
+// #########################################
+// CONSTANTS
+// #########################################
 
-const HEADING_VARIANT = chartConfig.headingVariant;
-const LAZY_LOAD_HEIGHT = chartConfig.lazyLoadHeight;
-const LAZY_LOAD_OFFSET = chartConfig.lazyLoadOffset;
-const DO_LAZY_LOAD_ONCE = chartConfig.doLazyLoadOnce;
+const apiUrl = process.env.NEXT_PUBLIC_API_URL;
+const TEMPERATURE_COLOR_PERC_DEV = 10;
 
 export default function ComparisonPage({ locations }: ComparisonPageProps) {
   const [selectedYear, setSelectedYear] = useState<string>("Annual");
   const [currentIndex, setCurrentIndex] = useState(0);
   const [yearlyData, setYearlyData] = useState<YearlyData>({});
+  const [isLoadingYearlyData, setIsLoadingYearlyData] = useState(false);
 
   const [xAxisRangeState, setXAxisRangeState] = useState({
     minX: 0,
@@ -58,14 +79,25 @@ export default function ComparisonPage({ locations }: ComparisonPageProps) {
   }, []);
 
   // Function to extract climate data based on a key and time range, like daily, monthly, annual
-  const extractClimateData = (
-    key: string | number,
-    TimeGranularity: string | number
-  ) => {
-    return locations.map(
-      (location) => location.data.climate_data[key][TimeGranularity]
-    );
-  };
+  const extractClimateData = useCallback(
+    (key: string, time_granularity: string, year: any) => {
+      if (year === "Annual") {
+        return locations.map(
+          (location) => location.data.climate_data[key][time_granularity]
+        );
+      } else {
+        return locations.map((location) => {
+          const locationYearData = yearlyData[location.id]
+            ? yearlyData[location.id][year]
+            : null;
+          return locationYearData
+            ? locationYearData.climate_data[key][time_granularity]
+            : location.data.climate_data[key][time_granularity];
+        });
+      }
+    },
+    [locations, yearlyData]
+  );
 
   const fetchYearData = useCallback(
     async (location: any, year: any) => {
@@ -115,109 +147,61 @@ export default function ComparisonPage({ locations }: ComparisonPageProps) {
     [yearlyData]
   );
 
-  // Fetch the yearly data for the selected year and location when they change
+  // THIS ALLOWS FOR ONLY ONE LOCATION YEAR DATA RETRIEVAL DB QUERY
+  /*
   useEffect(() => {
     const location = locations[currentIndex];
 
     if (selectedYear !== "Annual") {
       fetchYearData(location, selectedYear);
     }
-  }, [selectedYear, currentIndex, locations, fetchYearData]);
+  }, [selectedYear, currentIndex, locations]);
+*/
 
-  const temperatureKeys: TempeartureDataKeys = {
-    Max: "expected_max",
-    High: "high_temperature",
-    Low: "low_temperature",
-    Min: "expected_min",
-  };
+  // ####################################################
+  // THIS ALLOWS CONCURRENT YEAR DATA RETRIEVAL DB QUERY
+  // DISABLED CURRENTLY BECAUSE OF LAGGY PERFORMANCE
+  // ####################################################
+  // Fetch the yearly data for the selected year and location when they change
+  useEffect(() => {
+    // This function will be called for each location to fetch its data
+    const fetchLocationDataAsync = async (location: MarkerType) => {
+      if (selectedYear !== "Annual") {
+        await fetchYearData(location, selectedYear);
+      }
+    };
 
-  const apparentTemperatureKeys: TempeartureDataKeys = {
-    Max: "apparent_expected_max",
-    High: "apparent_high_temperature",
-    Low: "apparent_low_temperature",
-    Min: "apparent_expected_min",
-  };
+    // Creating an array of fetch promises for each location
+    const fetchPromises = locations.map((location) =>
+      fetchLocationDataAsync(location)
+    );
+    setIsLoadingYearlyData(true);
 
-  const annualPrecipKeys: ClimateDataKeys = {
-    Avg: "precipitation",
-  };
+    // Using Promise.all to execute all fetch requests in parallel
+    Promise.all(fetchPromises)
+      .then(() => {
+        setIsLoadingYearlyData(false);
+      })
+      .catch((error) => {
+        setIsLoadingYearlyData(false);
 
-  const paginatedPrecipKeys: ClimateDataKeys = {
-    Avg: "precipitation",
-    Historical: "precipitation",
-  };
+        console.error("An error occurred while fetching data", error);
+      });
+  }, [selectedYear, locations]);
 
-  const annualSnowKeys: ClimateDataKeys = {
-    Avg: "snow",
-  };
-
-  const paginatedSnowKeys: ClimateDataKeys = {
-    Avg: "snow",
-    Historical: "snow",
-  };
-
-  const annualHumidityKeys: ClimateDataKeys = {
-    Avg: "afternoon_humidity",
-  };
-  const paginatedHumidityKeys: ClimateDataKeys = {
-    Avg: "afternoon_humidity",
-    Historical: "afternoon_humidity",
-  };
-
-  const annualDewpointKeys: ClimateDataKeys = {
-    Avg: "dewpoint",
-  };
-  const paginatedDewpointKeys: ClimateDataKeys = {
-    Avg: "dewpoint",
-    Historical: "dewpoint",
-  };
-  const annualWindKeys: ClimateDataKeys = {
-    Avg: "wind",
-    //Gust: "wind_gust",
-  };
-  const paginatedWindKeys: ClimateDataKeys = {
-    Historical: "wind",
-    Gust: "wind_gust",
-  };
-
-  const annualSunshineKeys: ClimateDataKeys = {
-    Avg: "sun",
-  };
-  const paginatedSunshineKeys: ClimateDataKeys = {
-    Avg: "sun",
-    Historical: "sun",
-  };
-
-  const annualUVIndexKeys: ClimateDataKeys = {
-    Avg: "uv_index",
-  };
-  const paginatedUVIndexKeys: ClimateDataKeys = {
-    Avg: "uv_index",
-    Historical: "uv_index",
-  };
-
-  const annualComfortKeys: ClimateDataKeys = {
-    Avg: "comfort_index",
-  };
-  const paginatedComfortKeys: ClimateDataKeys = {
-    Avg: "comfort_index",
-    Historical: "comfort_index",
-  };
-
-  const annualGrowingSeasonKeys: ClimateDataKeys = {
-    Avg: "growing_season",
-  };
+  // Create the datasets for the climate charts
+  //
 
   const annualTemperatureDataset = useMemo(() => {
     return createTemperatureDataset(
       locations,
       undefined,
-      selectedYear,
-      yearlyData,
+      "Annual",
+      undefined,
       false,
       temperatureKeys
     );
-  }, [locations, selectedYear, yearlyData]);
+  }, [locations]);
 
   const paginatedTemperatureDataset = useMemo(() => {
     return locations.map((location, index) =>
@@ -236,12 +220,12 @@ export default function ComparisonPage({ locations }: ComparisonPageProps) {
     return createTemperatureDataset(
       locations,
       undefined,
-      selectedYear,
-      yearlyData,
+      "Annual",
+      undefined,
       false,
       apparentTemperatureKeys
     );
-  }, [locations, selectedYear, yearlyData]);
+  }, [locations]);
 
   const paginatedApparentTemperatureDataset = useMemo(() => {
     return locations.map((location, index) =>
@@ -260,13 +244,13 @@ export default function ComparisonPage({ locations }: ComparisonPageProps) {
     return createClimateDataset(
       locations,
       undefined,
-      selectedYear,
-      yearlyData,
+      "Annual",
+      undefined,
       { avgMultiplyByVal: 30 },
       "Precip",
       annualPrecipKeys
     );
-  }, [locations, selectedYear, yearlyData]);
+  }, [locations]);
 
   const paginatedPrecipDataset = useMemo(() => {
     return locations.map((location, index) =>
@@ -286,13 +270,13 @@ export default function ComparisonPage({ locations }: ComparisonPageProps) {
     return createClimateDataset(
       locations,
       undefined,
-      selectedYear,
-      yearlyData,
+      "Annual",
+      undefined,
       { avgMultiplyByVal: 30 },
       "Precip",
       annualSnowKeys
     );
-  }, [locations, selectedYear, yearlyData]);
+  }, [locations]);
 
   const paginatedSnowDataset = useMemo(() => {
     return locations.map((location, index) =>
@@ -312,13 +296,13 @@ export default function ComparisonPage({ locations }: ComparisonPageProps) {
     return createClimateDataset(
       locations,
       undefined,
-      selectedYear,
-      yearlyData,
+      "Annual",
+      undefined,
       {},
       "Percentage",
       annualHumidityKeys
     );
-  }, [locations, selectedYear, yearlyData]);
+  }, [locations]);
 
   const paginatedHumidityDataset = useMemo(() => {
     return locations.map((location, index) =>
@@ -338,13 +322,13 @@ export default function ComparisonPage({ locations }: ComparisonPageProps) {
     return createClimateDataset(
       locations,
       undefined,
-      selectedYear,
-      yearlyData,
+      "Annual",
+      undefined,
       {},
-      "Dewpoint",
+      "Temperature",
       annualDewpointKeys
     );
-  }, [locations, selectedYear, yearlyData]);
+  }, [locations]);
 
   const paginatedDewpointDataset = useMemo(() => {
     return locations.map((location, index) =>
@@ -364,13 +348,13 @@ export default function ComparisonPage({ locations }: ComparisonPageProps) {
     return createClimateDataset(
       locations,
       undefined,
-      selectedYear,
-      yearlyData,
+      "Annual",
+      undefined,
       {},
       "Wind",
       annualWindKeys
     );
-  }, [locations, selectedYear, yearlyData]);
+  }, [locations]);
 
   const paginatedWindDataset = useMemo(() => {
     return locations.map((location, index) =>
@@ -390,13 +374,13 @@ export default function ComparisonPage({ locations }: ComparisonPageProps) {
     return createClimateDataset(
       locations,
       undefined,
-      selectedYear,
-      yearlyData,
+      "Annual",
+      undefined,
       {},
       "Percentage",
       annualSunshineKeys
     );
-  }, [locations, selectedYear, yearlyData]);
+  }, [locations]);
 
   const paginatedSunshineDataset = useMemo(() => {
     return locations.map((location, index) =>
@@ -416,13 +400,13 @@ export default function ComparisonPage({ locations }: ComparisonPageProps) {
     return createClimateDataset(
       locations,
       undefined,
-      selectedYear,
-      yearlyData,
+      "Annual",
+      undefined,
       {},
       "UV_Index",
       annualUVIndexKeys
     );
-  }, [locations, selectedYear, yearlyData]);
+  }, [locations]);
 
   const paginatedUVIndexDataset = useMemo(() => {
     return locations.map((location, index) =>
@@ -442,13 +426,13 @@ export default function ComparisonPage({ locations }: ComparisonPageProps) {
     return createClimateDataset(
       locations,
       undefined,
-      selectedYear,
-      yearlyData,
+      "Annual",
+      undefined,
       {},
       "Comfort_Index",
       annualComfortKeys
     );
-  }, [locations, selectedYear, yearlyData]);
+  }, [locations]);
 
   const paginatedComfortDataset = useMemo(() => {
     return locations.map((location, index) =>
@@ -468,13 +452,13 @@ export default function ComparisonPage({ locations }: ComparisonPageProps) {
     return createClimateDataset(
       locations,
       undefined,
-      selectedYear,
-      yearlyData,
+      "Annual",
+      undefined,
       {},
       "Percentage",
       annualGrowingSeasonKeys
     );
-  }, [locations, selectedYear, yearlyData]);
+  }, [locations]);
 
   return (
     <div className="compare-page">
@@ -489,7 +473,7 @@ export default function ComparisonPage({ locations }: ComparisonPageProps) {
               <br />
               <Typography
                 sx={{ flex: "1 1 100%" }}
-                variant={HEADING_VARIANT}
+                variant={chartConfig.headingVariant}
                 component="div"
                 textAlign={"center"}
               >
@@ -497,9 +481,9 @@ export default function ComparisonPage({ locations }: ComparisonPageProps) {
                 Low Temperatures
               </Typography>
               <LazyLoad
-                height={LAZY_LOAD_HEIGHT}
-                offset={LAZY_LOAD_OFFSET}
-                once={DO_LAZY_LOAD_ONCE}
+                height={chartConfig.lazyLoadHeight}
+                offset={chartConfig.lazyLoadOffset}
+                once={chartConfig.doLazyLoadOnce}
               >
                 {selectedYear === "Annual" ? (
                   <ClimateChart
@@ -538,26 +522,40 @@ export default function ComparisonPage({ locations }: ComparisonPageProps) {
               <div>
                 <Table
                   locations={locations}
-                  heading="Average High (°F)"
+                  heading={`${selectedYear} Average High (°F)`}
                   monthly_data={extractClimateData(
                     "high_temperature",
-                    "monthly"
+                    "monthly",
+                    selectedYear
                   )}
-                  annual_data={extractClimateData("high_temperature", "annual")}
-                  numDec={0}
-                  units={" °F"}
+                  annual_data={extractClimateData(
+                    "high_temperature",
+                    "annual",
+                    selectedYear
+                  )}
+                  units={"°F"}
+                  averageKey={"high_temperature"}
+                  isLoading={isLoadingYearlyData}
+                  colorPercentDev={TEMPERATURE_COLOR_PERC_DEV}
                 ></Table>
 
                 <Table
                   locations={locations}
-                  heading="Average Low (°F)"
+                  heading={`${selectedYear} Average Low (°F)`}
                   monthly_data={extractClimateData(
                     "low_temperature",
-                    "monthly"
+                    "monthly",
+                    selectedYear
                   )}
-                  annual_data={extractClimateData("low_temperature", "annual")}
-                  numDec={0}
-                  units={" °F"}
+                  annual_data={extractClimateData(
+                    "low_temperature",
+                    "annual",
+                    selectedYear
+                  )}
+                  units={"°F"}
+                  averageKey={"low_temperature"}
+                  isLoading={isLoadingYearlyData}
+                  colorPercentDev={TEMPERATURE_COLOR_PERC_DEV}
                 ></Table>
               </div>
               <br />
@@ -568,7 +566,7 @@ export default function ComparisonPage({ locations }: ComparisonPageProps) {
 
               <Typography
                 sx={{ flex: "1 1 100%" }}
-                variant={HEADING_VARIANT}
+                variant={chartConfig.headingVariant}
                 component="div"
                 textAlign={"center"}
               >
@@ -576,9 +574,9 @@ export default function ComparisonPage({ locations }: ComparisonPageProps) {
                 High and Low Temperatures
               </Typography>
               <LazyLoad
-                height={LAZY_LOAD_HEIGHT}
-                offset={LAZY_LOAD_OFFSET}
-                once={DO_LAZY_LOAD_ONCE}
+                height={chartConfig.lazyLoadHeight}
+                offset={chartConfig.lazyLoadOffset}
+                once={chartConfig.doLazyLoadOnce}
               >
                 {selectedYear === "Annual" ? (
                   <ClimateChart
@@ -618,32 +616,40 @@ export default function ComparisonPage({ locations }: ComparisonPageProps) {
               <div>
                 <Table
                   locations={locations}
-                  heading="Apparent Average High (°F)"
+                  heading={`${selectedYear} Apparent Average High (°F)`}
                   monthly_data={extractClimateData(
                     "apparent_high_temperature",
-                    "monthly"
+                    "monthly",
+                    selectedYear
                   )}
                   annual_data={extractClimateData(
                     "apparent_high_temperature",
-                    "annual"
+                    "annual",
+                    selectedYear
                   )}
-                  numDec={0}
-                  units={" °F"}
+                  units={"°F"}
+                  averageKey={"apparent_high_temperature"}
+                  isLoading={isLoadingYearlyData}
+                  colorPercentDev={TEMPERATURE_COLOR_PERC_DEV}
                 ></Table>
 
                 <Table
                   locations={locations}
-                  heading="Apparent Average Low (°F)"
+                  heading={`${selectedYear} Apparent Average Low (°F)`}
                   monthly_data={extractClimateData(
                     "apparent_low_temperature",
-                    "monthly"
+                    "monthly",
+                    selectedYear
                   )}
                   annual_data={extractClimateData(
                     "apparent_low_temperature",
-                    "annual"
+                    "annual",
+                    selectedYear
                   )}
-                  numDec={0}
-                  units={" °F"}
+                  units={"°F"}
+                  averageKey={"apparent_low_temperature"}
+                  isLoading={isLoadingYearlyData}
+                  colorPercentDev={TEMPERATURE_COLOR_PERC_DEV}
                 ></Table>
               </div>
               <br />
@@ -654,7 +660,7 @@ export default function ComparisonPage({ locations }: ComparisonPageProps) {
 
               <Typography
                 sx={{ flex: "1 1 100%" }}
-                variant={HEADING_VARIANT}
+                variant={chartConfig.headingVariant}
                 component="div"
                 textAlign={"center"}
               >
@@ -662,9 +668,9 @@ export default function ComparisonPage({ locations }: ComparisonPageProps) {
                 Precipitation
               </Typography>
               <LazyLoad
-                height={LAZY_LOAD_HEIGHT}
-                offset={LAZY_LOAD_OFFSET}
-                once={DO_LAZY_LOAD_ONCE}
+                height={chartConfig.lazyLoadHeight}
+                offset={chartConfig.lazyLoadOffset}
+                once={chartConfig.doLazyLoadOnce}
               >
                 {selectedYear === "Annual" ? (
                   <ClimateChart
@@ -705,20 +711,39 @@ export default function ComparisonPage({ locations }: ComparisonPageProps) {
               <div>
                 <Table
                   locations={locations}
-                  heading="Total Precipitation"
-                  monthly_data={extractClimateData("precipitation", "monthly")}
-                  annual_data={extractClimateData("precipitation", "annual")}
+                  heading={`${selectedYear} Average Precipitation`}
+                  monthly_data={extractClimateData(
+                    "precipitation",
+                    "monthly",
+                    selectedYear
+                  )}
+                  annual_data={extractClimateData(
+                    "precipitation",
+                    "annual",
+                    selectedYear
+                  )}
                   numDec={1}
-                  units={" in"}
+                  units={"in"}
+                  averageKey={"precipitation"}
+                  isLoading={isLoadingYearlyData}
                 ></Table>
 
                 <Table
                   locations={locations}
-                  heading="Total Rainy Days"
-                  monthly_data={extractClimateData("precip_days", "monthly")}
-                  annual_data={extractClimateData("precip_days", "annual")}
-                  numDec={0}
+                  heading={`${selectedYear} Total Rainy Days`}
+                  monthly_data={extractClimateData(
+                    "precip_days",
+                    "monthly",
+                    selectedYear
+                  )}
+                  annual_data={extractClimateData(
+                    "precip_days",
+                    "annual",
+                    selectedYear
+                  )}
                   units={" days"}
+                  averageKey={"precip_days"}
+                  isLoading={isLoadingYearlyData}
                 ></Table>
               </div>
               <br />
@@ -728,16 +753,16 @@ export default function ComparisonPage({ locations }: ComparisonPageProps) {
               <br />
               <Typography
                 sx={{ flex: "1 1 100%" }}
-                variant={HEADING_VARIANT}
+                variant={chartConfig.headingVariant}
                 component="div"
                 textAlign={"center"}
               >
                 {selectedYear === "Annual" ? "Annual" : selectedYear} Snowfall
               </Typography>
               <LazyLoad
-                height={LAZY_LOAD_HEIGHT}
-                offset={LAZY_LOAD_OFFSET}
-                once={DO_LAZY_LOAD_ONCE}
+                height={chartConfig.lazyLoadHeight}
+                offset={chartConfig.lazyLoadOffset}
+                once={chartConfig.doLazyLoadOnce}
               >
                 {selectedYear === "Annual" ? (
                   <ClimateChart
@@ -776,20 +801,39 @@ export default function ComparisonPage({ locations }: ComparisonPageProps) {
               <div>
                 <Table
                   locations={locations}
-                  heading="Total Snowfall"
-                  monthly_data={extractClimateData("snow", "monthly")}
-                  annual_data={extractClimateData("snow", "annual")}
+                  heading={`${selectedYear} Average Snowfall`}
+                  monthly_data={extractClimateData(
+                    "snow",
+                    "monthly",
+                    selectedYear
+                  )}
+                  annual_data={extractClimateData(
+                    "snow",
+                    "annual",
+                    selectedYear
+                  )}
                   numDec={1}
-                  units={" in"}
+                  units={"in"}
+                  averageKey={"snow"}
+                  isLoading={isLoadingYearlyData}
                 ></Table>
 
                 <Table
                   locations={locations}
-                  heading="Total Snowy Days"
-                  monthly_data={extractClimateData("snow_days", "monthly")}
-                  annual_data={extractClimateData("snow_days", "annual")}
-                  numDec={0}
+                  heading={`${selectedYear} Total Snowy Days`}
+                  monthly_data={extractClimateData(
+                    "snow_days",
+                    "monthly",
+                    selectedYear
+                  )}
+                  annual_data={extractClimateData(
+                    "snow_days",
+                    "annual",
+                    selectedYear
+                  )}
                   units={" days"}
+                  averageKey={"snow_days"}
+                  isLoading={isLoadingYearlyData}
                 ></Table>
               </div>
               <br />
@@ -799,7 +843,7 @@ export default function ComparisonPage({ locations }: ComparisonPageProps) {
               <br />
               <Typography
                 sx={{ flex: "1 1 100%" }}
-                variant={HEADING_VARIANT}
+                variant={chartConfig.headingVariant}
                 component="div"
                 textAlign={"center"}
               >
@@ -807,9 +851,9 @@ export default function ComparisonPage({ locations }: ComparisonPageProps) {
                 Humidity
               </Typography>
               <LazyLoad
-                height={LAZY_LOAD_HEIGHT}
-                offset={LAZY_LOAD_OFFSET}
-                once={DO_LAZY_LOAD_ONCE}
+                height={chartConfig.lazyLoadHeight}
+                offset={chartConfig.lazyLoadOffset}
+                once={chartConfig.doLazyLoadOnce}
               >
                 {selectedYear === "Annual" ? (
                   <ClimateChart
@@ -850,22 +894,39 @@ export default function ComparisonPage({ locations }: ComparisonPageProps) {
               <div>
                 <Table
                   locations={locations}
-                  heading="Average Humidity"
-                  monthly_data={extractClimateData("mean_humidity", "monthly")}
-                  annual_data={extractClimateData("mean_humidity", "annual")}
-                  numDec={0}
-                  units={" %"}
+                  heading={`${selectedYear} Average Humidity`}
+                  monthly_data={extractClimateData(
+                    "mean_humidity",
+                    "monthly",
+                    selectedYear
+                  )}
+                  annual_data={extractClimateData(
+                    "mean_humidity",
+                    "annual",
+                    selectedYear
+                  )}
+                  units={"%"}
+                  averageKey={"mean_humidity"}
+                  isLoading={isLoadingYearlyData}
+                  colorPercentDev={TEMPERATURE_COLOR_PERC_DEV}
                 ></Table>
                 <Table
                   locations={locations}
-                  heading="Morning Humidity"
+                  heading={`${selectedYear} Average Morning Humidity`}
                   monthly_data={extractClimateData(
                     "morning_humidity",
-                    "monthly"
+                    "monthly",
+                    selectedYear
                   )}
-                  annual_data={extractClimateData("morning_humidity", "annual")}
-                  numDec={0}
-                  units={" %"}
+                  annual_data={extractClimateData(
+                    "morning_humidity",
+                    "annual",
+                    selectedYear
+                  )}
+                  units={"%"}
+                  averageKey={"morning_humidity"}
+                  isLoading={isLoadingYearlyData}
+                  colorPercentDev={TEMPERATURE_COLOR_PERC_DEV}
                 ></Table>
               </div>
               <br />
@@ -875,7 +936,7 @@ export default function ComparisonPage({ locations }: ComparisonPageProps) {
               <br />
               <Typography
                 sx={{ flex: "1 1 100%" }}
-                variant={HEADING_VARIANT}
+                variant={chartConfig.headingVariant}
                 component="div"
                 textAlign={"center"}
               >
@@ -883,9 +944,9 @@ export default function ComparisonPage({ locations }: ComparisonPageProps) {
               </Typography>
 
               <LazyLoad
-                height={LAZY_LOAD_HEIGHT}
-                offset={LAZY_LOAD_OFFSET}
-                once={DO_LAZY_LOAD_ONCE}
+                height={chartConfig.lazyLoadHeight}
+                offset={chartConfig.lazyLoadOffset}
+                once={chartConfig.doLazyLoadOnce}
               >
                 {selectedYear === "Annual" ? (
                   <ClimateChart
@@ -926,28 +987,42 @@ export default function ComparisonPage({ locations }: ComparisonPageProps) {
               <div>
                 <Table
                   locations={locations}
-                  heading="Average Dewpoint"
-                  monthly_data={extractClimateData("dewpoint", "monthly")}
-                  annual_data={extractClimateData("dewpoint", "annual")}
-                  numDec={0}
-                  units={" °F"}
+                  heading={`${selectedYear} Average Dewpoint (°F)`}
+                  monthly_data={extractClimateData(
+                    "dewpoint",
+                    "monthly",
+                    selectedYear
+                  )}
+                  annual_data={extractClimateData(
+                    "dewpoint",
+                    "annual",
+                    selectedYear
+                  )}
+                  units={"°F"}
+                  averageKey={"dewpoint"}
+                  isLoading={isLoadingYearlyData}
+                  colorPercentDev={TEMPERATURE_COLOR_PERC_DEV}
                 ></Table>
 
                 <Table
                   locations={locations}
-                  heading="Total Muggy Days"
+                  heading={`${selectedYear} Total Muggy Days`}
                   monthly_data={extractClimateData(
                     "dewpoint_muggy_days",
-                    "monthly"
+                    "monthly",
+                    selectedYear
                   )}
                   annual_data={extractClimateData(
                     "dewpoint_muggy_days",
-                    "annual"
+                    "annual",
+                    selectedYear
                   )}
-                  numDec={0}
                   units={" days"}
+                  averageKey={"dewpoint_muggy_days"}
+                  isLoading={isLoadingYearlyData}
                 ></Table>
               </div>
+
               <br />
               <br />
               <hr />
@@ -955,7 +1030,7 @@ export default function ComparisonPage({ locations }: ComparisonPageProps) {
               <br />
               <Typography
                 sx={{ flex: "1 1 100%" }}
-                variant={HEADING_VARIANT}
+                variant={chartConfig.headingVariant}
                 component="div"
                 textAlign={"center"}
               >
@@ -963,9 +1038,9 @@ export default function ComparisonPage({ locations }: ComparisonPageProps) {
               </Typography>
 
               <LazyLoad
-                height={LAZY_LOAD_HEIGHT}
-                offset={LAZY_LOAD_OFFSET}
-                once={DO_LAZY_LOAD_ONCE}
+                height={chartConfig.lazyLoadHeight}
+                offset={chartConfig.lazyLoadOffset}
+                once={chartConfig.doLazyLoadOnce}
               >
                 {selectedYear === "Annual" ? (
                   <ClimateChart
@@ -996,27 +1071,45 @@ export default function ComparisonPage({ locations }: ComparisonPageProps) {
               </LazyLoad>
 
               <p style={{ textAlign: "center" }}>
-                Average wind speed for each location. The expected wind gust
-                peak for each location is the faint line.
+                Average maximum daily wind speed for each location. The average
+                wind values can be seen when viewing historical data.
               </p>
               <div>
                 <Table
                   locations={locations}
-                  heading="Average Wind Speed"
-                  monthly_data={extractClimateData("wind", "monthly")}
-                  annual_data={extractClimateData("wind", "annual")}
-                  numDec={0}
-                  units={" mph"}
+                  heading={`${selectedYear} Average Wind Speed`}
+                  monthly_data={extractClimateData(
+                    "wind",
+                    "monthly",
+                    selectedYear
+                  )}
+                  annual_data={extractClimateData(
+                    "wind",
+                    "annual",
+                    selectedYear
+                  )}
+                  units={"mph"}
+                  averageKey={"wind"}
+                  isLoading={isLoadingYearlyData}
                 ></Table>
 
                 {
                   <Table
                     locations={locations}
-                    heading="Average Wind Gust"
-                    monthly_data={extractClimateData("wind_gust", "monthly")}
-                    annual_data={extractClimateData("wind_gust", "annual")}
-                    numDec={0}
-                    units={" mph"}
+                    heading={`${selectedYear} Average Wind Gust`}
+                    monthly_data={extractClimateData(
+                      "wind_gust",
+                      "monthly",
+                      selectedYear
+                    )}
+                    annual_data={extractClimateData(
+                      "wind_gust",
+                      "annual",
+                      selectedYear
+                    )}
+                    units={"mph"}
+                    averageKey={"wind_gust"}
+                    isLoading={isLoadingYearlyData}
                   ></Table>
                 }
               </div>
@@ -1027,7 +1120,7 @@ export default function ComparisonPage({ locations }: ComparisonPageProps) {
               <br />
               <Typography
                 sx={{ flex: "1 1 100%" }}
-                variant={HEADING_VARIANT}
+                variant={chartConfig.headingVariant}
                 component="div"
                 textAlign={"center"}
               >
@@ -1036,9 +1129,9 @@ export default function ComparisonPage({ locations }: ComparisonPageProps) {
               </Typography>
 
               <LazyLoad
-                height={LAZY_LOAD_HEIGHT}
-                offset={LAZY_LOAD_OFFSET}
-                once={DO_LAZY_LOAD_ONCE}
+                height={chartConfig.lazyLoadHeight}
+                offset={chartConfig.lazyLoadOffset}
+                once={chartConfig.doLazyLoadOnce}
               >
                 {selectedYear === "Annual" ? (
                   <ClimateChart
@@ -1078,33 +1171,54 @@ export default function ComparisonPage({ locations }: ComparisonPageProps) {
               <div>
                 <Table
                   locations={locations}
-                  heading="Total Sunny Days"
-                  monthly_data={extractClimateData("clear_days", "monthly")}
-                  annual_data={extractClimateData("clear_days", "annual")}
-                  numDec={0}
+                  heading={`${selectedYear} Total Sunny Days`}
+                  monthly_data={extractClimateData(
+                    "clear_days",
+                    "monthly",
+                    selectedYear
+                  )}
+                  annual_data={extractClimateData(
+                    "clear_days",
+                    "annual",
+                    selectedYear
+                  )}
                   units={" days"}
+                  averageKey={"clear_days"}
+                  isLoading={isLoadingYearlyData}
                 ></Table>
                 <Table
                   locations={locations}
-                  heading="Total Party Cloudy Days"
+                  heading={`${selectedYear} Total Partly Cloudy Days`}
                   monthly_data={extractClimateData(
                     "partly_cloudy_days",
-                    "monthly"
+                    "monthly",
+                    selectedYear
                   )}
                   annual_data={extractClimateData(
                     "partly_cloudy_days",
-                    "annual"
+                    "annual",
+                    selectedYear
                   )}
-                  numDec={0}
                   units={" days"}
+                  averageKey={"partly_cloudy_days"}
+                  isLoading={isLoadingYearlyData}
                 ></Table>
                 <Table
                   locations={locations}
-                  heading="Total Cloudy Days"
-                  monthly_data={extractClimateData("cloudy_days", "monthly")}
-                  annual_data={extractClimateData("cloudy_days", "annual")}
-                  numDec={0}
+                  heading={`${selectedYear} Total Cloudy Days`}
+                  monthly_data={extractClimateData(
+                    "cloudy_days",
+                    "monthly",
+                    selectedYear
+                  )}
+                  annual_data={extractClimateData(
+                    "cloudy_days",
+                    "annual",
+                    selectedYear
+                  )}
                   units={" days"}
+                  averageKey={"cloudy_days"}
+                  isLoading={isLoadingYearlyData}
                 ></Table>
               </div>
               <br />
@@ -1114,16 +1228,16 @@ export default function ComparisonPage({ locations }: ComparisonPageProps) {
               <br />
               <Typography
                 sx={{ flex: "1 1 100%" }}
-                variant={HEADING_VARIANT}
+                variant={chartConfig.headingVariant}
                 component="div"
                 textAlign={"center"}
               >
                 {selectedYear === "Annual" ? "Annual" : selectedYear} UV Index
               </Typography>
               <LazyLoad
-                height={LAZY_LOAD_HEIGHT}
-                offset={LAZY_LOAD_OFFSET}
-                once={DO_LAZY_LOAD_ONCE}
+                height={chartConfig.lazyLoadHeight}
+                offset={chartConfig.lazyLoadOffset}
+                once={chartConfig.doLazyLoadOnce}
               >
                 {selectedYear === "Annual" ? (
                   <ClimateChart
@@ -1162,20 +1276,37 @@ export default function ComparisonPage({ locations }: ComparisonPageProps) {
               <div>
                 <Table
                   locations={locations}
-                  heading="Monthly UV Index"
-                  monthly_data={extractClimateData("uv_index", "monthly")}
-                  annual_data={extractClimateData("uv_index", "annual")}
-                  numDec={0}
-                  units={""}
+                  heading={`${selectedYear} Average UV Index`}
+                  monthly_data={extractClimateData(
+                    "uv_index",
+                    "monthly",
+                    selectedYear
+                  )}
+                  annual_data={extractClimateData(
+                    "uv_index",
+                    "annual",
+                    selectedYear
+                  )}
+                  averageKey={"uv_index"}
+                  isLoading={isLoadingYearlyData}
                 ></Table>
 
                 <Table
                   locations={locations}
-                  heading="Monthly Sun Angle"
-                  monthly_data={extractClimateData("sun_angle", "monthly")}
-                  annual_data={extractClimateData("sun_angle", "annual")}
-                  numDec={0}
+                  heading={`${selectedYear} Average Sun Angle`}
+                  monthly_data={extractClimateData(
+                    "sun_angle",
+                    "monthly",
+                    selectedYear
+                  )}
+                  annual_data={extractClimateData(
+                    "sun_angle",
+                    "annual",
+                    selectedYear
+                  )}
                   units={"°"}
+                  averageKey={"sun_angle"}
+                  isLoading={isLoadingYearlyData}
                 ></Table>
               </div>
               <br />
@@ -1185,7 +1316,7 @@ export default function ComparisonPage({ locations }: ComparisonPageProps) {
               <br />
               <Typography
                 sx={{ flex: "1 1 100%" }}
-                variant={HEADING_VARIANT}
+                variant={chartConfig.headingVariant}
                 component="div"
                 textAlign={"center"}
               >
@@ -1193,9 +1324,9 @@ export default function ComparisonPage({ locations }: ComparisonPageProps) {
                 Rating
               </Typography>
               <LazyLoad
-                height={LAZY_LOAD_HEIGHT}
-                offset={LAZY_LOAD_OFFSET}
-                once={DO_LAZY_LOAD_ONCE}
+                height={chartConfig.lazyLoadHeight}
+                offset={chartConfig.lazyLoadOffset}
+                once={chartConfig.doLazyLoadOnce}
               >
                 {selectedYear === "Annual" ? (
                   <ClimateChart
@@ -1236,11 +1367,19 @@ export default function ComparisonPage({ locations }: ComparisonPageProps) {
               <div>
                 <Table
                   locations={locations}
-                  heading="Comfort Rating"
-                  monthly_data={extractClimateData("comfort_index", "monthly")}
-                  annual_data={extractClimateData("comfort_index", "annual")}
-                  numDec={0}
-                  units={""}
+                  heading={`${selectedYear} Average Comfort Rating`}
+                  monthly_data={extractClimateData(
+                    "comfort_index",
+                    "monthly",
+                    selectedYear
+                  )}
+                  annual_data={extractClimateData(
+                    "comfort_index",
+                    "annual",
+                    selectedYear
+                  )}
+                  averageKey={"comfort_index"}
+                  isLoading={isLoadingYearlyData}
                 ></Table>
               </div>
               <br />
@@ -1251,16 +1390,16 @@ export default function ComparisonPage({ locations }: ComparisonPageProps) {
 
               <Typography
                 sx={{ flex: "1 1 100%" }}
-                variant={HEADING_VARIANT}
+                variant={chartConfig.headingVariant}
                 component="div"
                 textAlign={"center"}
               >
                 Annual Growing Season
               </Typography>
               <LazyLoad
-                height={LAZY_LOAD_HEIGHT}
-                offset={LAZY_LOAD_OFFSET}
-                once={DO_LAZY_LOAD_ONCE}
+                height={chartConfig.lazyLoadHeight}
+                offset={chartConfig.lazyLoadOffset}
+                once={chartConfig.doLazyLoadOnce}
               >
                 <ClimateChart
                   datasetProp={annualGrowingSeasonDataset}
@@ -1281,41 +1420,61 @@ export default function ComparisonPage({ locations }: ComparisonPageProps) {
                 based on the duration the average temperature is above 65°F.
                 Heating degree days are the opposite. HDD and CDD are a good
                 measure in how severe a season is, and can translate into higher
-                utility bills. Frost is likely when the temperature is below 32
+                utility bills. Frost is likely when the temperature is below 35
                 degrees, with high humidity, which often occurs in the morning.
               </p>
               <div>
                 <Table
                   locations={locations}
-                  heading="Chance of Frost"
+                  heading={`${selectedYear} Average Frost Chance`}
                   monthly_data={extractClimateData(
                     "morning_frost_chance",
-                    "monthly"
+                    "monthly",
+                    selectedYear
                   )}
                   annual_data={extractClimateData(
                     "morning_frost_chance",
-                    "annual"
+                    "annual",
+                    selectedYear
                   )}
-                  numDec={0}
-                  units={" %"}
+                  units={"%"}
+                  averageKey={"morning_frost_chance"}
+                  isLoading={isLoadingYearlyData}
+                  colorPercentDev={TEMPERATURE_COLOR_PERC_DEV}
                 ></Table>
 
                 <Table
                   locations={locations}
-                  heading="Cooling Degree Days (CDD)"
-                  monthly_data={extractClimateData("cdd", "monthly")}
-                  annual_data={extractClimateData("cdd", "annual")}
-                  numDec={0}
-                  units={""}
+                  heading={`${selectedYear} Average Cooling Degree Days`}
+                  monthly_data={extractClimateData(
+                    "cdd",
+                    "monthly",
+                    selectedYear
+                  )}
+                  annual_data={extractClimateData(
+                    "cdd",
+                    "annual",
+                    selectedYear
+                  )}
+                  averageKey={"cdd"}
+                  isLoading={isLoadingYearlyData}
                 ></Table>
 
                 <Table
                   locations={locations}
-                  heading="Heating Degree Days (HDD)"
-                  monthly_data={extractClimateData("hdd", "monthly")}
-                  annual_data={extractClimateData("hdd", "annual")}
-                  numDec={0}
-                  units={""}
+                  heading={`${selectedYear} Average Heating Degree Days`}
+                  monthly_data={extractClimateData(
+                    "hdd",
+                    "monthly",
+                    selectedYear
+                  )}
+                  annual_data={extractClimateData(
+                    "hdd",
+                    "annual",
+                    selectedYear
+                  )}
+                  averageKey={"hdd"}
+                  isLoading={isLoadingYearlyData}
                 ></Table>
               </div>
               <br />

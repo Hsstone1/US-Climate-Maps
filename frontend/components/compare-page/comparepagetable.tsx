@@ -1,4 +1,3 @@
-import * as React from "react";
 import { styled } from "@mui/material/styles";
 import Table from "@mui/material/Table";
 import TableBody from "@mui/material/TableBody";
@@ -9,6 +8,7 @@ import TableRow from "@mui/material/TableRow";
 import Paper from "@mui/material/Paper";
 
 import { MonthLabels } from "./climate-chart-helpers";
+import { ColorScaleBar } from "./ColorScaleBar";
 import { LocationColors, MarkerType } from "../location-props";
 import Typography from "@mui/material/Typography";
 
@@ -19,6 +19,9 @@ type ComparisonPageProps = {
   annual_data: any;
   numDec?: number;
   units?: string;
+  averageKey: string;
+  isLoading?: boolean;
+  colorPercentDev?: number;
 };
 
 const StyledTableCell = styled(TableCell)(() => ({
@@ -39,6 +42,22 @@ const StyledTableCell = styled(TableCell)(() => ({
   },
 }));
 
+// Helper function for color interpolation
+const interpolateColor = (
+  color1: { r: any; g: any; b: any },
+  color2: { r: any; g: any; b: any },
+  factor: number
+) => {
+  if (factor < 0) factor = 0;
+  if (factor > 1) factor = 1;
+  const result = {
+    r: Math.round(color1.r + factor * (color2.r - color1.r)),
+    g: Math.round(color1.g + factor * (color2.g - color1.g)),
+    b: Math.round(color1.b + factor * (color2.b - color1.b)),
+  };
+  return result;
+};
+
 const ClimateTable = ({
   locations,
   heading,
@@ -46,7 +65,61 @@ const ClimateTable = ({
   annual_data,
   numDec = 0,
   units = "",
+  averageKey,
+  isLoading = false,
+  colorPercentDev = 50,
 }: ComparisonPageProps) => {
+  const selectedYear = heading.split(" ")[0];
+
+  // This function returns a color for a given value based on the average value
+  // and the percent deviation from the average. The color is interpolated
+  // between red, white, and green for negative, neutral, and positive values respectively.
+
+  // The colorPercentDev parameter defines the magnitude of the outer bounds of the red and green range.
+  // So for example, if colorPercentDev is 50, then the red range is 50% to 100%
+  // Then the green range is 100% to 200%
+  const getColorForValue = (value: number, average: number) => {
+    if (selectedYear === "Annual" && isLoading) {
+      return "white";
+    }
+
+    // Define constants
+    const COLOR_ALPHA = 1;
+    const MIN_PERCENTAGE = -colorPercentDev; // 50% threshold
+    const MAX_PERCENTAGE = colorPercentDev; // 200% threshold
+    const NEUTRAL_PERCENTAGE = 0; // Neutral range (100%)
+
+    const RED = { r: 139, g: 0, b: 0 }; // Dark red for lowest percent deviation
+    const WHITE = { r: 255, g: 255, b: 255 }; // White for normal, no deviation
+    const GREEN = { r: 0, g: 100, b: 0 }; // Dark green for highest percent deviation
+
+    const percentageDifference = ((value - average) / average) * 100;
+
+    let color;
+    if (percentageDifference <= -NEUTRAL_PERCENTAGE) {
+      // Interpolate between RED and WHITE for negative values outside neutral range
+      color = interpolateColor(
+        RED,
+        WHITE,
+        (percentageDifference - MIN_PERCENTAGE) /
+          (-NEUTRAL_PERCENTAGE - MIN_PERCENTAGE)
+      );
+    } else if (percentageDifference >= NEUTRAL_PERCENTAGE) {
+      // Interpolate between WHITE and GREEN for positive values outside neutral range
+      color = interpolateColor(
+        WHITE,
+        GREEN,
+        (percentageDifference - NEUTRAL_PERCENTAGE) /
+          (MAX_PERCENTAGE - NEUTRAL_PERCENTAGE)
+      );
+    } else {
+      // Neutral (white)
+      color = WHITE;
+    }
+
+    return `rgba(${color.r}, ${color.g}, ${color.b}, ${COLOR_ALPHA})`;
+  };
+
   return (
     <div>
       <Typography
@@ -57,6 +130,7 @@ const ClimateTable = ({
       >
         {heading}
       </Typography>
+
       <div className="compare-climate-table">
         <TableContainer component={Paper}>
           <Table style={{ borderCollapse: "collapse" }}>
@@ -71,6 +145,12 @@ const ClimateTable = ({
             </TableHead>
             <TableBody>
               {locations.map((location, locIndex) => {
+                const average_monthly =
+                  location.data.climate_data[averageKey]["monthly"];
+                const average_annual =
+                  location.data.climate_data[averageKey]["annual"];
+                const combined_average = [...average_monthly, average_annual];
+
                 const combinedData = [
                   ...monthly_data[locIndex],
                   annual_data[locIndex],
@@ -99,13 +179,31 @@ const ClimateTable = ({
                       {location.data.location_data.location}
                     </StyledTableCell>
 
-                    {combinedData.map((value, i) => (
-                      <StyledTableCell key={i}>
-                        {i === combinedData.length - 1
-                          ? `${value.toFixed(numDec)}${units}`
-                          : value.toFixed(numDec)}
-                      </StyledTableCell>
-                    ))}
+                    {combinedData.map((value, i) => {
+                      const deviation = value - combined_average[i];
+                      const deviationText =
+                        deviation >= 0
+                          ? `(+${deviation.toFixed(numDec)}${units})`
+                          : `(${deviation.toFixed(numDec)}${units})`;
+                      const cellColor =
+                        !isLoading && selectedYear !== "Annual"
+                          ? getColorForValue(value, combined_average[i])
+                          : "white";
+
+                      return (
+                        <StyledTableCell key={i} style={{ padding: "2px" }}>
+                          <div>{`${value.toFixed(numDec)}${units}`}</div>
+
+                          {selectedYear !== "Annual" && (
+                            <div
+                              style={{ color: cellColor, fontSize: "smaller" }}
+                            >
+                              {deviationText}
+                            </div>
+                          )}
+                        </StyledTableCell>
+                      );
+                    })}
                   </TableRow>
                 );
               })}
@@ -113,6 +211,11 @@ const ClimateTable = ({
           </Table>
         </TableContainer>
       </div>
+
+      {selectedYear !== "Annual" && (
+        <ColorScaleBar colorPercentDev={colorPercentDev} />
+      )}
+
       <br />
     </div>
   );

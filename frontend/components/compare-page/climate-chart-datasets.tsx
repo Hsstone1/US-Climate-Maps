@@ -5,6 +5,11 @@ import {
   chartConfig,
 } from "./climate-chart-helpers";
 
+import {
+  getBackgroundColor,
+  convertKeyToBackgroundID,
+} from "../data-value-colors";
+
 const CHART_BORDER_WIDTH = chartConfig.chartBorderWidth;
 const LINE_TENSION = chartConfig.lineTension;
 const LINE_ALPHA = chartConfig.lineAlpha;
@@ -20,13 +25,17 @@ type TemperatureDataKey =
   | "apparent_expected_max"
   | "apparent_high_temperature"
   | "apparent_low_temperature"
-  | "apparent_expected_min";
+  | "apparent_expected_min"
+  | "expected_max_dewpoint"
+  | "expected_min_dewpoint";
 
 type ClimateDataKey =
   | "precipitation"
   | "snow"
   | "afternoon_humidity"
   | "dewpoint"
+  | "expected_min_dewpoint"
+  | "expected_max_dewpoint"
   | "wind"
   | "wind_gust"
   | "sun"
@@ -44,9 +53,9 @@ export type ClimateDataKeys = {
 
 export const createTemperatureDataset = (
   locations: MarkerType[],
-  selectedIndex: number | undefined,
+  selectedIndex: number | undefined | null,
   selectedYear: string,
-  yearlyData: any,
+  yearlyData: any | undefined | null,
   isBarChart: boolean,
   dataKeys: TempeartureDataKeys
 ): ClimateChartDataset[] => {
@@ -92,8 +101,7 @@ export const createTemperatureDataset = (
             ? background_color
             : paginated_background_color,
         borderColor: color,
-        borderWidth:
-          labelSuffix === "Max" || labelSuffix === "Min" ? 0 : border_width,
+        borderWidth: temperatureBorderWidth(labelSuffix, isAnnual),
         pointRadius: 0,
         pointHoverRadius: 0,
         lineTension: LINE_TENSION,
@@ -107,11 +115,36 @@ export const createTemperatureDataset = (
   return datasets;
 };
 
+const temperatureBorderWidth = (labelSuffix: string, isAnnual: boolean) => {
+  if (labelSuffix === "Max" || labelSuffix === "Min") {
+    return 0;
+  } else if ((labelSuffix === "High" || labelSuffix === "Low") && !isAnnual) {
+    return 0;
+  } else {
+    return CHART_BORDER_WIDTH;
+  }
+};
+
+// Helper function to determine the fill option based on the label suffix and chart type
+const temperatureFillOption = (labelSuffix: string, isBarChart: any) => {
+  if (isBarChart) {
+    return labelSuffix === "Low" || labelSuffix === "Min" ? "-1" : "+1";
+  }
+  return labelSuffix === "Low" || labelSuffix === "Min" ? "-2" : "+2";
+};
+
+// This function creates the datasets for the climate chart
+// This is separate from the above temperature function, since the temperature functions take in 4 datasets
+// This function returns an array of datasets
+
+// The datasets are created by looping over each location and each data key
+// The data key is used to get the climate data for the location
+
 export const createClimateDataset = (
   locations: MarkerType[],
-  selectedIndex: number | undefined,
+  selectedIndex: number | undefined | null,
   selectedYear: string,
-  yearlyData: any,
+  yearlyData: any | undefined | null,
   multiplyByVal: {
     avgMultiplyByVal?: number;
     historicalMultiplyByVal?: number;
@@ -136,28 +169,55 @@ export const createClimateDataset = (
 
     // Loop over each key in dataKeys to create datasets
     Object.entries(dataKeys).forEach(([labelSuffix, dataKey]) => {
+      const climate_data = get_climate_data(
+        location,
+        dataKey,
+        "daily",
+        labelSuffix === "Avg" ? "Annual" : selectedYear,
+        labelSuffix === "Avg" ? null : yearlyData,
+        {
+          multiplyByVal:
+            labelSuffix === "Avg" ? avgMultiplyByVal : historicalMultiplyByVal,
+          windowSize: SMA_SMOOTH_DAYS,
+        }
+      );
+      let backgroundColors;
+      const conditionalBackgroundColor =
+        labelSuffix === "Avg" ||
+        labelSuffix === "Gust" ||
+        labelSuffix === "High" ||
+        labelSuffix === "Low"
+          ? background_color
+          : paginated_background_color;
+
+      const conditionalBorderColor =
+        labelSuffix === "Avg" || labelSuffix === "High" || labelSuffix === "Low"
+          ? color
+          : background_color;
+
+      if (!isAnnual) {
+        backgroundColors = climate_data.map((dataPoint: number) =>
+          getBackgroundColor(dataPoint, convertKeyToBackgroundID(dataKey))
+        );
+      } else {
+        backgroundColors = new Array(climate_data.length).fill(
+          conditionalBackgroundColor
+        );
+      }
+
       const dataset: ClimateChartDataset = {
         type: "line",
         label: location_name + " " + labelSuffix,
-        data: get_climate_data(
-          location,
-          dataKey,
-          "daily",
-          labelSuffix === "Avg" ? "Annual" : selectedYear,
-          labelSuffix === "Avg" ? null : yearlyData,
-          {
-            multiplyByVal:
-              labelSuffix === "Avg"
-                ? avgMultiplyByVal
-                : historicalMultiplyByVal,
-            windowSize: SMA_SMOOTH_DAYS,
-          }
-        ),
-        backgroundColor:
-          labelSuffix === "Avg" || labelSuffix === "Gust"
-            ? background_color
-            : paginated_background_color,
-        borderColor: labelSuffix === "Avg" ? color : background_color,
+        data: climate_data,
+        pointBackgroundColor: isAnnual
+          ? conditionalBackgroundColor
+          : backgroundColors,
+        backgroundColor: isAnnual
+          ? conditionalBackgroundColor
+          : backgroundColors,
+
+        borderColor: conditionalBorderColor,
+
         borderWidth: border_width,
         pointRadius: 0,
         pointHoverRadius: 0,
@@ -165,8 +225,8 @@ export const createClimateDataset = (
         fill: climateFillOption(
           labelSuffix,
           isAnnual,
-          background_color,
-          paginated_background_color
+          isAnnual ? conditionalBackgroundColor : background_color,
+          isAnnual ? conditionalBackgroundColor : paginated_background_color
         ),
         yAxisID: yAxisID as ClimateChartDataset["yAxisID"],
       };
@@ -175,14 +235,6 @@ export const createClimateDataset = (
   });
 
   return datasets;
-};
-
-// Helper function to determine the fill option based on the label suffix and chart type
-const temperatureFillOption = (labelSuffix: string, isBarChart: any) => {
-  if (isBarChart) {
-    return labelSuffix === "Low" || labelSuffix === "Min" ? "-1" : "+1";
-  }
-  return labelSuffix === "Low" || labelSuffix === "Min" ? "-2" : "+2";
 };
 
 const climateFillOption = (
@@ -202,6 +254,12 @@ const climateFillOption = (
       target: "start", // Fills towards the end of the scale
       above: paginated_background_color, // Color above the data line
       below: paginated_background_color, // Color below the data line
+    };
+  } else if ((labelSuffix === "High" || labelSuffix === "Low") && isAnnual) {
+    return {
+      target: labelSuffix === "High" ? "+1" : "-1", // Fills towards each dataset
+      above: background_color, // Color above the data line
+      below: background_color, // Color below the data line
     };
   }
 };

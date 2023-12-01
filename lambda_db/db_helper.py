@@ -11,7 +11,7 @@ from collections import defaultdict
 from db_climate_data import *
 
 
-NUM_NEAREST_LOCATIONS = 4
+NUM_NEAREST_LOCATIONS = 5
 load_dotenv()  # This loads the variables from .env
 
 

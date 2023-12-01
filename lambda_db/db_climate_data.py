@@ -182,7 +182,7 @@ def calc_additional_climate_parameters(
     )
 
     df["morning_frost_chance"] = 100 * (
-        (df["morning_humidity"] > 90) & (df["low_temperature"] <= 32)
+        (df["morning_humidity"] > 90) & (df["low_temperature"] <= 35)
     ).astype(int)
 
     df["uv_index"] = calc_uv_index_vectorized(
