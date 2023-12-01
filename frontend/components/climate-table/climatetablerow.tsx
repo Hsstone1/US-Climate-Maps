@@ -10,7 +10,6 @@ type ClimateTableRowProps = {
   dataType:
     | "Temperature"
     | "Precip"
-    | "Snow"
     | "Humidity"
     | "SunHours"
     | "SunPercent"

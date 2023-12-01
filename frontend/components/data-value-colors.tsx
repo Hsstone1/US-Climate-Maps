@@ -1,3 +1,59 @@
+export const TitleColor = "#808080";
+
+export function getTemperatureColor(temperature: number) {
+  // Define the temperature thresholds and corresponding colors
+  const gradient = [
+    { temp: -150, color: "#d4d4d4" }, // grey
+    { temp: -30, color: "#FFC0CB" }, // pink
+    { temp: 0, color: "#800080" }, // purple
+    { temp: 15, color: "#0000FF" }, // blue
+    { temp: 32, color: "#00d9ff" }, // cyan
+    { temp: 50, color: "#008000" }, // green
+    { temp: 70, color: "#FFA500" }, // orange
+    { temp: 90, color: "#FF0000" }, // red
+    { temp: 110, color: "#8B0000" }, // dark red
+    { temp: 150, color: "#000000" }, // black
+  ];
+
+  // Find the two closest stops
+  const lowerStop = gradient.reduce((prev, curr) =>
+    curr.temp <= temperature ? curr : prev
+  );
+  const upperStop = gradient
+    .slice()
+    .reverse()
+    .find((stop) => stop.temp >= temperature);
+
+  // If exact match or out of bounds, return the color
+  if (lowerStop.temp === temperature || lowerStop === upperStop) {
+    return lowerStop.color;
+  }
+
+  // Linear interpolation
+  const mix = upperStop
+    ? (temperature - lowerStop.temp) / (upperStop.temp - lowerStop.temp)
+    : 0;
+  const upperColor = upperStop ? upperStop.color : lowerStop.color;
+  return lerpColor(lowerStop.color, upperColor, mix);
+}
+
+// Function to linearly interpolate between two colors
+function lerpColor(a: string, b: string, amount: number) {
+  const ah = parseInt(a.replace(/#/g, ""), 16),
+    ar = ah >> 16,
+    ag = (ah >> 8) & 0xff,
+    ab = ah & 0xff,
+    bh = parseInt(b.replace(/#/g, ""), 16),
+    br = bh >> 16,
+    bg = (bh >> 8) & 0xff,
+    bb = bh & 0xff,
+    rr = Math.round(ar + amount * (br - ar)),
+    rg = Math.round(ag + amount * (bg - ag)),
+    rb = Math.round(ab + amount * (bb - ab));
+
+  return `#${((1 << 24) + (rr << 16) + (rg << 8) + rb).toString(16).slice(1)}`;
+}
+
 export const convertKeyToBackgroundID = (key: string) => {
   switch (key) {
     case "precipitation":

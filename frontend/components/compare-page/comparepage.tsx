@@ -33,6 +33,8 @@ import Table from "./ComparePageTable";
 import ClimateChartPaginate from "./ClimateChartPaginate";
 import YearSelector from "./YearSelector";
 import LazyLoad from "react-lazyload";
+import ClimateCalendar from "../climate-calendar/ClimateCalendar";
+import { TitleColor, getTemperatureColor } from "../data-value-colors";
 
 //This is dynamic import function to load components that rely on
 // browser-specific functionalities such as the window object:
@@ -147,21 +149,8 @@ export default function ComparisonPage({ locations }: ComparisonPageProps) {
     [yearlyData]
   );
 
-  // THIS ALLOWS FOR ONLY ONE LOCATION YEAR DATA RETRIEVAL DB QUERY
-  /*
-  useEffect(() => {
-    const location = locations[currentIndex];
-
-    if (selectedYear !== "Annual") {
-      fetchYearData(location, selectedYear);
-    }
-  }, [selectedYear, currentIndex, locations]);
-*/
-
   // ####################################################
   // THIS ALLOWS CONCURRENT YEAR DATA RETRIEVAL DB QUERY
-  // DISABLED CURRENTLY BECAUSE OF LAGGY PERFORMANCE
-  // ####################################################
   // Fetch the yearly data for the selected year and location when they change
   useEffect(() => {
     // This function will be called for each location to fetch its data
@@ -188,6 +177,17 @@ export default function ComparisonPage({ locations }: ComparisonPageProps) {
         console.error("An error occurred while fetching data", error);
       });
   }, [selectedYear, locations]);
+
+  // THIS ALLOWS FOR ONLY ONE LOCATION YEAR DATA RETRIEVAL DB QUERY
+  /*
+  useEffect(() => {
+    const location = locations[currentIndex];
+
+    if (selectedYear !== "Annual") {
+      fetchYearData(location, selectedYear);
+    }
+  }, [selectedYear, currentIndex, locations]);
+*/
 
   // Create the datasets for the climate charts
   //
@@ -470,6 +470,49 @@ export default function ComparisonPage({ locations }: ComparisonPageProps) {
         ) : (
           <div>
             <div className="compare_chart-div">
+              <br />
+
+              {selectedYear !== "Annual" && (
+                <ClimateChartPaginate
+                  locations={locations}
+                  currentIndex={currentIndex}
+                  setCurrentIndex={setCurrentIndex}
+                >
+                  {(location, index) => (
+                    <div>
+                      <Typography
+                        variant="h6"
+                        style={{
+                          textAlign: "center",
+                          fontWeight: "bold",
+                          color: TitleColor,
+                        }}
+                      >
+                        {location.data.location_data.location}
+                      </Typography>
+                      <Typography variant="h6" style={{ textAlign: "center" }}>
+                        {selectedYear}
+                      </Typography>
+                      <ClimateCalendar
+                        climateData={
+                          yearlyData[location.id] &&
+                          yearlyData[location.id][selectedYear]
+                            ? yearlyData[location.id][selectedYear].climate_data
+                            : location.data.climate_data
+                        }
+                        selectedYear={selectedYear}
+                        record_high_data={
+                          location.data.climate_data["record_high"]["daily"]
+                        }
+                        record_low_data={
+                          location.data.climate_data["record_low"]["daily"]
+                        }
+                      />
+                    </div>
+                  )}
+                </ClimateChartPaginate>
+              )}
+
               <br />
               <Typography
                 sx={{ flex: "1 1 100%" }}

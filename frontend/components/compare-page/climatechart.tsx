@@ -7,8 +7,9 @@ import {
 } from "chart.js";
 import { Chart } from "react-chartjs-2";
 import ChartDataLabels from "chartjs-plugin-datalabels";
-import { ClimateChartDataset } from "./climate-chart-helpers";
+import { ClimateChartDataset, dayOfYearToDate } from "./climate-chart-helpers";
 import zoomPlugin from "chartjs-plugin-zoom";
+import { TitleColor } from "../data-value-colors";
 
 ChartJS.register(...registerables, ChartDataLabels, zoomPlugin);
 
@@ -59,11 +60,6 @@ function formatValueWithUnit(
   }
 
   return `${yValue.toFixed(decimalTrunc)}${unit}`;
-}
-
-function dayOfYearToDate(dayIndex: number, year: number): string {
-  const date = new Date(year, 0, dayIndex + 1);
-  return `${date.getMonth() + 1}/${date.getDate()}`;
 }
 
 function debounce(func: () => void, wait: number) {
@@ -283,6 +279,7 @@ function ClimateChart({
           font: {
             size: 20,
           },
+          color: TitleColor,
         },
 
         filler: {

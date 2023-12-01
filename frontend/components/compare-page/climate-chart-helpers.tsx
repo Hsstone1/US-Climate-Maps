@@ -1,5 +1,30 @@
 import { TempeartureDataKeys, ClimateDataKeys } from "./climate-chart-datasets";
 
+export function dayOfYearToDate(dayIndex: number, year: number): string {
+  const date = new Date(year, 0, dayIndex + 1);
+  return `${date.getMonth() + 1}/${date.getDate()}`;
+}
+
+export function getFirstDayOfMonth(year: number, month: number): number {
+  const firstDay = new Date(year, month, 1);
+  return firstDay.getDay(); // Returns the day of the week (0 for Sunday, 1 for Monday, etc.)
+}
+
+export function getLastDayOfMonth(year: number, month: number): number {
+  // By setting the day as 0, it will roll back to the last day of the previous month
+  const lastDay = new Date(year, month + 1, 0);
+  return lastDay.getDate(); // Returns the last day of the month
+}
+
+export function isDayInMonth(
+  dayIndex: number,
+  year: number,
+  month: number
+): boolean {
+  const date = new Date(year, 0, dayIndex + 1);
+  return date.getMonth() === month;
+}
+
 type ChartConfig = {
   chartBorderWidth: number;
   lineTension: number;
@@ -77,6 +102,16 @@ export const MonthLabels = [
   "Oct",
   "Nov",
   "Dec",
+];
+
+export const DaysOfWeekLabels = [
+  "Sun",
+  "Mon",
+  "Tue",
+  "Wed",
+  "Thu",
+  "Fri",
+  "Sat",
 ];
 
 export const temperatureKeys: TempeartureDataKeys = {

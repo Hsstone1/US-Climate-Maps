@@ -8,30 +8,11 @@ import {
   styled,
 } from "@mui/material";
 import { useEffect, useState } from "react";
+import CustomSlider from "../CustomSlider";
 
 type YearSelectorProps = {
   onYearChange: (year: string) => void;
 };
-
-// Custom styling for the Slider component
-const CompactSlider = styled(Slider)(({ theme }) => ({
-  paddingTop: theme.spacing(2), // Reduce top padding
-  paddingBottom: theme.spacing(1), // Reduce bottom padding
-
-  // Adjust the style of the value label to bring it closer to the slider
-  "& .MuiSlider-valueLabel": {
-    top: 0, // Adjust the top position to bring it closer
-  },
-
-  // Adjust the style of the track and thumb for a more compact appearance
-  "& .MuiSlider-track": {
-    height: 3, // Adjust the track height
-  },
-  "& .MuiSlider-thumb": {
-    height: 20, // Adjust the thumb size
-    width: 20, // Adjust the thumb size
-  },
-}));
 
 export default function YearSelector({ onYearChange }: YearSelectorProps) {
   //const currentYear = new Date().getFullYear();
@@ -69,13 +50,12 @@ export default function YearSelector({ onYearChange }: YearSelectorProps) {
 
   return (
     <Box textAlign="center" className="year-selector-footer">
-      <CompactSlider
+      <CustomSlider
         value={selectedYear}
         marks={yearLabels}
-        valueLabelFormat={(value) =>
+        valueLabelFormat={(value: any) =>
           value === maxYear + 1 ? "Annual" : value.toString()
         }
-        valueLabelDisplay="auto"
         onChange={handleSliderChange}
         onChangeCommitted={handleSliderChangeCommitted}
         min={minYear}
