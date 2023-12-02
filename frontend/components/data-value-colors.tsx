@@ -1,4 +1,5 @@
 export const TitleColor = "#808080";
+export const ThemeColor = "#303030";
 
 export function getTemperatureColor(temperature: number) {
   // Define the temperature thresholds and corresponding colors

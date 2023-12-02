@@ -10,12 +10,13 @@ import {
 
 // Custom styling for the Slider component
 const StyledSlider = styled(Slider)(({ theme }) => ({
-  paddingTop: theme.spacing(1),
+  paddingTop: theme.spacing(0),
   paddingBottom: theme.spacing(0),
 
   // Adjust the style for the marks' labels
   "& .MuiSlider-markLabel": {
     marginTop: theme.spacing(-2), // Adjust the top margin to bring it closer
+    fontSize: "0.7em", // You can also adjust the font size if needed
     // You can also use negative values if needed
   },
 

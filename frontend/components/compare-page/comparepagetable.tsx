@@ -11,6 +11,7 @@ import { MonthLabels } from "./climate-chart-helpers";
 import { ColorScaleBar } from "./ColorScaleBar";
 import { LocationColors, MarkerType } from "../location-props";
 import Typography from "@mui/material/Typography";
+import { ThemeColor } from "../data-value-colors";
 
 type ComparisonPageProps = {
   locations: MarkerType[];
@@ -26,19 +27,24 @@ type ComparisonPageProps = {
 
 const StyledTableCell = styled(TableCell)(() => ({
   [`&.${tableCellClasses.head}`]: {
-    border: "1px solid black",
-    backgroundColor: "#303030",
-    padding: "2px",
+    border: `1px solid ${ThemeColor}`,
+    backgroundColor: ThemeColor,
     margin: "0px",
+    padding: "0px",
     textAlign: "center",
     color: "#FFFFFF",
   },
   [`&.${tableCellClasses.body}`]: {
-    border: "1px solid black",
-    fontSize: 14,
-    padding: "2px",
+    border: `1px solid ${ThemeColor}`,
     margin: "0px",
+    padding: "0px",
+
     textAlign: "center",
+  },
+
+  "@media screen and (max-width: 768px)": {
+    fontSize: "0.6em", // Smaller text on small screens
+    // Adjust the font size of children elements
   },
 }));
 
@@ -162,7 +168,8 @@ const ClimateTable = ({
                       style={{
                         whiteSpace: "nowrap",
                         position: "relative",
-                        paddingLeft: "10px",
+                        paddingLeft: "1em",
+                        paddingRight: "1em",
                       }}
                     >
                       <div
@@ -191,8 +198,12 @@ const ClimateTable = ({
                           : "white";
 
                       return (
-                        <StyledTableCell key={i} style={{ padding: "2px" }}>
-                          <div>{`${value.toFixed(numDec)}${units}`}</div>
+                        <StyledTableCell key={i}>
+                          <div>{`${
+                            value === 0
+                              ? value.toFixed(0)
+                              : value.toFixed(numDec)
+                          }${units}`}</div>
 
                           {selectedYear !== "Annual" && (
                             <div

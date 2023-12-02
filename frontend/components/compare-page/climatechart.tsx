@@ -31,15 +31,11 @@ function formatValueWithUnit(
 ): string {
   let unit = "";
 
-  // Conditions where the value should not be printed
-  if ((yAxisID === "Precip" || yAxisID === "Wind") && yValue === 0) {
-    return ""; // Return empty string for 0 precip or wind
-  } else if (yAxisID === "Percentage" && yValue === 100) {
-    return ""; // Return empty string for 100% humidity or comfort index
-  }
-
   switch (yAxisID) {
     case "Temperature":
+      unit = "°F";
+      break;
+    case "Dewpoint":
       unit = "°F";
       break;
     case "Precip":
@@ -261,12 +257,6 @@ function ClimateChart({
       responsive: true,
       maintainAspectRatio: true,
       aspectRatio: 16 / 9,
-      layout: {
-        padding: {
-          top: 0,
-          left: 30,
-        },
-      },
 
       plugins: {
         legend: {
@@ -353,11 +343,11 @@ function ClimateChart({
       },
       scales: {
         x: xAxisOptions,
-        Temperature: yAxisOptions("Temperature", "F", 100, 0, 10),
-        Dewpoint: yAxisOptions("Dewpoint", "F", 80, 0, 10),
+        Temperature: yAxisOptions("Temperature", "°", 100, 0, 10),
+        Dewpoint: yAxisOptions("Dewpoint", "°", 80, 0, 10),
         Precip: yAxisOptions("Precip", "in", 5, 0, 1),
         Percentage: yAxisOptions("Percentage", "%", 100, 0, 10, 100),
-        Wind: yAxisOptions("Wind", "mph", 20, 0, 1),
+        Wind: yAxisOptions("Wind", "", 20, 0, 1),
         Comfort_Index: yAxisOptions("Comfort_Index", "", 100, 0, 10),
         UV_Index: yAxisOptions("UV_Index", "", 10, 0, 1),
 

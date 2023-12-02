@@ -55,7 +55,7 @@ type YearlyData = {
 // #########################################
 
 const apiUrl = process.env.NEXT_PUBLIC_API_URL;
-const TEMPERATURE_COLOR_PERC_DEV = 10;
+const COLOR_PERC_DEV_10 = 10;
 
 export default function ComparisonPage({ locations }: ComparisonPageProps) {
   const [selectedYear, setSelectedYear] = useState<string>("Annual");
@@ -531,7 +531,7 @@ export default function ComparisonPage({ locations }: ComparisonPageProps) {
                 {selectedYear === "Annual" ? (
                   <ClimateChart
                     datasetProp={annualTemperatureDataset}
-                    units={"°F"}
+                    units={"°"}
                     xAxisRangeState={xAxisRangeState}
                     onXAxisRangeChange={handleXAxisRangeChange}
                   />
@@ -545,7 +545,7 @@ export default function ComparisonPage({ locations }: ComparisonPageProps) {
                       <ClimateChartRenderer
                         index={index}
                         data={paginatedTemperatureDataset}
-                        units={"°F"}
+                        units={"°"}
                         title={location.data.location_data.location}
                         year={parseInt(selectedYear)}
                         xAxisRangeState={xAxisRangeState}
@@ -555,7 +555,7 @@ export default function ComparisonPage({ locations }: ComparisonPageProps) {
                   </ClimateChartPaginate>
                 )}
               </LazyLoad>
-              <p style={{ textAlign: "center" }}>
+              <p className="compare-page-paragraph">
                 Average high and low temperatures for each location. The
                 expected temperature range is the faint area behind the line,
                 which represents the highest and lowest temperatures likely for
@@ -576,10 +576,10 @@ export default function ComparisonPage({ locations }: ComparisonPageProps) {
                     "annual",
                     selectedYear
                   )}
-                  units={"°F"}
+                  units={"°"}
                   averageKey={"high_temperature"}
                   isLoading={isLoadingYearlyData}
-                  colorPercentDev={TEMPERATURE_COLOR_PERC_DEV}
+                  colorPercentDev={COLOR_PERC_DEV_10}
                 ></Table>
 
                 <Table
@@ -595,10 +595,10 @@ export default function ComparisonPage({ locations }: ComparisonPageProps) {
                     "annual",
                     selectedYear
                   )}
-                  units={"°F"}
+                  units={"°"}
                   averageKey={"low_temperature"}
                   isLoading={isLoadingYearlyData}
-                  colorPercentDev={TEMPERATURE_COLOR_PERC_DEV}
+                  colorPercentDev={COLOR_PERC_DEV_10}
                 ></Table>
               </div>
               <br />
@@ -624,7 +624,7 @@ export default function ComparisonPage({ locations }: ComparisonPageProps) {
                 {selectedYear === "Annual" ? (
                   <ClimateChart
                     datasetProp={annualApparentTemperatureDataset}
-                    units={"°F"}
+                    units={"°"}
                     xAxisRangeState={xAxisRangeState}
                     onXAxisRangeChange={handleXAxisRangeChange}
                   />
@@ -638,7 +638,7 @@ export default function ComparisonPage({ locations }: ComparisonPageProps) {
                       <ClimateChartRenderer
                         index={index}
                         data={paginatedApparentTemperatureDataset}
-                        units={"°F"}
+                        units={"°"}
                         title={location.data.location_data.location}
                         year={parseInt(selectedYear)}
                         xAxisRangeState={xAxisRangeState}
@@ -649,7 +649,7 @@ export default function ComparisonPage({ locations }: ComparisonPageProps) {
                 )}
               </LazyLoad>
 
-              <p style={{ textAlign: "center" }}>
+              <p className="compare-page-paragraph">
                 Average high and low feels-like temperatures for each location.
                 The expected feels-like temperature range is the faint area
                 behind the line, which represents the highest and lowest
@@ -670,10 +670,10 @@ export default function ComparisonPage({ locations }: ComparisonPageProps) {
                     "annual",
                     selectedYear
                   )}
-                  units={"°F"}
+                  units={"°"}
                   averageKey={"apparent_high_temperature"}
                   isLoading={isLoadingYearlyData}
-                  colorPercentDev={TEMPERATURE_COLOR_PERC_DEV}
+                  colorPercentDev={COLOR_PERC_DEV_10}
                 ></Table>
 
                 <Table
@@ -689,10 +689,10 @@ export default function ComparisonPage({ locations }: ComparisonPageProps) {
                     "annual",
                     selectedYear
                   )}
-                  units={"°F"}
+                  units={"°"}
                   averageKey={"apparent_low_temperature"}
                   isLoading={isLoadingYearlyData}
-                  colorPercentDev={TEMPERATURE_COLOR_PERC_DEV}
+                  colorPercentDev={COLOR_PERC_DEV_10}
                 ></Table>
               </div>
               <br />
@@ -743,7 +743,7 @@ export default function ComparisonPage({ locations }: ComparisonPageProps) {
                 )}
               </LazyLoad>
 
-              <p style={{ textAlign: "center" }}>
+              <p className="compare-page-paragraph">
                 Average precipitation in inches for each location. Precipitation
                 is the combined total water content of both rain and snow. A
                 rainy day is counted if there is more than 0.01 inches of
@@ -784,7 +784,7 @@ export default function ComparisonPage({ locations }: ComparisonPageProps) {
                     "annual",
                     selectedYear
                   )}
-                  units={" days"}
+                  units={"dy"}
                   averageKey={"precip_days"}
                   isLoading={isLoadingYearlyData}
                 ></Table>
@@ -835,7 +835,7 @@ export default function ComparisonPage({ locations }: ComparisonPageProps) {
                 )}
               </LazyLoad>
 
-              <p style={{ textAlign: "center" }}>
+              <p className="compare-page-paragraph">
                 Average snowfall in inches for each location. A snowy day is
                 counted if there is more than 0.1 inches of accumulation. The
                 total number of snowy days expected for each month, along with
@@ -874,7 +874,7 @@ export default function ComparisonPage({ locations }: ComparisonPageProps) {
                     "annual",
                     selectedYear
                   )}
-                  units={" days"}
+                  units={"dy"}
                   averageKey={"snow_days"}
                   isLoading={isLoadingYearlyData}
                 ></Table>
@@ -926,7 +926,7 @@ export default function ComparisonPage({ locations }: ComparisonPageProps) {
                 )}
               </LazyLoad>
 
-              <p style={{ textAlign: "center" }}>
+              <p className="compare-page-paragraph">
                 Average afternoon humidity for each location. In the afternoon
                 when the tempearture is highest, the humidity will be the
                 lowest. The opposite is the case in the morning. A humidity
@@ -951,7 +951,7 @@ export default function ComparisonPage({ locations }: ComparisonPageProps) {
                   units={"%"}
                   averageKey={"mean_humidity"}
                   isLoading={isLoadingYearlyData}
-                  colorPercentDev={TEMPERATURE_COLOR_PERC_DEV}
+                  colorPercentDev={COLOR_PERC_DEV_10}
                 ></Table>
                 <Table
                   locations={locations}
@@ -969,7 +969,7 @@ export default function ComparisonPage({ locations }: ComparisonPageProps) {
                   units={"%"}
                   averageKey={"morning_humidity"}
                   isLoading={isLoadingYearlyData}
-                  colorPercentDev={TEMPERATURE_COLOR_PERC_DEV}
+                  colorPercentDev={COLOR_PERC_DEV_10}
                 ></Table>
               </div>
               <br />
@@ -994,7 +994,7 @@ export default function ComparisonPage({ locations }: ComparisonPageProps) {
                 {selectedYear === "Annual" ? (
                   <ClimateChart
                     datasetProp={annualDewpointDataset}
-                    units={"°F"}
+                    units={"°"}
                     xAxisRangeState={xAxisRangeState}
                     onXAxisRangeChange={handleXAxisRangeChange}
                   />
@@ -1008,7 +1008,7 @@ export default function ComparisonPage({ locations }: ComparisonPageProps) {
                       <ClimateChartRenderer
                         index={index}
                         data={paginatedDewpointDataset}
-                        units={"°F"}
+                        units={"°"}
                         title={location.data.location_data.location}
                         year={parseInt(selectedYear)}
                         xAxisRangeState={xAxisRangeState}
@@ -1019,7 +1019,7 @@ export default function ComparisonPage({ locations }: ComparisonPageProps) {
                 )}
               </LazyLoad>
 
-              <p style={{ textAlign: "center" }}>
+              <p className="compare-page-paragraph">
                 Average dewpoint for each location. The dewpoint is a measure of
                 absolute humidity in the air, rather than the relative humidity
                 percentage which changes with temperature. Dewpoint is generally
@@ -1041,10 +1041,10 @@ export default function ComparisonPage({ locations }: ComparisonPageProps) {
                     "annual",
                     selectedYear
                   )}
-                  units={"°F"}
+                  units={"°"}
                   averageKey={"dewpoint"}
                   isLoading={isLoadingYearlyData}
-                  colorPercentDev={TEMPERATURE_COLOR_PERC_DEV}
+                  colorPercentDev={COLOR_PERC_DEV_10}
                 ></Table>
 
                 <Table
@@ -1060,7 +1060,7 @@ export default function ComparisonPage({ locations }: ComparisonPageProps) {
                     "annual",
                     selectedYear
                   )}
-                  units={" days"}
+                  units={"dy"}
                   averageKey={"dewpoint_muggy_days"}
                   isLoading={isLoadingYearlyData}
                 ></Table>
@@ -1088,7 +1088,7 @@ export default function ComparisonPage({ locations }: ComparisonPageProps) {
                 {selectedYear === "Annual" ? (
                   <ClimateChart
                     datasetProp={annualWindDataset}
-                    units={"mph"}
+                    units={""}
                     xAxisRangeState={xAxisRangeState}
                     onXAxisRangeChange={handleXAxisRangeChange}
                   />
@@ -1102,7 +1102,7 @@ export default function ComparisonPage({ locations }: ComparisonPageProps) {
                       <ClimateChartRenderer
                         index={index}
                         data={paginatedWindDataset}
-                        units={"mph"}
+                        units={""}
                         title={location.data.location_data.location}
                         year={parseInt(selectedYear)}
                         xAxisRangeState={xAxisRangeState}
@@ -1113,14 +1113,14 @@ export default function ComparisonPage({ locations }: ComparisonPageProps) {
                 )}
               </LazyLoad>
 
-              <p style={{ textAlign: "center" }}>
+              <p className="compare-page-paragraph">
                 Average maximum daily wind speed for each location. The average
                 wind values can be seen when viewing historical data.
               </p>
               <div>
                 <Table
                   locations={locations}
-                  heading={`${selectedYear} Average Wind Speed`}
+                  heading={`${selectedYear} Average Wind Speed (mph)`}
                   monthly_data={extractClimateData(
                     "wind",
                     "monthly",
@@ -1131,7 +1131,7 @@ export default function ComparisonPage({ locations }: ComparisonPageProps) {
                     "annual",
                     selectedYear
                   )}
-                  units={"mph"}
+                  units={""}
                   averageKey={"wind"}
                   isLoading={isLoadingYearlyData}
                 ></Table>
@@ -1139,7 +1139,7 @@ export default function ComparisonPage({ locations }: ComparisonPageProps) {
                 {
                   <Table
                     locations={locations}
-                    heading={`${selectedYear} Average Wind Gust`}
+                    heading={`${selectedYear} Average Wind Gust (mph)`}
                     monthly_data={extractClimateData(
                       "wind_gust",
                       "monthly",
@@ -1150,7 +1150,7 @@ export default function ComparisonPage({ locations }: ComparisonPageProps) {
                       "annual",
                       selectedYear
                     )}
-                    units={"mph"}
+                    units={""}
                     averageKey={"wind_gust"}
                     isLoading={isLoadingYearlyData}
                   ></Table>
@@ -1204,7 +1204,7 @@ export default function ComparisonPage({ locations }: ComparisonPageProps) {
                 )}
               </LazyLoad>
 
-              <p style={{ textAlign: "center" }}>
+              <p className="compare-page-paragraph">
                 Percentage of sunshine for each location. A day is considered to
                 be sunny if the sun is out more than 70% of each day, Partly
                 Cloudy if its out for more than 40%, and Cloudy if less.The
@@ -1225,7 +1225,7 @@ export default function ComparisonPage({ locations }: ComparisonPageProps) {
                     "annual",
                     selectedYear
                   )}
-                  units={" days"}
+                  units={"dy"}
                   averageKey={"clear_days"}
                   isLoading={isLoadingYearlyData}
                 ></Table>
@@ -1242,7 +1242,7 @@ export default function ComparisonPage({ locations }: ComparisonPageProps) {
                     "annual",
                     selectedYear
                   )}
-                  units={" days"}
+                  units={"dy"}
                   averageKey={"partly_cloudy_days"}
                   isLoading={isLoadingYearlyData}
                 ></Table>
@@ -1259,7 +1259,7 @@ export default function ComparisonPage({ locations }: ComparisonPageProps) {
                     "annual",
                     selectedYear
                   )}
-                  units={" days"}
+                  units={"dy"}
                   averageKey={"cloudy_days"}
                   isLoading={isLoadingYearlyData}
                 ></Table>
@@ -1309,7 +1309,7 @@ export default function ComparisonPage({ locations }: ComparisonPageProps) {
                 )}
               </LazyLoad>
 
-              <p style={{ textAlign: "center" }}>
+              <p className="compare-page-paragraph">
                 Average UV Index for each location. The UV index is a measure of
                 the strength of the suns ultraviolet rays. The UV index is
                 highest in the summer and lowest in the winter. Elevation also
@@ -1332,24 +1332,7 @@ export default function ComparisonPage({ locations }: ComparisonPageProps) {
                   )}
                   averageKey={"uv_index"}
                   isLoading={isLoadingYearlyData}
-                ></Table>
-
-                <Table
-                  locations={locations}
-                  heading={`${selectedYear} Average Sun Angle`}
-                  monthly_data={extractClimateData(
-                    "sun_angle",
-                    "monthly",
-                    selectedYear
-                  )}
-                  annual_data={extractClimateData(
-                    "sun_angle",
-                    "annual",
-                    selectedYear
-                  )}
-                  units={"°"}
-                  averageKey={"sun_angle"}
-                  isLoading={isLoadingYearlyData}
+                  colorPercentDev={COLOR_PERC_DEV_10}
                 ></Table>
               </div>
               <br />
@@ -1398,7 +1381,7 @@ export default function ComparisonPage({ locations }: ComparisonPageProps) {
                 )}
               </LazyLoad>
 
-              <p style={{ textAlign: "center" }}>
+              <p className="compare-page-paragraph">
                 Average comfort rating for each location. The comfort rating is
                 a function of temperature, humidity, and amount of sun. The
                 higher the comfort rating, the more pleasant the weather is. A
@@ -1423,6 +1406,7 @@ export default function ComparisonPage({ locations }: ComparisonPageProps) {
                   )}
                   averageKey={"comfort_index"}
                   isLoading={isLoadingYearlyData}
+                  colorPercentDev={COLOR_PERC_DEV_10}
                 ></Table>
               </div>
               <br />
@@ -1455,16 +1439,17 @@ export default function ComparisonPage({ locations }: ComparisonPageProps) {
                 />
               </LazyLoad>
 
-              <p style={{ textAlign: "center" }}>
+              <p className="compare-page-paragraph">
                 Average span between freezing temperatures, known as the growing
-                season. The table contains the monthly Cooling Degree Days (CDD)
-                Heating Degree Days (HDD), and chance of frost in the morning.
-                Cooling degree days are a measure of how much cooling is needed,
-                based on the duration the average temperature is above 65°F.
-                Heating degree days are the opposite. HDD and CDD are a good
-                measure in how severe a season is, and can translate into higher
-                utility bills. Frost is likely when the temperature is below 35
+                season. Frost is likely when the temperature is below 35
                 degrees, with high humidity, which often occurs in the morning.
+                The table contains the monthly Cooling Degree Days (CDD) Heating
+                Degree Days (HDD), and chance of frost in the morning. Cooling
+                degree days are a measure of how much cooling is needed, based
+                on the duration the average temperature is above 65°F. Heating
+                degree days are the opposite. HDD and CDD are a good measure in
+                how severe a season is, and can translate into higher utility
+                bills.
               </p>
               <div>
                 <Table
@@ -1483,7 +1468,7 @@ export default function ComparisonPage({ locations }: ComparisonPageProps) {
                   units={"%"}
                   averageKey={"morning_frost_chance"}
                   isLoading={isLoadingYearlyData}
-                  colorPercentDev={TEMPERATURE_COLOR_PERC_DEV}
+                  colorPercentDev={COLOR_PERC_DEV_10}
                 ></Table>
 
                 <Table

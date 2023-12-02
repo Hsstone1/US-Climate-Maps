@@ -15,29 +15,39 @@ import { getTemperatureColor } from "../data-value-colors";
 
 // Styled components
 const StyledCalendarBox = styled(Box)(() => ({
-  border: "1px solid black",
-  margin: "0px",
+  background: "#f5f5f5", // Light grey background
+  margin: "auto",
+  width: "100%",
+  boxShadow: "inset 2px 2px 5px #e0e0e0, inset -2px -2px 5px #fafafa", // Beveled edge effect
 }));
 const StyledWeekContainer = styled(Box)(() => ({
   display: "flex",
-  flexDirection: "row",
 }));
-
 const StyledDayCard = styled(Card)(() => ({
-  flex: "1 0 calc(100% / 7)", // Flex grow, flex shrink, flex basis
+  flex: "1 0 calc(100% / 7)", // 7 columns
   border: "1px solid black",
-  padding: "0px",
-  margin: "0px",
-  height: "100px", // Adjust the height as needed
-  width: "100px",
+  height: "6.5em", // Auto height for flexibility
+  width: "5em", // Auto width for flexibility
   textAlign: "center",
   cursor: "pointer",
-
-  paddingLeft: "0.5rem",
-  paddingRight: "0.5rem",
-
   "&:hover": {
     backgroundColor: "#F0F0F0",
+  },
+  "@media screen and (max-width: 768px)": {
+    fontSize: "0.7em", // Smaller text on small screens
+    // Adjust the font size of children elements
+    "& .MuiTypography-h6": {
+      // Adjusting heading typography
+      fontSize: "0.9rem", // Smaller font size
+    },
+    "& .MuiTypography-body1": {
+      // Adjusting body typography
+      fontSize: "0.85rem", // Smaller font size
+    },
+    "& .MuiTypography-body2": {
+      // Adjusting body typography
+      fontSize: "0.65rem", // Smaller font size
+    },
   },
 }));
 
@@ -55,7 +65,16 @@ const StyledWeekdayHeading = styled(Typography)(() => ({
 
 const StyledDetailCard = styled(Card)(() => ({
   flex: "1 0 calc(100% / 4)", // Adjust for 4 cards per row
-  // ... Other styles similar to StyledDayCard
+  border: "1px solid black",
+  margin: "0em", // Relative margin
+  height: "2em", // Auto height for flexibility
+  width: "4em", // Auto width for flexibility
+  textAlign: "center",
+  fontSize: "0.8em", // Smaller text on small screens
+
+  "@media screen and (max-width: 768px)": {
+    fontSize: "0.6em", // Smaller text on small screens
+  },
 }));
 
 type CalendarProps = {
@@ -106,7 +125,7 @@ export default function ClimateCalendar({
       <StyledWeekContainer>
         {DaysOfWeekLabels.map((day) => (
           <StyledWeekdayHeading key={day}>
-            <Typography variant="body2">{day}</Typography>
+            <Typography variant="body1">{day}</Typography>
           </StyledWeekdayHeading>
         ))}
       </StyledWeekContainer>
@@ -123,13 +142,27 @@ export default function ClimateCalendar({
     const isSelected = selectedDay === dayOfYear;
     const isHighestTemp = recordHighBooleans[dayOfYear];
     const isLowestTemp = recordLowBooleans[dayOfYear];
-    let weatherIcon = " ";
-    if (dayData.sun > 70) {
-      weatherIcon += "☀️"; // Sun icon
+    let weatherIcon = day < 10 ? " " : "";
+    if (dayData.snow > 1) {
+      weatherIcon += "🌨️"; // Snow cloud icon
+    } else if (dayData.sun > 70) {
+      if (dayData.precip > 0.1) {
+        weatherIcon += "⛈️"; // Thunderstorm icon
+      } else {
+        weatherIcon += "☀️"; // Sun icon
+      }
     } else if (dayData.sun > 40) {
-      weatherIcon += "🌤️"; // Partly cloudy icon
+      if (dayData.precip > 0.1) {
+        weatherIcon += "🌧️"; // Rain cloud icon
+      } else {
+        weatherIcon += "🌤️"; // Partly cloudy icon
+      }
     } else {
-      weatherIcon += "☁️"; // Cloudy icon
+      if (dayData.precip > 0.1) {
+        weatherIcon += "🌧️"; // Rain cloud icon
+      } else {
+        weatherIcon += "☁️"; // Cloudy icon
+      }
     }
 
     return (
@@ -142,8 +175,8 @@ export default function ClimateCalendar({
           {day}
           <span>{weatherIcon}</span>
 
-          {isHighestTemp && <span style={{ color: "red" }}> ▲</span>}
-          {isLowestTemp && <span style={{ color: "blue" }}> ▼</span>}
+          {isHighestTemp && <span style={{ color: "red" }}>▲</span>}
+          {isLowestTemp && <span style={{ color: "blue" }}>▼</span>}
         </Typography>
         <Typography variant="body1">
           <span
@@ -164,14 +197,14 @@ export default function ClimateCalendar({
         </Typography>
         {dayData.precip > 0.01 && (
           <Typography variant="body2">
-            <span>💧 </span>
+            <span>💧</span>
             {dayData.precip.toFixed(2)} in
           </Typography>
         )}
 
         {dayData.snow > 0.1 && (
           <Typography variant="body2">
-            <span>❄️ </span>
+            <span>❄️</span>
             {dayData.snow.toFixed(1)} in
           </Typography>
         )}
@@ -185,9 +218,11 @@ export default function ClimateCalendar({
       .map((_, index) => renderDay(index))
       .filter(Boolean);
 
+    const emptyDayStyle = { backgroundColor: "#e0e0e0", cursor: "default" };
+
     // Start days from the first day of the month
     const emptyStartDays = Array.from({ length: startDay }).map((_, index) => (
-      <StyledDayCard key={`empty-start-${index}`} />
+      <StyledDayCard key={`empty-start-${index}`} style={emptyDayStyle} />
     ));
 
     const lastDayOfMonth = getLastDayOfMonth(
@@ -200,7 +235,9 @@ export default function ClimateCalendar({
       0
     ).getDay();
     const emptyEndDays = Array.from({ length: (6 - endDay) % 7 }).map(
-      (_, index) => <StyledDayCard key={`empty-end-${index}`} />
+      (_, index) => (
+        <StyledDayCard key={`empty-end-${index}`} style={emptyDayStyle} />
+      )
     );
 
     const calendarDays = [...emptyStartDays, ...days, ...emptyEndDays];
@@ -238,32 +275,27 @@ export default function ClimateCalendar({
       {renderCalendarDays()}
       {selectedDay !== null && (
         <Box marginTop={2}>
-          <Typography variant="h5" style={{ textAlign: "center" }}>
+          <Typography variant="h6" style={{ textAlign: "center" }}>
             Details for {dayOfYearToDate(selectedDay, parseInt(selectedYear))}/
             {selectedYear}
           </Typography>
           <Box display="flex" flexDirection="row">
             <StyledDetailCard>
-              <span style={{ color: "red" }}> ▲</span>
+              <span style={{ color: "red" }}>▲</span>
               {`Record High: ${record_high_data[selectedDay].toFixed(0)}°`}
             </StyledDetailCard>
             <StyledDetailCard>
-              <span> ☀️</span>
-
               {`Sunlight: ${climateData["sun"]["daily"][selectedDay].toFixed(
                 0
               )}%`}
             </StyledDetailCard>
 
             <StyledDetailCard>
-              <span>💨</span>
               {`Wind: ${climateData["wind"]["daily"][selectedDay].toFixed(
                 0
               )}mph`}
             </StyledDetailCard>
             <StyledDetailCard>
-              <span> 🌫️</span>
-
               {`Humidity: ${climateData["mean_humidity"]["daily"][
                 selectedDay
               ].toFixed(0)}%`}
@@ -271,25 +303,20 @@ export default function ClimateCalendar({
           </Box>
           <Box display="flex" flexDirection="row">
             <StyledDetailCard>
-              <span style={{ color: "blue" }}> ▼</span>
+              <span style={{ color: "blue" }}>▼</span>
               {`Record Low: ${record_low_data[selectedDay].toFixed(0)}°`}
             </StyledDetailCard>
             <StyledDetailCard>
-              <span> ☀️</span>
-
               {`UV Index: ${climateData["uv_index"]["daily"][
                 selectedDay
               ].toFixed(0)}`}
             </StyledDetailCard>
             <StyledDetailCard>
-              <span>💨</span>
-
               {`Wind Gust: ${climateData["wind_gust"]["daily"][
                 selectedDay
               ].toFixed(0)}mph`}
             </StyledDetailCard>
             <StyledDetailCard>
-              <span> 💦</span>
               {`Dewpoint: ${climateData["dewpoint"]["daily"][
                 selectedDay
               ].toFixed(0)}°`}
