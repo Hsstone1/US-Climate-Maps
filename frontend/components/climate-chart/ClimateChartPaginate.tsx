@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { Box, Pagination } from "@mui/material";
-import { MarkerType } from "../location-props";
+import { MarkerType } from "../global-utils";
 
 type ClimateChartProps = {
   locations: MarkerType[];

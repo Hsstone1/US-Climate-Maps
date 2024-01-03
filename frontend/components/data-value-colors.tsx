@@ -1,38 +1,67 @@
 export const TitleColor = "#808080";
 export const ThemeColor = "#303030";
 
-export function getTemperatureColor(temperature: number) {
-  // Define the temperature thresholds and corresponding colors
-  const gradient = [
-    { temp: -150, color: "#d4d4d4" }, // grey
-    { temp: -30, color: "#FFC0CB" }, // pink
-    { temp: 0, color: "#800080" }, // purple
-    { temp: 15, color: "#0000FF" }, // blue
-    { temp: 32, color: "#00d9ff" }, // cyan
-    { temp: 50, color: "#008000" }, // green
-    { temp: 70, color: "#FFA500" }, // orange
-    { temp: 90, color: "#FF0000" }, // red
-    { temp: 110, color: "#8B0000" }, // dark red
-    { temp: 150, color: "#000000" }, // black
-  ];
+// Helper function for color interpolation
+export const interpolateColor = (
+  color1: { r: any; g: any; b: any },
+  color2: { r: any; g: any; b: any },
+  factor: number
+) => {
+  if (factor < 0) factor = 0;
+  if (factor > 1) factor = 1;
+  const result = {
+    r: Math.round(color1.r + factor * (color2.r - color1.r)),
+    g: Math.round(color1.g + factor * (color2.g - color1.g)),
+    b: Math.round(color1.b + factor * (color2.b - color1.b)),
+  };
+  return result;
+};
 
+type ScaleStop = {
+  value: number;
+  color: string;
+};
+
+export const temperatureScale: ScaleStop[] = [
+  { value: -150, color: "#d4d4d4" }, // grey
+  { value: -30, color: "#FFC0CB" }, // pink
+  { value: 0, color: "#800080" }, // purple
+  { value: 15, color: "#0000FF" }, // blue
+  { value: 32, color: "#00d9ff" }, // cyan
+  { value: 50, color: "#008000" }, // green
+  { value: 70, color: "#FFA500" }, // orange
+  { value: 90, color: "#FF0000" }, // red
+  { value: 110, color: "#8B0000" }, // dark red
+  { value: 150, color: "#000000" }, // black
+];
+
+export const comfortScale: ScaleStop[] = [
+  { value: 0, color: "#ff0000" },
+  { value: 20, color: "#ff4500" },
+  { value: 40, color: "#ff8c00" },
+  { value: 60, color: "#ffff00" },
+  { value: 80, color: "#9acd32" },
+  { value: 100, color: "#008000" },
+];
+
+export function getScaleColor(value: number, scale: ScaleStop[]) {
   // Find the two closest stops
-  const lowerStop = gradient.reduce((prev, curr) =>
-    curr.temp <= temperature ? curr : prev
+  const lowerStop = scale.reduce((prev, curr) =>
+    curr.value <= value ? curr : prev
   );
-  const upperStop = gradient
+  const upperStop = scale
     .slice()
     .reverse()
-    .find((stop) => stop.temp >= temperature);
+    .find((stop) => stop.value >= value);
 
   // If exact match or out of bounds, return the color
-  if (lowerStop.temp === temperature || lowerStop === upperStop) {
+  if (lowerStop.value === value || lowerStop === upperStop) {
     return lowerStop.color;
   }
 
   // Linear interpolation
   const mix = upperStop
-    ? (temperature - lowerStop.temp) / (upperStop.temp - lowerStop.temp)
+    ? (value - lowerStop.value) / (upperStop.value - lowerStop.value)
     : 0;
   const upperColor = upperStop ? upperStop.color : lowerStop.color;
   return lerpColor(lowerStop.color, upperColor, mix);
@@ -58,48 +87,33 @@ function lerpColor(a: string, b: string, amount: number) {
 export const convertKeyToBackgroundID = (key: string) => {
   switch (key) {
     case "precipitation":
-      return "Precip";
     case "snow":
+    case "precip_days":
+    case "snow_days":
       return "Precip";
     case "afternoon_humidity":
+    case "mean_humidity":
+    case "morning_humidity":
       return "Humidity";
-
-    //Need to make a wind background color
-    case "wind":
-      return "Precip";
-    case "wind_gust":
-      return "Precip";
-
     case "uv_index":
       return "UV Index";
     case "sun":
-      return "SunPercent";
     case "comfort_index":
       return "SunPercent";
     case "dewpoint":
-      return "Temperature";
     case "expected_min_dewpoint":
-      return "Temperature";
     case "expected_max_dewpoint":
-      return "Temperature";
     case "expected_max":
-      return "Temperature";
     case "high_temperature":
-      return "Temperature";
     case "low_temperature":
-      return "Temperature";
     case "expected_min":
-      return "Temperature";
     case "apparent_expected_max":
-      return "Temperature";
     case "apparent_high_temperature":
-      return "Temperature";
     case "apparent_low_temperature":
-      return "Temperature";
     case "apparent_expected_min":
       return "Temperature";
     default:
-      return "Temperature";
+      return "";
   }
 };
 
@@ -112,6 +126,7 @@ export const getBackgroundColor = (
     | "SunHours"
     | "SunPercent"
     | "UV Index"
+    | ""
 ) => {
   if (dataType === "Temperature") {
     //Degrees F, -20 is dark blue, 130 is dark red
@@ -147,8 +162,8 @@ export const getBackgroundColor = (
       )
     ];
   } else if (dataType === "Humidity") {
-    const lowerValue = 20;
-    const upperValue = 90;
+    const lowerValue = 0;
+    const upperValue = 100;
     if (value > upperValue) {
       return PrecipColors[PrecipColors.length - 1];
     }
@@ -203,6 +218,8 @@ export const getBackgroundColor = (
     } else {
       return UV_Index_Colors[4];
     }
+  } else if (dataType === "") {
+    return "#FFFFFF";
   }
 };
 
@@ -212,7 +229,7 @@ export const getTextColor = (value: number, dataType: string) => {
   } else if (dataType === "Precip") {
     return value >= 4.5 ? "#FFFFFF" : "#000000";
   } else if (dataType === "Humidity") {
-    return value >= 9.5 ? "#FFFFFF" : "#000000";
+    return value >= 30 ? "#FFFFFF" : "#000000";
   } else if (dataType === "SunHours") {
     return value <= 49.5 ? "#FFFFFF" : "#000000";
   } else if (dataType === "SunPercent") {

@@ -16,7 +16,7 @@ type YearSelectorProps = {
 
 export default function YearSelector({ onYearChange }: YearSelectorProps) {
   //const currentYear = new Date().getFullYear();
-  const maxYear = 2022;
+  const maxYear = 2023;
   const minYear = 1980;
   const [selectedYear, setSelectedYear] = useState(maxYear + 1);
 

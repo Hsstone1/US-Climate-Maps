@@ -8,11 +8,13 @@ import platform
 from dotenv import load_dotenv
 import json
 from collections import defaultdict
-from db_climate_data import *
+from global_db_climate_data import *
 
 
 NUM_NEAREST_LOCATIONS = 5
 load_dotenv()  # This loads the variables from .env
+TMAX_INVALID_PERC = 30
+TMIN_INVALID_PERC = 30
 
 
 def find_closest_from_db(
@@ -31,17 +33,27 @@ def find_closest_from_db(
             start_time = time.time()
             cursor.execute(
                 CLOSEST_LOCATION_QUERY,
-                (longitude, latitude, longitude, latitude, NUM_NEAREST_LOCATIONS),
+                (
+                    longitude,
+                    latitude,
+                    TMAX_INVALID_PERC,
+                    TMIN_INVALID_PERC,
+                    longitude,
+                    latitude,
+                    NUM_NEAREST_LOCATIONS,
+                ),
             )
             print("time to execute query", time.time() - start_time, "seconds")
             closest_locations = cursor.fetchall()
-            location_ids = []
+            station_ids = []
             elevations = []
             distances = []
+            station_names = []
             for loc in closest_locations:
-                location_ids.append(loc["id"])
+                station_ids.append(loc["id"])
                 elevations.append(float(loc["elevation"]))  # Convert to float
                 distances.append(float(loc["distance"]))  # Convert to float
+                station_names.append(loc["station_identifier"])
 
             # Calculate inverse distance weights
             weights = [1 / d for d in distances]
@@ -51,17 +63,19 @@ def find_closest_from_db(
             weighted_elevation = sum(
                 elev * w for elev, w in zip(elevations, normalized_weights)
             )
+            print("Station Names: ", station_names)
+            print("Station Weights: ", normalized_weights)
 
             # Aggregate the data using IDW
             aggregation_start_time = time.time()
             aggregated_data = idw_aggregation(
-                location_ids, normalized_weights, cursor, year, type
+                station_ids, normalized_weights, cursor, year, type
             )
             print("Time to aggregate", time.time() - aggregation_start_time, "seconds")
             num_days_start_time = time.time()
             if type == "DAILY_AVG_ALL_QUERY" or type == "YEARLY_TRENDS_QUERY":
                 num_days = execute_query_to_dataframe(
-                    cursor, NUM_DAYS_IN_DB_QUERY, (location_ids[0],)
+                    cursor, NUM_DAYS_IN_DB_QUERY, (station_ids[0],)
                 )["total_days"].values[0]
             else:
                 num_days = 1
@@ -209,21 +223,23 @@ def climate_trends_agg_to_json(df):
     return json_data
 
 
-def idw_aggregation(location_ids, weights, cursor, year=None, type=None):
+def idw_aggregation(station_ids, weights, cursor, year=None, type=None):
     aggregated_df = pd.DataFrame()
     data = pd.DataFrame()
 
-    for location_id, weight in zip(location_ids, weights):
+    for station_id, weight in zip(station_ids, weights):
+        start_time = time.time()
         if year:
             data_query = RAW_DAILY_DATA_QUERY
-            data = execute_query_to_dataframe(cursor, data_query, (location_id, year))
+            data = execute_query_to_dataframe(cursor, data_query, (station_id, year))
         else:
             if type == "DAILY_AVG_ALL_QUERY":
                 data_query = DAILY_AVG_ALL_QUERY
-                data = execute_query_to_dataframe(cursor, data_query, (location_id,))
+                data = execute_query_to_dataframe(cursor, data_query, (station_id,))
             elif type == "YEARLY_TRENDS_QUERY":
                 data_query = YEARLY_TRENDS_QUERY
-                data = execute_query_to_dataframe(cursor, data_query, (location_id,))
+                data = execute_query_to_dataframe(cursor, data_query, (station_id,))
+        print("Time to get data", time.time() - start_time, "seconds")
 
         numeric_data = data.select_dtypes(include=["float64", "int64"]) * weight
         data.update(numeric_data)
@@ -266,71 +282,88 @@ def explain_query(cursor, sql, params):
 
 
 CLOSEST_LOCATION_QUERY = """
-    SELECT id, elevation, ST_Distance(geom, ST_SetSRID(ST_MakePoint(%s, %s), 4326)) AS distance
-    FROM public.locations
+    SELECT id, elevation, ST_Distance(geom, ST_SetSRID(ST_MakePoint(%s, %s), 4326)) AS distance, station_identifier
+    FROM public.stations_info
+    WHERE TMAX_INVALID_PERC < %s AND TMIN_INVALID_PERC < %s AND TMAX_INVALID_PERC > 0 AND TMIN_INVALID_PERC > 0 
     ORDER BY geom <-> ST_SetSRID(ST_MakePoint(%s, %s), 4326)
     LIMIT %s;
 """
 
 DAILY_AVG_ALL_QUERY = """
     SELECT EXTRACT(DOY FROM date) as day_of_year,
-            AVG(high_temperature) as high_temperature, 
-            AVG(low_temperature) as low_temperature,
-            AVG(dewpoint) as dewpoint, 
-            AVG(precipitation) as precipitation,
+            AVG(NULLIF(NULLIF(tmax, 9999), 32)) as high_temperature, 
+            AVG(NULLIF(NULLIF(tmin, -9999), 32)) as low_temperature,
+            AVG(prcp) as precipitation,
             AVG(snow) as snow, 
-            AVG(sun) as sun, 
-            AVG(wind) as wind,
-            AVG(wind_gust) as wind_gust, 
-            AVG(wind_direction) as wind_direction,
-            AVG(sun_angle) as sun_angle, 
-            AVG(daylight_length) as daylight_length, 
-            MAX(high_temperature) AS record_high, 
-            MIN(low_temperature) AS record_low,
-            MAX(dewpoint) AS record_high_dewpoint, 
-            MIN(dewpoint) AS record_low_dewpoint,
-            MAX(wind_gust) AS record_high_wind_gust,
-            PERCENTILE_CONT(0.95) WITHIN GROUP (ORDER BY high_temperature) AS expected_max,
-            PERCENTILE_CONT(0.05) WITHIN GROUP (ORDER BY low_temperature) AS expected_min,
-            PERCENTILE_CONT(0.95) WITHIN GROUP (ORDER BY dewpoint) AS expected_max_dewpoint,
-            PERCENTILE_CONT(0.05) WITHIN GROUP (ORDER BY dewpoint) AS expected_min_dewpoint,
-            SUM(CASE WHEN precipitation >= 0.05 THEN 1 ELSE 0 END) AS precip_days,
-            SUM(CASE WHEN snow >= 0.5 THEN 1 ELSE 0 END) AS snow_days,
-            SUM(CASE WHEN sun > 70 THEN 1 ELSE 0 END) AS clear_days,
-            SUM(CASE WHEN sun > 30 AND sun <= 70 THEN 1 ELSE 0 END) AS partly_cloudy_days,
-            SUM(CASE WHEN sun <= 30 THEN 1 ELSE 0 END) AS cloudy_days,
-            SUM(CASE WHEN dewpoint >= 75 THEN 1 ELSE 0 END) AS dewpoint_oppressive_days,
-            SUM(CASE WHEN dewpoint >= 70 AND dewpoint < 75 THEN 1 ELSE 0 END) AS dewpoint_muggy_days,
-            SUM(CASE WHEN dewpoint >= 60 AND dewpoint < 70 THEN 1 ELSE 0 END) AS dewpoint_humid_days,
-            SUM(CASE WHEN dewpoint >= 50 AND dewpoint < 60 THEN 1 ELSE 0 END) AS dewpoint_low_days,
-            SUM(CASE WHEN dewpoint < 50 THEN 1 ELSE 0 END) AS dewpoint_dry_days
-    FROM public.climate_data
-    WHERE location_id = %s
+            MAX(NULLIF(NULLIF(tmax, 9999), 32)) AS record_high, 
+            MIN(NULLIF(NULLIF(tmin, -9999), 32)) AS record_low,
+            PERCENTILE_CONT(0.95) WITHIN GROUP (ORDER BY NULLIF(NULLIF(tmax, 9999), 32)) AS expected_max,
+            PERCENTILE_CONT(0.05) WITHIN GROUP (ORDER BY NULLIF(NULLIF(tmin, -9999), 32)) AS expected_min,
+            SUM(CASE WHEN prcp >= 0.01 THEN 1 ELSE 0 END) AS precip_days,
+            SUM(CASE WHEN snow >= 0.1 THEN 1 ELSE 0 END) AS snow_days
+           
+    FROM public.stations_climate_data
+    WHERE station_id = %s
+    AND tmax NOT IN (9999, 32)
+    AND tmin NOT IN (-9999, 32)
     GROUP BY day_of_year
     ORDER BY day_of_year;
 """
 
+
+DAILY_AVG_ALL_STATIONS_QUERY = """
+WITH FilteredData AS (
+    SELECT 
+        date,
+        CASE 
+            WHEN tmax NOT IN (9999, 32) THEN tmax 
+            ELSE NULL 
+        END AS tmax_clean,
+        CASE 
+            WHEN tmin NOT IN (-9999, 32) THEN tmin 
+            ELSE NULL 
+        END AS tmin_clean,
+        prcp,
+        snow
+    FROM public.stations_climate_data
+    WHERE station_id = %s
+      AND tmax NOT IN (9999, 32)
+      AND tmin NOT IN (-9999, 32)
+)
+SELECT 
+    EXTRACT(DOY FROM date) as day_of_year,
+    AVG(tmax_clean) as high_temperature,
+    AVG(tmin_clean) as low_temperature,
+    AVG(prcp) as precipitation,
+    AVG(snow) as snow,
+    MAX(tmax_clean) AS record_high,
+    MIN(tmin_clean) AS record_low,
+    PERCENTILE_CONT(0.95) WITHIN GROUP (ORDER BY tmax_clean) AS expected_max,
+    PERCENTILE_CONT(0.05) WITHIN GROUP (ORDER BY tmin_clean) AS expected_min,
+    SUM(CASE WHEN prcp >= 0.01 THEN 1 ELSE 0 END) AS precip_days,
+    SUM(CASE WHEN snow >= 0.1 THEN 1 ELSE 0 END) AS snow_days
+FROM FilteredData
+GROUP BY day_of_year
+ORDER BY day_of_year;
+"""
+
+
 NUM_DAYS_IN_DB_QUERY = """
     SELECT COUNT(DISTINCT date) AS total_days 
-    FROM public.climate_data 
-    WHERE location_id = %s;
+    FROM public.stations_climate_data 
+    WHERE station_id = %s;
 """
 
 RAW_DAILY_DATA_QUERY = """
-    SELECT date, high_temperature, low_temperature, dewpoint, precipitation,
-           snow, sun, wind, wind_gust, wind_direction, sun_angle, daylight_length,
-           CASE WHEN precipitation >= 0.05 THEN 1 ELSE 0 END AS precip_days,
-           CASE WHEN snow >= 0.5 THEN 1 ELSE 0 END AS snow_days,
-           CASE WHEN sun > 70 THEN 1 ELSE 0 END AS clear_days,
-           CASE WHEN sun > 30 AND sun <= 70 THEN 1 ELSE 0 END AS partly_cloudy_days,
-           CASE WHEN sun <= 30 THEN 1 ELSE 0 END AS cloudy_days,
-           CASE WHEN dewpoint >= 75 THEN 1 ELSE 0 END AS dewpoint_oppressive_days,
-           CASE WHEN dewpoint >= 70 AND dewpoint < 75 THEN 1 ELSE 0 END AS dewpoint_muggy_days,
-           CASE WHEN dewpoint >= 60 AND dewpoint < 70 THEN 1 ELSE 0 END AS dewpoint_humid_days,
-           CASE WHEN dewpoint >= 50 AND dewpoint < 60 THEN 1 ELSE 0 END AS dewpoint_low_days,
-           CASE WHEN dewpoint < 50 THEN 1 ELSE 0 END AS dewpoint_dry_days
-    FROM public.climate_data
-    WHERE location_id = %s AND EXTRACT(YEAR FROM date) = %s
+    SELECT date, 
+            NULLIF(NULLIF(tmax, 9999), 32) AS high_temperature, 
+            NULLIF(NULLIF(tmin, -9999), 32) AS low_temperature,
+            prcp AS precipitation,
+            snow,
+            CASE WHEN prcp >= 0.01 THEN 1 ELSE 0 END AS precip_days,
+            CASE WHEN snow >= 0.1 THEN 1 ELSE 0 END AS snow_days
+    FROM public.stations_climate_data
+    WHERE station_id = %s AND EXTRACT(YEAR FROM date) = %s
     ORDER BY date;
 """
 
@@ -338,27 +371,13 @@ YEARLY_TRENDS_QUERY = """
 SELECT EXTRACT(YEAR FROM date) as year,
        AVG(high_temperature) as high_temperature, 
        AVG(low_temperature) as low_temperature,
-       AVG(dewpoint) as dewpoint, 
        AVG(precipitation) as precipitation,
        AVG(snow) as snow, 
-       AVG(sun) as sun, 
-       AVG(wind) as wind,
-       AVG(wind_gust) as wind_gust, 
-       AVG(wind_direction) as wind_direction,
-       AVG(sun_angle) as sun_angle,
-       AVG(daylight_length) as daylight_length, 
-       SUM(CASE WHEN precipitation >= 0.05 THEN 1 ELSE 0 END) AS precip_days,
-       SUM(CASE WHEN snow >= 0.5 THEN 1 ELSE 0 END) AS snow_days,
-       SUM(CASE WHEN sun > 70 THEN 1 ELSE 0 END) AS clear_days,
-       SUM(CASE WHEN sun > 30 AND sun <= 70 THEN 1 ELSE 0 END) AS partly_cloudy_days,
-       SUM(CASE WHEN sun <= 30 THEN 1 ELSE 0 END) AS cloudy_days,
-       SUM(CASE WHEN dewpoint >= 75 THEN 1 ELSE 0 END) AS dewpoint_oppressive_days,
-       SUM(CASE WHEN dewpoint >= 70 AND dewpoint < 75 THEN 1 ELSE 0 END) AS dewpoint_muggy_days,
-       SUM(CASE WHEN dewpoint >= 60 AND dewpoint < 70 THEN 1 ELSE 0 END) AS dewpoint_humid_days,
-       SUM(CASE WHEN dewpoint >= 50 AND dewpoint < 60 THEN 1 ELSE 0 END) AS dewpoint_low_days,
-       SUM(CASE WHEN dewpoint < 50 THEN 1 ELSE 0 END) AS dewpoint_dry_days
+       SUM(CASE WHEN precipitation >= 0.01 THEN 1 ELSE 0 END) AS precip_days,
+       SUM(CASE WHEN snow >= 0.1 THEN 1 ELSE 0 END) AS snow_days
+
 FROM public.climate_data
-WHERE location_id = %s
+WHERE station_id = %s
 GROUP BY year
 ORDER BY year;
 """

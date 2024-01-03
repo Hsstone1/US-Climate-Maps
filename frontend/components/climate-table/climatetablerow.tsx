@@ -1,7 +1,11 @@
 import { TableRow, TableCell } from "@mui/material";
 import { styled } from "@mui/system";
 
-import { getBackgroundColor, getTextColor } from "../data-value-colors";
+import {
+  ThemeColor,
+  getBackgroundColor,
+  getTextColor,
+} from "../data-value-colors";
 
 type ClimateTableRowProps = {
   monthly_data: any;
@@ -16,15 +20,20 @@ type ClimateTableRowProps = {
     | "UV Index";
   numDec?: number;
   divideAnnualBackground?: 1 | 12;
+  divideDataByVal?: number;
   annual_units?: string;
 };
 
-const StyledTableCell = styled(TableCell)(({ theme }) => ({
-  border: "1px solid black",
+const StyledTableCell = styled(TableCell)(({}) => ({
+  border: `1px solid ${ThemeColor}`,
   whiteSpace: "nowrap",
-  padding: "2px",
-  textAlign: "right",
-  fontSize: "12px",
+  padding: "0.05em",
+  fontSize: "0.75em",
+  margin: "0px",
+  "@media screen and (max-width: 768px)": {
+    fontSize: "0.6em", // Smaller text on small screens
+    // Adjust the font size of children elements
+  },
 }));
 
 export default function ClimateTableRow({
@@ -34,17 +43,23 @@ export default function ClimateTableRow({
   dataType,
   numDec = 0,
   divideAnnualBackground = 1,
+  divideDataByVal = 1,
   annual_units = "",
 }: ClimateTableRowProps) {
   return (
     <TableRow>
-      <StyledTableCell align="right">{rowTitle}</StyledTableCell>
+      <StyledTableCell align="right" style={{ paddingRight: "0.5em" }}>
+        {rowTitle}
+      </StyledTableCell>
       {monthly_data.map((value: any, index: any) => (
         <StyledTableCell
           key={index}
           style={{
-            backgroundColor: getBackgroundColor(value, dataType),
-            color: getTextColor(value, dataType),
+            backgroundColor: getBackgroundColor(
+              value / divideDataByVal,
+              dataType
+            ),
+            color: getTextColor(value / divideDataByVal, dataType),
             textAlign: "center",
           }}
         >
@@ -55,10 +70,13 @@ export default function ClimateTableRow({
       <StyledTableCell
         style={{
           backgroundColor: getBackgroundColor(
-            annual_data / divideAnnualBackground,
+            annual_data / divideAnnualBackground / divideDataByVal,
             dataType
           ),
-          color: getTextColor(annual_data / divideAnnualBackground, dataType),
+          color: getTextColor(
+            annual_data / divideAnnualBackground / divideDataByVal,
+            dataType
+          ),
           textAlign: "center",
         }}
       >

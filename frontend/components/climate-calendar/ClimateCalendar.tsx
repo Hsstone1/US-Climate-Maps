@@ -8,10 +8,10 @@ import {
   MonthLabels,
   DaysOfWeekLabels,
   getLastDayOfMonth,
-} from "../compare-page/climate-chart-helpers";
+} from "../climate-chart/climate-chart-helpers";
 
 import CustomSlider from "../CustomSlider";
-import { getTemperatureColor } from "../data-value-colors";
+import { getScaleColor, temperatureScale } from "../data-value-colors";
 
 // Styled components
 const StyledCalendarBox = styled(Box)(() => ({
@@ -112,26 +112,28 @@ export default function ClimateCalendar({
     return {
       high: climateData["high_temperature"]["daily"][dayOfYear],
       low: climateData["low_temperature"]["daily"][dayOfYear],
-      //This will be changed to an actual condition predicted in the backend
-      weatherCondition: climateData["precipitation"]["daily"][dayOfYear],
       precip: climateData["precipitation"]["daily"][dayOfYear],
       snow: climateData["snow"]["daily"][dayOfYear],
       sun: climateData["sun"]["daily"][dayOfYear],
     };
   };
 
+  // This function renders the weekday headings
+  // Need to declare the key as div to prevent <p> nesting
   const renderWeekdayHeadings = () => {
     return (
       <StyledWeekContainer>
         {DaysOfWeekLabels.map((day) => (
-          <StyledWeekdayHeading key={day}>
-            <Typography variant="body1">{day}</Typography>
+          <StyledWeekdayHeading key={day} as="div">
+            {day}
           </StyledWeekdayHeading>
         ))}
       </StyledWeekContainer>
     );
   };
 
+  // This function renders the days of the month cards
+  // Displaying the icons, temperature, day of the month, precip and snow if applicable.
   const renderDay = (dayOfYear: number) => {
     const dateStr = dayOfYearToDate(dayOfYear, parseInt(selectedYear));
     const [month, day] = dateStr.split("/").map(Number);
@@ -181,7 +183,7 @@ export default function ClimateCalendar({
         <Typography variant="body1">
           <span
             style={{
-              color: getTemperatureColor(dayData.high),
+              color: getScaleColor(dayData.high, temperatureScale),
             }}
           >
             {dayData.high.toFixed(0)}°
@@ -189,7 +191,7 @@ export default function ClimateCalendar({
           |
           <span
             style={{
-              color: getTemperatureColor(dayData.low),
+              color: getScaleColor(dayData.low, temperatureScale),
             }}
           >
             {dayData.low.toFixed(0)}°

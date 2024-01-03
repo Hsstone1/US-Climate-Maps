@@ -72,7 +72,7 @@ export default function SearchBar({ setMarker }: SearchBarProps) {
         <ComboboxList>
           {status === "OK" &&
             data
-              .filter(({ description }) => description.includes("USA"))
+              // .filter(({ description }) => description.includes("USA"))
               .map(({ place_id, description }) => (
                 <ComboboxOption key={place_id} value={description} />
               ))}

@@ -1,21 +1,16 @@
-import { MarkerType, LocationColors } from "../location-props";
+import { MarkerType, LocationColors } from "../global-utils";
 import {
   ClimateChartDataset,
   TimeGranularity,
+  calculateSMA,
   chartConfig,
+  getNumDaysInMonths,
 } from "./climate-chart-helpers";
 
 import {
   getBackgroundColor,
   convertKeyToBackgroundID,
 } from "../data-value-colors";
-
-const CHART_BORDER_WIDTH = chartConfig.chartBorderWidth;
-const LINE_TENSION = chartConfig.lineTension;
-const LINE_ALPHA = chartConfig.lineAlpha;
-const BACKGROUND_ALPHA = chartConfig.backgroundAlpha;
-const PAGINATED_BACKGROUND_ALPHA = chartConfig.paginatedBackgroundAlpha;
-const SMA_SMOOTH_DAYS = chartConfig.smaSmoothDays;
 
 type TemperatureDataKey =
   | "expected_max"
@@ -41,7 +36,18 @@ type ClimateDataKey =
   | "sun"
   | "uv_index"
   | "comfort_index"
-  | "growing_season";
+  | "growing_season"
+  | "morning_frost_chance";
+
+type StackedBarKey =
+  | "clear_days"
+  | "partly_cloudy_days"
+  | "cloudy_days"
+  | "dewpoint_dry_days"
+  | "dewpoint_low_days"
+  | "dewpoint_humid_days"
+  | "dewpoint_muggy_days"
+  | "dewpoint_oppressive_days";
 
 export type TempeartureDataKeys = {
   [key: string]: TemperatureDataKey;
@@ -49,6 +55,10 @@ export type TempeartureDataKeys = {
 
 export type ClimateDataKeys = {
   [key: string]: ClimateDataKey;
+};
+
+export type StackedBarKeys = {
+  [key: string]: StackedBarKey;
 };
 
 export const createTemperatureDataset = (
@@ -66,12 +76,14 @@ export const createTemperatureDataset = (
       typeof selectedIndex !== "undefined" ? selectedIndex : index;
     const isAnnual = selectedYear === "Annual";
     const location_name = "";
-    const color = LocationColors(LINE_ALPHA)[colorIndex];
-    const background_color = LocationColors(BACKGROUND_ALPHA)[colorIndex];
+    const color = LocationColors(chartConfig.lineAlpha)[colorIndex];
+    const background_color = LocationColors(chartConfig.backgroundAlpha)[
+      colorIndex
+    ];
     const paginated_background_color = LocationColors(
-      PAGINATED_BACKGROUND_ALPHA
+      chartConfig.paginatedBackgroundAlpha
     )[colorIndex];
-    const border_width = CHART_BORDER_WIDTH;
+    const border_width = chartConfig.chartBorderWidth;
 
     // Loop over each key in dataKeys to create datasets
     Object.entries(dataKeys).forEach(([labelSuffix, dataKey]) => {
@@ -91,7 +103,7 @@ export const createTemperatureDataset = (
           labelSuffix === "Max" || labelSuffix === "Min" ? null : yearlyData,
           {
             multiplyByVal: 1,
-            windowSize: SMA_SMOOTH_DAYS,
+            windowSize: chartConfig.smaSmoothDays,
           }
         ),
         backgroundColor:
@@ -104,7 +116,7 @@ export const createTemperatureDataset = (
         borderWidth: temperatureBorderWidth(labelSuffix, isAnnual),
         pointRadius: 0,
         pointHoverRadius: 0,
-        lineTension: LINE_TENSION,
+        lineTension: chartConfig.lineTension,
         fill: temperatureFillOption(labelSuffix, isBarChart),
         yAxisID: "Temperature",
       };
@@ -121,7 +133,7 @@ const temperatureBorderWidth = (labelSuffix: string, isAnnual: boolean) => {
   } else if ((labelSuffix === "High" || labelSuffix === "Low") && !isAnnual) {
     return 0;
   } else {
-    return CHART_BORDER_WIDTH;
+    return chartConfig.chartBorderWidth;
   }
 };
 
@@ -160,12 +172,14 @@ export const createClimateDataset = (
       typeof selectedIndex !== "undefined" ? selectedIndex : index;
     const isAnnual = selectedYear === "Annual";
     const location_name = "";
-    const color = LocationColors(LINE_ALPHA)[colorIndex];
-    const background_color = LocationColors(BACKGROUND_ALPHA)[colorIndex];
+    const color = LocationColors(chartConfig.lineAlpha)[colorIndex];
+    const background_color = LocationColors(chartConfig.backgroundAlpha)[
+      colorIndex
+    ];
     const paginated_background_color = LocationColors(
-      PAGINATED_BACKGROUND_ALPHA
+      chartConfig.paginatedBackgroundAlpha
     )[colorIndex];
-    const border_width = CHART_BORDER_WIDTH;
+    const border_width = chartConfig.chartBorderWidth;
 
     // Loop over each key in dataKeys to create datasets
     Object.entries(dataKeys).forEach(([labelSuffix, dataKey]) => {
@@ -178,7 +192,7 @@ export const createClimateDataset = (
         {
           multiplyByVal:
             labelSuffix === "Avg" ? avgMultiplyByVal : historicalMultiplyByVal,
-          windowSize: SMA_SMOOTH_DAYS,
+          windowSize: chartConfig.smaSmoothDays,
         }
       );
       let backgroundColors;
@@ -195,33 +209,39 @@ export const createClimateDataset = (
           ? color
           : background_color;
 
-      if (!isAnnual) {
-        backgroundColors = climate_data.map((dataPoint: number) =>
-          getBackgroundColor(dataPoint, convertKeyToBackgroundID(dataKey))
-        );
-      } else {
-        backgroundColors = new Array(climate_data.length).fill(
-          conditionalBackgroundColor
-        );
-      }
+      //if (!isAnnual) {
+      backgroundColors = climate_data.map((dataPoint: number) =>
+        getBackgroundColor(dataPoint, convertKeyToBackgroundID(dataKey))
+      );
+      // } else {
+      //   backgroundColors = new Array(climate_data.length).fill(
+      //     conditionalBackgroundColor
+      //   );
+      // }
 
       const dataset: ClimateChartDataset = {
         type: "line",
         label: location_name + " " + labelSuffix,
         data: climate_data,
-        pointBackgroundColor: isAnnual
-          ? conditionalBackgroundColor
-          : backgroundColors,
-        backgroundColor: isAnnual
-          ? conditionalBackgroundColor
-          : backgroundColors,
+        pointBackgroundColor: backgroundColors,
+        backgroundColor: backgroundColors,
 
         borderColor: conditionalBorderColor,
 
-        borderWidth: border_width,
-        pointRadius: 0,
+        borderWidth:
+          labelSuffix !== "Avg" &&
+          labelSuffix !== "High" &&
+          labelSuffix !== "Low"
+            ? border_width
+            : 0.1,
+        pointRadius:
+          labelSuffix !== "Avg" &&
+          labelSuffix !== "High" &&
+          labelSuffix !== "Low"
+            ? 0
+            : 1,
         pointHoverRadius: 0,
-        lineTension: LINE_TENSION,
+        lineTension: chartConfig.lineTension,
         fill: climateFillOption(
           labelSuffix,
           isAnnual,
@@ -264,6 +284,91 @@ const climateFillOption = (
   }
 };
 
+export const createStackedBarDataset = (
+  locations: MarkerType[],
+  selectedIndex: number | undefined | null,
+  selectedYear: string,
+  yearlyData: any | undefined | null,
+  multiplyByVal: {
+    avgMultiplyByVal?: number;
+    historicalMultiplyByVal?: number;
+  },
+  yAxisID: ClimateChartDataset["yAxisID"],
+  dataKeys: StackedBarKeys,
+  timeGranularity: TimeGranularity
+): ClimateChartDataset[] => {
+  const datasets: ClimateChartDataset[] = [];
+  const { avgMultiplyByVal = 1, historicalMultiplyByVal = 1 } = multiplyByVal;
+
+  locations.forEach((location: any, index: any) => {
+    const colorIndex =
+      typeof selectedIndex !== "undefined" ? selectedIndex : index;
+    const isAnnual = selectedYear === "Annual";
+    const location_name = "";
+    const color = LocationColors(chartConfig.lineAlpha)[colorIndex];
+    const background_color = LocationColors(chartConfig.backgroundAlpha)[
+      colorIndex
+    ];
+    const paginated_background_color = LocationColors(
+      chartConfig.paginatedBackgroundAlpha
+    )[colorIndex];
+    const border_width = chartConfig.chartBorderWidth;
+
+    // Loop over each key in dataKeys to create datasets
+    Object.entries(dataKeys).forEach(([labelSuffix, dataKey]) => {
+      const climate_data = get_climate_data_stacked(
+        location,
+        dataKey,
+        timeGranularity,
+        selectedYear,
+        yearlyData,
+        getNumDaysInMonths(selectedYear)
+      );
+
+      const dataset: ClimateChartDataset = {
+        type: "bar",
+        stack: `locationStack-${location.id}`,
+        label: location_name + " " + labelSuffix,
+        data: climate_data,
+        backgroundColor: getStackBackgroundColor(dataKey),
+        borderColor: getStackBackgroundColor(dataKey),
+        borderWidth: border_width,
+        pointRadius: 0,
+        pointHoverRadius: 0,
+        lineTension: chartConfig.lineTension,
+        fill: false,
+        yAxisID: yAxisID as ClimateChartDataset["yAxisID"],
+      };
+      datasets.push(dataset);
+    });
+  });
+
+  return datasets;
+};
+
+const getStackBackgroundColor = (key: any) => {
+  switch (key) {
+    case "clear_days":
+      return "#29b0ff";
+    case "partly_cloudy_days":
+      return "#96d8ff";
+    case "cloudy_days":
+      return "#949494";
+    case "dewpoint_dry_days":
+      return "#00FFFF";
+    case "dewpoint_low_days":
+      return "#00BFFF";
+    case "dewpoint_humid_days":
+      return "#0000FF";
+    case "dewpoint_muggy_days":
+      return "#000080";
+    case "dewpoint_oppressive_days":
+      return "#000000";
+    default:
+      return "#000000";
+  }
+};
+
 const get_climate_data = (
   location: any,
   key: string,
@@ -284,46 +389,34 @@ const get_climate_data = (
   }
   rawData = rawData.map((val: number) => val * multiplyByVal);
 
-  // SMA calculation to smooth the data
-  const calculateSMA = (data: number[], window_size: number) => {
-    let rollingAverages = [];
-
-    // Determine how many data points should be taken before and after the current point
-    let beforeAfterCount = Math.floor(window_size / 2);
-
-    for (let i = 0; i < data.length; i++) {
-      let start_index = i - beforeAfterCount;
-      let end_index = i + beforeAfterCount + 1; // Include the current data point
-
-      let validWindowData;
-      if (start_index < 0 || end_index > data.length) {
-        // This step will depend on how you want to handle the boundaries (e.g., repeat, use available data, etc.)
-        // Here's an example of using available data:
-        validWindowData = data.slice(
-          Math.max(0, start_index),
-          Math.min(data.length, end_index)
-        );
-      } else {
-        validWindowData = data.slice(start_index, end_index);
-      }
-
-      let validValues = validWindowData.filter((value) => value != null);
-
-      if (validValues.length > 0) {
-        let sum = validValues.reduce((a, b) => a + b, 0);
-        let avg = sum / validValues.length;
-        rollingAverages.push(avg);
-      } else {
-        rollingAverages.push(null); // No valid values in the window
-      }
-    }
-
-    return rollingAverages;
-  };
-
   if (windowSize && selectedYear === "Annual") {
     return calculateSMA(rawData, windowSize);
   }
 
   return rawData;
+};
+
+const get_climate_data_stacked = (
+  location: any,
+  key: string,
+  time_granularity: TimeGranularity,
+  selectedYear: "Annual" | string,
+  yearlyData: null | any,
+  multipliers: number[] = []
+) => {
+  //TODO this might crash if the key is missing, likely in expected_min and max
+  let rawData;
+  if (selectedYear !== "Annual" && yearlyData?.[location.id]?.[selectedYear]) {
+    rawData =
+      yearlyData[location.id][selectedYear].climate_data[key][time_granularity];
+  } else {
+    rawData = location.data.climate_data[key][time_granularity];
+  }
+
+  const convertedData = rawData.map((value: number, index: number) => {
+    const totalDays = multipliers[index] || 1; // Default to 1 if no multiplier provided
+    return totalDays > 0 ? (value / totalDays) * 100 : 0; // Convert to percentage
+  });
+
+  return convertedData;
 };

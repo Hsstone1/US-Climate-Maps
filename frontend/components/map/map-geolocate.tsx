@@ -16,7 +16,7 @@ export const getGeolocate = async (
         if (component.types.includes("locality")) {
           locality = component.long_name;
         } else if (component.types.includes("administrative_area_level_1")) {
-          state = component.long_name;
+          state = component.short_name;
         } else if (component.types.includes("country")) {
           country = component.short_name;
         }

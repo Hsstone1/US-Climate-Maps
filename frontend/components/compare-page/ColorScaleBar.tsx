@@ -1,17 +1,17 @@
 type ColorScaleBarProps = {
-  colorPercentDev?: number;
+  yearPercentDev?: number;
 };
 
-export const ColorScaleBar = ({ colorPercentDev = 50 }: ColorScaleBarProps) => {
-  // Assuming colorPercentDev is available in the scope
-  const tickStep = colorPercentDev / 2; // Adjust this to change the number of ticks
+export const ColorScaleBar = ({ yearPercentDev = 50 }: ColorScaleBarProps) => {
+  // Assuming yearPercentDev is available in the scope
+  const tickStep = yearPercentDev / 2; // Adjust this to change the number of ticks
 
   const generateTicks = () => {
     let ticks = [];
-    for (let i = -colorPercentDev; i <= colorPercentDev; i += tickStep) {
+    for (let i = -yearPercentDev; i <= yearPercentDev; i += tickStep) {
       ticks.push({
         label: `${i}%`,
-        position: `${((i + colorPercentDev) / (2 * colorPercentDev)) * 100}%`,
+        position: `${((i + yearPercentDev) / (2 * yearPercentDev)) * 100}%`,
       });
     }
     return ticks;

@@ -3,18 +3,24 @@ import { GoogleMap, Marker } from "@react-google-maps/api";
 import SearchBar from "../app-bar/SearchBar";
 import CompareLocationsList from "../app-bar/ComparisonList";
 import ComparePage from "../compare-page/ComparePage";
-import { MarkerType } from "../location-props";
+import { API_URL, MarkerType } from "../global-utils";
 import { getGeolocate, getElevation } from "./map-geolocate";
 import CustomInfoWindow from "./CustomInfoWindow";
 import Snackbar from "@mui/material/Snackbar";
 import CircularProgress from "@mui/material/CircularProgress";
+import ClimateTrends from "../climate-trends/ClimateTrends";
+import Sidebar from "../app-bar/SideBar/SideBar";
 
 type LatLngLiteral = google.maps.LatLngLiteral;
 type MapOptions = google.maps.MapOptions;
 //max number of locations that can be compared at once
 const NUM_NUM_LOCATIONS = 5;
 
-let apiUrl = process.env.NEXT_PUBLIC_API_URL;
+type YearlyData = {
+  [locationId: string]: {
+    [year: string]: any;
+  };
+};
 
 export default function Map() {
   const mapRef = useRef<GoogleMap>();
@@ -26,18 +32,25 @@ export default function Map() {
   const [alertMessage, setAlertMessage] = useState<string | null>(null);
 
   const [selectedMarker, setSelectedMarker] = useState<MarkerType[]>([]);
-  const [locationsCompare, setLocationsCompare] = useState<MarkerType[]>([]);
+  const [locations, setLocations] = useState<MarkerType[]>([]);
   const [locationName, setLocationName] = useState<string | null>("");
+
+  const [yearlyData, setYearlyData] = useState<YearlyData>({});
+  const [isLoadingYearlyData, setIsLoadingYearlyData] = useState(false);
+  const [climateData, setClimateData] = useState<any>({});
+  const [isLoadingClimateData, setIsLoadingClimateData] = useState(false);
+  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+
   const [activeComponent, setActiveComponent] = useState<
-    "map" | "compare" | "climate change"
-  >("map");
+    "Map" | "Compare" | "ClimateTrends"
+  >("Map");
 
   const mapOptions = useMemo<MapOptions>(
     () => ({
       clickableIcons: false,
       disableDoubleClickZoom: true,
       maxZoom: 13,
-      minZoom: 4,
+      minZoom: 3,
       mapTypeId: "terrain",
       zoomControl: true,
       zoomControlOptions: {
@@ -48,10 +61,10 @@ export default function Map() {
       streetViewControl: false,
       restriction: {
         latLngBounds: {
-          north: 72,
-          south: 15,
-          west: -170,
-          east: -50,
+          north: 85,
+          south: -85,
+          west: -180,
+          east: 180,
         },
         strictBounds: false,
       },
@@ -90,7 +103,7 @@ export default function Map() {
   }, [selectedMarker]);
 
   const handleCompareMarker = useCallback((marker: MarkerType) => {
-    setLocationsCompare((prevLocations) => {
+    setLocations((prevLocations) => {
       // Check if the marker's id already exists in the list
       const isMarkerExists = prevLocations.some(
         (location) => location.id === marker.id
@@ -132,7 +145,7 @@ export default function Map() {
       getElevation(latitude, longitude)
         .then((elevation) => {
           // Send latitude, longitude, and elevationData values to the backend API
-          fetch(apiUrl + "/climate_data_db", {
+          fetch(API_URL + "/climate_data_db", {
             method: "POST",
             headers: {
               "Content-Type": "application/json",
@@ -163,7 +176,7 @@ export default function Map() {
               };
 
               //Only prints if in testing
-              if (apiUrl === "http://localhost:5000") {
+              if (API_URL === "http://localhost:5000") {
                 console.log("LOCATION ", newMarker);
               }
 
@@ -216,16 +229,16 @@ export default function Map() {
   //This removes the card from comparison list
   const handleRemoveLocation = useCallback(
     (marker: MarkerType) => {
-      setLocationsCompare((prevLocations) =>
+      setLocations((prevLocations) =>
         prevLocations.filter((location) => location.id !== marker.id)
       );
 
       //If there are no more locations in the list, hide the compare page
-      if (locationsCompare.length === 1) {
-        setActiveComponent("map");
+      if (locations.length === 1) {
+        setActiveComponent("Map");
       }
     },
-    [locationsCompare.length]
+    [locations.length]
   );
 
   //This removes the marker from the map, as well as from comparison list
@@ -254,6 +267,10 @@ export default function Map() {
     [isFetching, handleBackendMarkerData]
   );
 
+  const toggleSidebar = () => {
+    setIsSidebarOpen(!isSidebarOpen);
+  };
+
   return (
     <div className="app-container">
       <nav className="nav">
@@ -266,7 +283,7 @@ export default function Map() {
             <a
               href="#"
               onClick={() => {
-                setActiveComponent("map");
+                setActiveComponent("Map");
               }}
             >
               Map
@@ -276,8 +293,8 @@ export default function Map() {
             <a
               href="#"
               onClick={() => {
-                if (locationsCompare.length > 0) {
-                  setActiveComponent("compare");
+                if (locations.length > 0) {
+                  setActiveComponent("Compare");
                 }
               }}
             >
@@ -285,16 +302,20 @@ export default function Map() {
             </a>
           </li>
 
-          {/* <li>
-            <a
-              href="#"
-              onClick={() => {
-                setActiveComponent("climate change");
-              }}
-            >
-              Climate Change
-            </a>
-          </li> */}
+          {
+            <li>
+              <a
+                href="#"
+                onClick={() => {
+                  if (locations.length > 0) {
+                    setActiveComponent("ClimateTrends");
+                  }
+                }}
+              >
+                Climate Trends
+              </a>
+            </li>
+          }
         </ul>
       </nav>
 
@@ -315,15 +336,15 @@ export default function Map() {
             </li>
           </ul>
 
-          <ul
+          {/* <ul
             className={
-              locationsCompare.length === 0
+              locations.length === 0
                 ? "nav_locations-list centered-content"
                 : "nav_locations-list"
             }
           >
             <li>
-              {locationsCompare.length === 0 ? (
+              {locations.length === 0 ? (
                 <>
                   <p className="compare-locations-list-text">
                     Click a location on the map, then navigate to the compare
@@ -332,21 +353,33 @@ export default function Map() {
                 </>
               ) : (
                 <CompareLocationsList
-                  locations={locationsCompare}
+                  locations={locations}
                   onRemoveLocation={handleRemoveMarker}
                 />
               )}
             </li>
-          </ul>
+          </ul> */}
+
+          <p className="compare-locations-list-text">
+            {locations.length == 0
+              ? `Click a location on the map, then navigate to the compare tab.`
+              : `Locations: ${locations.length}`}
+          </p>
+
+          <button className="menu-icon" onClick={toggleSidebar}>
+            &#9776; {/* Hamburger icon */}
+          </button>
+          <Sidebar
+            locations={locations}
+            isOpen={isSidebarOpen}
+            toggleSidebar={toggleSidebar}
+            onRemoveLocation={handleRemoveMarker}
+          />
         </div>
       </nav>
 
       <div className="container">
-        {activeComponent === "compare" && (
-          <ComparePage locations={locationsCompare} />
-        )}
-
-        {activeComponent === "map" && (
+        {activeComponent === "Map" && (
           <div className="map">
             <GoogleMap
               zoom={5}
@@ -362,13 +395,33 @@ export default function Map() {
                   position={{ lat: marker.lat, lng: marker.lng }}
                 >
                   <CustomInfoWindow
-                    marker={marker}
+                    location={marker}
                     handleCloseInfoWindow={handleRemoveMarker}
                   />
                 </Marker>
               ))}
             </GoogleMap>
           </div>
+        )}
+
+        {activeComponent === "Compare" && (
+          <ComparePage
+            locations={locations}
+            yearlyData={yearlyData}
+            setYearlyData={setYearlyData}
+            isLoadingYearlyData={isLoadingYearlyData}
+            setIsLoadingYearlyData={setIsLoadingYearlyData}
+          />
+        )}
+
+        {activeComponent === "ClimateTrends" && (
+          <ClimateTrends
+            locations={locations}
+            climateData={climateData}
+            setClimateData={setClimateData}
+            isLoadingClimateData={isLoadingClimateData}
+            setIsLoadingClimateData={setIsLoadingClimateData}
+          />
         )}
       </div>
       <Snackbar

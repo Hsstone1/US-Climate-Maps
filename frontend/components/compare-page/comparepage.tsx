@@ -1,7 +1,6 @@
 import dynamic from "next/dynamic";
 import {
   chartConfig,
-  TimeGranularity,
   temperatureKeys,
   apparentTemperatureKeys,
   annualPrecipKeys,
@@ -21,51 +20,66 @@ import {
   annualComfortKeys,
   paginatedComfortKeys,
   annualGrowingSeasonKeys,
-} from "./climate-chart-helpers";
+  paginatedGrowingSeasonKeys,
+  annualFrostChanceKeys,
+  paginatedFrostChanceKeys,
+  annualStackedSunKeys,
+  paginatedStackedSunKeys,
+} from "../climate-chart/climate-chart-helpers";
 import {
   createTemperatureDataset,
   createClimateDataset,
-} from "./climate-chart-datasets";
+  createStackedBarDataset,
+} from "../climate-chart/climate-chart-datasets";
 import { useCallback, useEffect, useMemo, useState } from "react";
-import Typography from "@mui/material/Typography";
-import { MarkerType, LocationColors } from "../location-props";
+import {
+  LineBreaks,
+  MarkerType,
+  LocationColors,
+  API_URL,
+} from "../global-utils";
 import Table from "./ComparePageTable";
-import ClimateChartPaginate from "./ClimateChartPaginate";
+import ClimateChartPaginate from "../climate-chart/ClimateChartPaginate";
 import YearSelector from "./YearSelector";
 import LazyLoad from "react-lazyload";
 import ClimateCalendar from "../climate-calendar/ClimateCalendar";
-import { TitleColor, getTemperatureColor } from "../data-value-colors";
+import { TitleColor } from "../data-value-colors";
+import ClimateChartRadio from "../climate-chart/ClimateChartRadio";
+import StackedBarChart from "../climate-chart/StackedBarChart";
 
 //This is dynamic import function to load components that rely on
 // browser-specific functionalities such as the window object:
-const ClimateChart = dynamic(() => import("./ClimateChart"), { ssr: false });
+const ClimateChart = dynamic(() => import("../climate-chart/ClimateChart"), {
+  ssr: false,
+});
 
 type ComparisonPageProps = {
   locations: MarkerType[];
-};
-
-type YearlyData = {
-  [locationId: string]: {
-    [year: string]: any;
-  };
+  yearlyData: any;
+  setYearlyData: any;
+  isLoadingYearlyData: any;
+  setIsLoadingYearlyData: any;
 };
 
 // #########################################
 // CONSTANTS
-// #########################################
+const YEAR_PERC_DEV_10 = 10;
+const DEFAULT_X_RANGE_MAX = 365;
+const DEFAULT_X_RANGE_MIN = 0;
 
-const apiUrl = process.env.NEXT_PUBLIC_API_URL;
-const COLOR_PERC_DEV_10 = 10;
-
-export default function ComparisonPage({ locations }: ComparisonPageProps) {
+export default function ComparisonPage({
+  locations,
+  yearlyData,
+  setYearlyData,
+  isLoadingYearlyData,
+  setIsLoadingYearlyData,
+}: ComparisonPageProps) {
   const [selectedYear, setSelectedYear] = useState<string>("Annual");
   const [currentIndex, setCurrentIndex] = useState(0);
-  const [yearlyData, setYearlyData] = useState<YearlyData>({});
-  const [isLoadingYearlyData, setIsLoadingYearlyData] = useState(false);
 
   const [xAxisRangeState, setXAxisRangeState] = useState({
-    minX: 0,
-    maxX: 365,
+    minX: DEFAULT_X_RANGE_MIN,
+    maxX: DEFAULT_X_RANGE_MAX,
   });
 
   const handleXAxisRangeChange = useCallback((newState) => {
@@ -84,9 +98,11 @@ export default function ComparisonPage({ locations }: ComparisonPageProps) {
   const extractClimateData = useCallback(
     (key: string, time_granularity: string, year: any) => {
       if (year === "Annual") {
-        return locations.map(
-          (location) => location.data.climate_data[key][time_granularity]
-        );
+        return locations.map((location) => {
+          const climateData = location.data && location.data.climate_data;
+          const data = climateData ? climateData[key] : undefined;
+          return data ? data[time_granularity] : undefined;
+        });
       } else {
         return locations.map((location) => {
           const locationYearData = yearlyData[location.id]
@@ -109,7 +125,7 @@ export default function ComparisonPage({ locations }: ComparisonPageProps) {
       }
 
       try {
-        const response = await fetch(apiUrl + `/climate_data_db_year`, {
+        const response = await fetch(API_URL + `/climate_data_db_year`, {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
@@ -126,7 +142,7 @@ export default function ComparisonPage({ locations }: ComparisonPageProps) {
         const climateData = await response.json();
 
         // Append the fetched data to the correct location in the state
-        setYearlyData((prevData: YearlyData) => {
+        setYearlyData((prevData: any) => {
           // Get the existing data for this location, or an empty object if none exists
           const existingLocationData = prevData[location.id] || {};
 
@@ -146,7 +162,7 @@ export default function ComparisonPage({ locations }: ComparisonPageProps) {
         console.error("Failed to fetch data:", error);
       }
     },
-    [yearlyData]
+    [yearlyData, setYearlyData]
   );
 
   // ####################################################
@@ -178,20 +194,7 @@ export default function ComparisonPage({ locations }: ComparisonPageProps) {
       });
   }, [selectedYear, locations]);
 
-  // THIS ALLOWS FOR ONLY ONE LOCATION YEAR DATA RETRIEVAL DB QUERY
-  /*
-  useEffect(() => {
-    const location = locations[currentIndex];
-
-    if (selectedYear !== "Annual") {
-      fetchYearData(location, selectedYear);
-    }
-  }, [selectedYear, currentIndex, locations]);
-*/
-
   // Create the datasets for the climate charts
-  //
-
   const annualTemperatureDataset = useMemo(() => {
     return createTemperatureDataset(
       locations,
@@ -460,6 +463,80 @@ export default function ComparisonPage({ locations }: ComparisonPageProps) {
     );
   }, [locations]);
 
+  const paginatedGrowingSeasonDataset = useMemo(() => {
+    return locations.map((location, index) =>
+      createClimateDataset(
+        [location],
+        index,
+        selectedYear,
+        yearlyData,
+        {},
+        "Percentage",
+        paginatedGrowingSeasonKeys
+      )
+    );
+  }, [locations, selectedYear, yearlyData]);
+
+  const annualFrostChanceDataset = useMemo(() => {
+    return createClimateDataset(
+      locations,
+      undefined,
+      "Annual",
+      undefined,
+      {},
+      "Percentage",
+      annualFrostChanceKeys
+    );
+  }, [locations]);
+
+  const paginatedFrostChanceDataset = useMemo(() => {
+    return locations.map((location, index) =>
+      createClimateDataset(
+        [location],
+        index,
+        selectedYear,
+        yearlyData,
+        {},
+        "Percentage",
+        paginatedFrostChanceKeys
+      )
+    );
+  }, [locations, selectedYear, yearlyData]);
+
+  // ####################################################
+  /*
+  const annualStackedSunDataset = useMemo(() => {
+    return createStackedBarDataset(
+      locations,
+      undefined,
+      "Annual",
+      undefined,
+      {},
+      "Percentage",
+      annualStackedSunKeys,
+      "monthly"
+    );
+  }, [locations]);
+
+  const paginatedStackedSunDataset = useMemo(() => {
+    return locations.map((location, index) =>
+      createStackedBarDataset(
+        [location],
+        index,
+        selectedYear,
+        yearlyData,
+        {},
+        "Percentage",
+        paginatedStackedSunKeys,
+        "monthly"
+      )
+    );
+  }, [locations, selectedYear, yearlyData]);
+
+  console.log("ANNUAL BAR STACK: ", annualStackedSunDataset);
+*/
+  // ####################################################
+
   return (
     <div className="compare-page">
       <div className="compare-page-scroll">
@@ -472,619 +549,795 @@ export default function ComparisonPage({ locations }: ComparisonPageProps) {
             <div className="compare_chart-div">
               <br />
 
+              {/*CLIMATE CALENDAR*/}
+
               {selectedYear !== "Annual" && (
-                <ClimateChartPaginate
-                  locations={locations}
-                  currentIndex={currentIndex}
-                  setCurrentIndex={setCurrentIndex}
-                >
-                  {(location, index) => (
-                    <div>
-                      <Typography
-                        variant="h6"
-                        style={{
-                          textAlign: "center",
-                          fontWeight: "bold",
-                          color: TitleColor,
-                        }}
-                      >
-                        {location.data.location_data.location}
-                      </Typography>
-                      <Typography variant="h6" style={{ textAlign: "center" }}>
-                        {selectedYear}
-                      </Typography>
-                      <ClimateCalendar
-                        climateData={
-                          yearlyData[location.id] &&
-                          yearlyData[location.id][selectedYear]
-                            ? yearlyData[location.id][selectedYear].climate_data
-                            : location.data.climate_data
-                        }
-                        selectedYear={selectedYear}
-                        record_high_data={
-                          location.data.climate_data["record_high"]["daily"]
-                        }
-                        record_low_data={
-                          location.data.climate_data["record_low"]["daily"]
-                        }
-                      />
-                    </div>
-                  )}
-                </ClimateChartPaginate>
+                <>
+                  <LazyLoad
+                    height={chartConfig.lazyLoadHeight}
+                    offset={chartConfig.lazyLoadOffset}
+                    once={chartConfig.doLazyLoadOnce}
+                    className="compare-chart-shadow-effect"
+                  >
+                    <ClimateChartPaginate
+                      locations={locations}
+                      currentIndex={currentIndex}
+                      setCurrentIndex={setCurrentIndex}
+                    >
+                      {(location, index) => (
+                        <div>
+                          <p className="chart-title">
+                            {selectedYear} Monthly Calendar
+                          </p>
+                          <p
+                            className="chart-heading"
+                            style={{ color: TitleColor }}
+                          >
+                            {location.data.location_data.location}
+                          </p>
+
+                          <ClimateCalendar
+                            climateData={
+                              yearlyData[location.id] &&
+                              yearlyData[location.id][selectedYear]
+                                ? yearlyData[location.id][selectedYear]
+                                    .climate_data
+                                : location.data.climate_data
+                            }
+                            selectedYear={selectedYear}
+                            record_high_data={
+                              location.data.climate_data["record_high"]["daily"]
+                            }
+                            record_low_data={
+                              location.data.climate_data["record_low"]["daily"]
+                            }
+                          />
+                        </div>
+                      )}
+                    </ClimateChartPaginate>
+                  </LazyLoad>
+                  <LineBreaks />
+                </>
               )}
+              {/*TEMPERATURE AND APPARENT*/}
 
-              <br />
-              <Typography
-                sx={{ flex: "1 1 100%" }}
-                variant={chartConfig.headingVariant}
-                component="div"
-                textAlign={"center"}
-              >
-                {selectedYear === "Annual" ? "Annual" : selectedYear} High and
-                Low Temperatures
-              </Typography>
+              <ClimateChartRadio labels={["Actual", "Apparent"]}>
+                <LazyLoad
+                  height={chartConfig.lazyLoadHeight}
+                  offset={chartConfig.lazyLoadOffset}
+                  once={chartConfig.doLazyLoadOnce}
+                  className="compare-chart-shadow-effect"
+                >
+                  <p className="chart-title">
+                    {selectedYear === "Annual" ? "Annual" : selectedYear}{" "}
+                    Temperatures
+                  </p>
+
+                  {selectedYear === "Annual" ? (
+                    <ClimateChart
+                      datasetProp={annualTemperatureDataset}
+                      units={"°"}
+                      xAxisRangeState={xAxisRangeState}
+                      onXAxisRangeChange={handleXAxisRangeChange}
+                    />
+                  ) : (
+                    <ClimateChartPaginate
+                      locations={locations}
+                      currentIndex={currentIndex}
+                      setCurrentIndex={setCurrentIndex}
+                    >
+                      {(location, index) => (
+                        <ClimateChartRenderer
+                          index={index}
+                          data={paginatedTemperatureDataset}
+                          units={"°"}
+                          title={location.data.location_data.location}
+                          year={parseInt(selectedYear)}
+                          xAxisRangeState={xAxisRangeState}
+                          onXAxisRangeChange={handleXAxisRangeChange}
+                        />
+                      )}
+                    </ClimateChartPaginate>
+                  )}
+                  <p className="compare-page-paragraph">
+                    Average high and low temperatures for each location. The
+                    expected temperature range is the faint area behind the
+                    line, which represents the highest and lowest temperatures
+                    that have occured historically for each day.
+                  </p>
+                  <div>
+                    <Table
+                      locations={locations}
+                      heading={`${selectedYear} Average High (°F)`}
+                      monthly_data={extractClimateData(
+                        "high_temperature",
+                        "monthly",
+                        selectedYear
+                      )}
+                      annual_data={extractClimateData(
+                        "high_temperature",
+                        "annual",
+                        selectedYear
+                      )}
+                      units={"°"}
+                      averageKey={"high_temperature"}
+                      isLoading={isLoadingYearlyData}
+                      yearPercentDev={YEAR_PERC_DEV_10}
+                    ></Table>
+
+                    <Table
+                      locations={locations}
+                      heading={`${selectedYear} Average Low (°F)`}
+                      monthly_data={extractClimateData(
+                        "low_temperature",
+                        "monthly",
+                        selectedYear
+                      )}
+                      annual_data={extractClimateData(
+                        "low_temperature",
+                        "annual",
+                        selectedYear
+                      )}
+                      units={"°"}
+                      averageKey={"low_temperature"}
+                      isLoading={isLoadingYearlyData}
+                      yearPercentDev={YEAR_PERC_DEV_10}
+                    ></Table>
+                  </div>
+                </LazyLoad>
+
+                <LazyLoad
+                  height={chartConfig.lazyLoadHeight}
+                  offset={chartConfig.lazyLoadOffset}
+                  once={chartConfig.doLazyLoadOnce}
+                  className="compare-chart-shadow-effect"
+                >
+                  <p className="chart-title">
+                    {selectedYear === "Annual" ? "Annual" : selectedYear}{" "}
+                    Apparent Temperatures
+                  </p>
+
+                  {selectedYear === "Annual" ? (
+                    <ClimateChart
+                      datasetProp={annualApparentTemperatureDataset}
+                      units={"°"}
+                      xAxisRangeState={xAxisRangeState}
+                      onXAxisRangeChange={handleXAxisRangeChange}
+                    />
+                  ) : (
+                    <ClimateChartPaginate
+                      locations={locations}
+                      currentIndex={currentIndex}
+                      setCurrentIndex={setCurrentIndex}
+                    >
+                      {(location, index) => (
+                        <ClimateChartRenderer
+                          index={index}
+                          data={paginatedApparentTemperatureDataset}
+                          units={"°"}
+                          title={location.data.location_data.location}
+                          year={parseInt(selectedYear)}
+                          xAxisRangeState={xAxisRangeState}
+                          onXAxisRangeChange={handleXAxisRangeChange}
+                        />
+                      )}
+                    </ClimateChartPaginate>
+                  )}
+
+                  <p className="compare-page-paragraph">
+                    Average high and low feels-like temperatures for each
+                    location. The expected feels-like temperature range is the
+                    faint area behind the line, which represents the highest and
+                    lowest apparent temperatures likely for a day.
+                  </p>
+                  <div>
+                    <Table
+                      locations={locations}
+                      heading={`${selectedYear} Apparent Average High (°F)`}
+                      monthly_data={extractClimateData(
+                        "apparent_high_temperature",
+                        "monthly",
+                        selectedYear
+                      )}
+                      annual_data={extractClimateData(
+                        "apparent_high_temperature",
+                        "annual",
+                        selectedYear
+                      )}
+                      units={"°"}
+                      averageKey={"apparent_high_temperature"}
+                      isLoading={isLoadingYearlyData}
+                      yearPercentDev={YEAR_PERC_DEV_10}
+                    ></Table>
+
+                    <Table
+                      locations={locations}
+                      heading={`${selectedYear} Apparent Average Low (°F)`}
+                      monthly_data={extractClimateData(
+                        "apparent_low_temperature",
+                        "monthly",
+                        selectedYear
+                      )}
+                      annual_data={extractClimateData(
+                        "apparent_low_temperature",
+                        "annual",
+                        selectedYear
+                      )}
+                      units={"°"}
+                      averageKey={"apparent_low_temperature"}
+                      isLoading={isLoadingYearlyData}
+                      yearPercentDev={YEAR_PERC_DEV_10}
+                    ></Table>
+                  </div>
+                </LazyLoad>
+              </ClimateChartRadio>
+              <LineBreaks />
+
+              {/*PRECIP AND SNOW*/}
+
+              <ClimateChartRadio labels={["Precip", "Snow"]}>
+                <LazyLoad
+                  height={chartConfig.lazyLoadHeight}
+                  offset={chartConfig.lazyLoadOffset}
+                  once={chartConfig.doLazyLoadOnce}
+                  className="compare-chart-shadow-effect"
+                >
+                  <p className="chart-title">
+                    {selectedYear === "Annual" ? "Annual" : selectedYear}{" "}
+                    Precipitation
+                  </p>
+
+                  {selectedYear === "Annual" ? (
+                    <ClimateChart
+                      datasetProp={annualPrecipDataset}
+                      units={"in"}
+                      xAxisRangeState={xAxisRangeState}
+                      onXAxisRangeChange={handleXAxisRangeChange}
+                    />
+                  ) : (
+                    <ClimateChartPaginate
+                      locations={locations}
+                      currentIndex={currentIndex}
+                      setCurrentIndex={setCurrentIndex}
+                    >
+                      {(location, index) => (
+                        <ClimateChartRenderer
+                          index={index}
+                          data={paginatedPrecipDataset}
+                          units={"in"}
+                          title={location.data.location_data.location}
+                          year={parseInt(selectedYear)}
+                          xAxisRangeState={xAxisRangeState}
+                          onXAxisRangeChange={handleXAxisRangeChange}
+                        />
+                      )}
+                    </ClimateChartPaginate>
+                  )}
+
+                  <p className="compare-page-paragraph">
+                    Average precipitation in inches for each location.
+                    Precipitation is the combined total water content of both
+                    rain and snow. A rainy day is counted if there is more than
+                    0.01 inches of rainfall accumulation.
+                    <br /> <br />
+                    The total number of rainy days expected for each month,
+                    along with the annual precipitation total are displayed in
+                    the table.
+                  </p>
+                  <div>
+                    <Table
+                      locations={locations}
+                      heading={`${selectedYear} Average Precipitation`}
+                      monthly_data={extractClimateData(
+                        "precipitation",
+                        "monthly",
+                        selectedYear
+                      )}
+                      annual_data={extractClimateData(
+                        "precipitation",
+                        "annual",
+                        selectedYear
+                      )}
+                      annualColorAdjustment={12}
+                      numDec={1}
+                      units={"in"}
+                      averageKey={"precipitation"}
+                      isLoading={isLoadingYearlyData}
+                    ></Table>
+
+                    <Table
+                      locations={locations}
+                      heading={`${selectedYear} Total Rainy Days`}
+                      monthly_data={extractClimateData(
+                        "precip_days",
+                        "monthly",
+                        selectedYear
+                      )}
+                      annual_data={extractClimateData(
+                        "precip_days",
+                        "annual",
+                        selectedYear
+                      )}
+                      annualColorAdjustment={12}
+                      units={"dy"}
+                      averageKey={"precip_days"}
+                      isLoading={isLoadingYearlyData}
+                    ></Table>
+                  </div>
+                </LazyLoad>
+                <LazyLoad
+                  height={chartConfig.lazyLoadHeight}
+                  offset={chartConfig.lazyLoadOffset}
+                  once={chartConfig.doLazyLoadOnce}
+                  className="compare-chart-shadow-effect"
+                >
+                  <p className="chart-title">
+                    {selectedYear === "Annual" ? "Annual" : selectedYear}{" "}
+                    Snowfall
+                  </p>
+
+                  {selectedYear === "Annual" ? (
+                    <ClimateChart
+                      datasetProp={annualSnowDataset}
+                      units={"in"}
+                      xAxisRangeState={xAxisRangeState}
+                      onXAxisRangeChange={handleXAxisRangeChange}
+                    />
+                  ) : (
+                    <ClimateChartPaginate
+                      locations={locations}
+                      currentIndex={currentIndex}
+                      setCurrentIndex={setCurrentIndex}
+                    >
+                      {(location, index) => (
+                        <ClimateChartRenderer
+                          index={index}
+                          data={paginatedSnowDataset}
+                          units={"in"}
+                          title={location.data.location_data.location}
+                          year={parseInt(selectedYear)}
+                          xAxisRangeState={xAxisRangeState}
+                          onXAxisRangeChange={handleXAxisRangeChange}
+                        />
+                      )}
+                    </ClimateChartPaginate>
+                  )}
+
+                  <p className="compare-page-paragraph">
+                    Average snowfall in inches for each location. A snowy day is
+                    counted if there is more than 0.1 inches of accumulation.
+                    <br /> <br />
+                    The total number of snowy days expected for each month,
+                    along with the annual total are displayed in the table.
+                  </p>
+                  <div>
+                    <Table
+                      locations={locations}
+                      heading={`${selectedYear} Average Snowfall`}
+                      monthly_data={extractClimateData(
+                        "snow",
+                        "monthly",
+                        selectedYear
+                      )}
+                      annual_data={extractClimateData(
+                        "snow",
+                        "annual",
+                        selectedYear
+                      )}
+                      annualColorAdjustment={12}
+                      numDec={1}
+                      units={"in"}
+                      averageKey={"snow"}
+                      isLoading={isLoadingYearlyData}
+                    ></Table>
+
+                    <Table
+                      locations={locations}
+                      heading={`${selectedYear} Total Snowy Days`}
+                      monthly_data={extractClimateData(
+                        "snow_days",
+                        "monthly",
+                        selectedYear
+                      )}
+                      annual_data={extractClimateData(
+                        "snow_days",
+                        "annual",
+                        selectedYear
+                      )}
+                      annualColorAdjustment={12}
+                      units={"dy"}
+                      averageKey={"snow_days"}
+                      isLoading={isLoadingYearlyData}
+                    ></Table>
+                  </div>
+                </LazyLoad>
+              </ClimateChartRadio>
+              <LineBreaks />
+
+              {/*DEWPOINT AND HUMIDITY*/}
+
+              <ClimateChartRadio labels={["Dewpoint", "Humidity"]}>
+                <LazyLoad
+                  height={chartConfig.lazyLoadHeight}
+                  offset={chartConfig.lazyLoadOffset}
+                  once={chartConfig.doLazyLoadOnce}
+                  className="compare-chart-shadow-effect"
+                >
+                  <p className="chart-title">
+                    {selectedYear === "Annual" ? "Annual" : selectedYear}{" "}
+                    Dewpoint
+                  </p>
+
+                  {selectedYear === "Annual" ? (
+                    <ClimateChart
+                      datasetProp={annualDewpointDataset}
+                      units={"°"}
+                      xAxisRangeState={xAxisRangeState}
+                      onXAxisRangeChange={handleXAxisRangeChange}
+                    />
+                  ) : (
+                    <ClimateChartPaginate
+                      locations={locations}
+                      currentIndex={currentIndex}
+                      setCurrentIndex={setCurrentIndex}
+                    >
+                      {(location, index) => (
+                        <ClimateChartRenderer
+                          index={index}
+                          data={paginatedDewpointDataset}
+                          units={"°"}
+                          title={location.data.location_data.location}
+                          year={parseInt(selectedYear)}
+                          xAxisRangeState={xAxisRangeState}
+                          onXAxisRangeChange={handleXAxisRangeChange}
+                        />
+                      )}
+                    </ClimateChartPaginate>
+                  )}
+
+                  <p className="compare-page-paragraph">
+                    Average dewpoint for each location. The dewpoint is a
+                    measure of absolute humidity in the air, rather than the
+                    relative humidity percentage which changes with temperature.
+                    <br /> <br />
+                    Dewpoint is generally a better metric for how humid it feels
+                    outside. Dewpoint values bellow 50 degrees are plesant,
+                    around 60 degrees begins to feel humid, 70 degrees feels
+                    muggy, and above 75 feels oppressive.
+                  </p>
+                  <div>
+                    <Table
+                      locations={locations}
+                      heading={`${selectedYear} Average Dewpoint (°F)`}
+                      monthly_data={extractClimateData(
+                        "dewpoint",
+                        "monthly",
+                        selectedYear
+                      )}
+                      annual_data={extractClimateData(
+                        "dewpoint",
+                        "annual",
+                        selectedYear
+                      )}
+                      units={"°"}
+                      averageKey={"dewpoint"}
+                      isLoading={isLoadingYearlyData}
+                      yearPercentDev={YEAR_PERC_DEV_10}
+                    ></Table>
+
+                    {/* <Table
+                      locations={locations}
+                      heading={`${selectedYear} Total Muggy Days`}
+                      monthly_data={extractClimateData(
+                        "dewpoint_muggy_days",
+                        "monthly",
+                        selectedYear
+                      )}
+                      annual_data={extractClimateData(
+                        "dewpoint_muggy_days",
+                        "annual",
+                        selectedYear
+                      )}
+                      annualColorAdjustment={12}
+                      units={"dy"}
+                      averageKey={"dewpoint_muggy_days"}
+                      isLoading={isLoadingYearlyData}
+                    ></Table> */}
+                  </div>
+                </LazyLoad>
+
+                <LazyLoad
+                  height={chartConfig.lazyLoadHeight}
+                  offset={chartConfig.lazyLoadOffset}
+                  once={chartConfig.doLazyLoadOnce}
+                  className="compare-chart-shadow-effect"
+                >
+                  <p className="chart-title">
+                    {selectedYear === "Annual" ? "Annual" : selectedYear}{" "}
+                    Afternoon Humidity
+                  </p>
+
+                  {selectedYear === "Annual" ? (
+                    <ClimateChart
+                      datasetProp={annualHumidityDataset}
+                      units={"%"}
+                      xAxisRangeState={xAxisRangeState}
+                      onXAxisRangeChange={handleXAxisRangeChange}
+                    />
+                  ) : (
+                    <ClimateChartPaginate
+                      locations={locations}
+                      currentIndex={currentIndex}
+                      setCurrentIndex={setCurrentIndex}
+                    >
+                      {(location, index) => (
+                        <ClimateChartRenderer
+                          index={index}
+                          data={paginatedHumidityDataset}
+                          units={"%"}
+                          title={location.data.location_data.location}
+                          year={parseInt(selectedYear)}
+                          xAxisRangeState={xAxisRangeState}
+                          onXAxisRangeChange={handleXAxisRangeChange}
+                        />
+                      )}
+                    </ClimateChartPaginate>
+                  )}
+
+                  <p className="compare-page-paragraph">
+                    Average afternoon humidity for each location. In the
+                    afternoon when the tempearture is highest, the humidity will
+                    be the lowest. The opposite is the case in the morning.
+                    <br /> <br />A humidity level below 30 percent is considered
+                    comfortable, and above 70 percent is considered very humid.
+                  </p>
+                  <div>
+                    <Table
+                      locations={locations}
+                      heading={`${selectedYear} Average Humidity`}
+                      monthly_data={extractClimateData(
+                        "mean_humidity",
+                        "monthly",
+                        selectedYear
+                      )}
+                      annual_data={extractClimateData(
+                        "mean_humidity",
+                        "annual",
+                        selectedYear
+                      )}
+                      units={"%"}
+                      averageKey={"mean_humidity"}
+                      isLoading={isLoadingYearlyData}
+                      yearPercentDev={YEAR_PERC_DEV_10}
+                    ></Table>
+                    <Table
+                      locations={locations}
+                      heading={`${selectedYear} Average Morning Humidity`}
+                      monthly_data={extractClimateData(
+                        "morning_humidity",
+                        "monthly",
+                        selectedYear
+                      )}
+                      annual_data={extractClimateData(
+                        "morning_humidity",
+                        "annual",
+                        selectedYear
+                      )}
+                      units={"%"}
+                      averageKey={"morning_humidity"}
+                      isLoading={isLoadingYearlyData}
+                      yearPercentDev={YEAR_PERC_DEV_10}
+                    ></Table>
+                  </div>
+                </LazyLoad>
+              </ClimateChartRadio>
+              <LineBreaks />
+
+              {/*SUNSHINE PERCENTAGE AND UV INDEX*/}
+
+              <ClimateChartRadio labels={["Sunshine", "UV Index"]}>
+                <LazyLoad
+                  height={chartConfig.lazyLoadHeight}
+                  offset={chartConfig.lazyLoadOffset}
+                  once={chartConfig.doLazyLoadOnce}
+                  className="compare-chart-shadow-effect"
+                >
+                  <p className="chart-title">
+                    {selectedYear === "Annual" ? "Annual" : selectedYear}{" "}
+                    Sunshine Percentage
+                  </p>
+
+                  {selectedYear === "Annual" ? (
+                    <ClimateChart
+                      datasetProp={annualSunshineDataset}
+                      units={"%"}
+                      xAxisRangeState={xAxisRangeState}
+                      onXAxisRangeChange={handleXAxisRangeChange}
+                    />
+                  ) : (
+                    <ClimateChartPaginate
+                      locations={locations}
+                      currentIndex={currentIndex}
+                      setCurrentIndex={setCurrentIndex}
+                    >
+                      {(location, index) => (
+                        <ClimateChartRenderer
+                          index={index}
+                          data={paginatedSunshineDataset}
+                          units={"%"}
+                          title={location.data.location_data.location}
+                          year={parseInt(selectedYear)}
+                          xAxisRangeState={xAxisRangeState}
+                          onXAxisRangeChange={handleXAxisRangeChange}
+                        />
+                      )}
+                    </ClimateChartPaginate>
+                  )}
+
+                  <p className="compare-page-paragraph">
+                    Percentage of sunshine for each location. A day is
+                    considered to be sunny if the sun is out more than 70% of
+                    each day, Partly Cloudy if its out for more than 40%, and
+                    Cloudy if less.
+                    <br /> <br />
+                    The total number of sunny days expected for each month,
+                    along with the annual total are displayed in the table.
+                  </p>
+
+                  <div>
+                    <Table
+                      locations={locations}
+                      heading={`${selectedYear} Sunshine Percentage`}
+                      monthly_data={extractClimateData(
+                        "sun",
+                        "monthly",
+                        selectedYear
+                      )}
+                      annual_data={extractClimateData(
+                        "sun",
+                        "annual",
+                        selectedYear
+                      )}
+                      units={""}
+                      averageKey={"sun"}
+                      isLoading={isLoadingYearlyData}
+                    ></Table>
+                    {/* 
+                    <Table
+                      locations={locations}
+                      heading={`${selectedYear} Total Sunny Days`}
+                      monthly_data={extractClimateData(
+                        "clear_days",
+                        "monthly",
+                        selectedYear
+                      )}
+                      annual_data={extractClimateData(
+                        "clear_days",
+                        "annual",
+                        selectedYear
+                      )}
+                      units={"dy"}
+                      averageKey={"clear_days"}
+                      isLoading={isLoadingYearlyData}
+                    ></Table>
+                    <Table
+                      locations={locations}
+                      heading={`${selectedYear} Total Partly Cloudy Days`}
+                      monthly_data={extractClimateData(
+                        "partly_cloudy_days",
+                        "monthly",
+                        selectedYear
+                      )}
+                      annual_data={extractClimateData(
+                        "partly_cloudy_days",
+                        "annual",
+                        selectedYear
+                      )}
+                      units={"dy"}
+                      averageKey={"partly_cloudy_days"}
+                      isLoading={isLoadingYearlyData}
+                    ></Table>
+                    <Table
+                      locations={locations}
+                      heading={`${selectedYear} Total Cloudy Days`}
+                      monthly_data={extractClimateData(
+                        "cloudy_days",
+                        "monthly",
+                        selectedYear
+                      )}
+                      annual_data={extractClimateData(
+                        "cloudy_days",
+                        "annual",
+                        selectedYear
+                      )}
+                      units={"dy"}
+                      averageKey={"cloudy_days"}
+                      isLoading={isLoadingYearlyData}
+                    ></Table>
+                    */}
+                  </div>
+                </LazyLoad>
+
+                <LazyLoad
+                  height={chartConfig.lazyLoadHeight}
+                  offset={chartConfig.lazyLoadOffset}
+                  once={chartConfig.doLazyLoadOnce}
+                  className="compare-chart-shadow-effect"
+                >
+                  <p className="chart-title">
+                    {selectedYear === "Annual" ? "Annual" : selectedYear} UV
+                    Index
+                  </p>
+
+                  {selectedYear === "Annual" ? (
+                    <ClimateChart
+                      datasetProp={annualUVIndexDataset}
+                      units={""}
+                      xAxisRangeState={xAxisRangeState}
+                      onXAxisRangeChange={handleXAxisRangeChange}
+                    />
+                  ) : (
+                    <ClimateChartPaginate
+                      locations={locations}
+                      currentIndex={currentIndex}
+                      setCurrentIndex={setCurrentIndex}
+                    >
+                      {(location, index) => (
+                        <ClimateChartRenderer
+                          index={index}
+                          data={paginatedUVIndexDataset}
+                          year={parseInt(selectedYear)}
+                          title={location.data.location_data.location}
+                          xAxisRangeState={xAxisRangeState}
+                          onXAxisRangeChange={handleXAxisRangeChange}
+                        />
+                      )}
+                    </ClimateChartPaginate>
+                  )}
+
+                  <p className="compare-page-paragraph">
+                    Average UV Index for each location. The UV index is a
+                    measure of the strength of the suns ultraviolet rays. The UV
+                    index is highest in the summer and lowest in the winter.
+                    Elevation also increases the UV index, so on mountain peaks
+                    the sun is often stronger.
+                  </p>
+                  <div>
+                    <Table
+                      locations={locations}
+                      heading={`${selectedYear} Average UV Index`}
+                      monthly_data={extractClimateData(
+                        "uv_index",
+                        "monthly",
+                        selectedYear
+                      )}
+                      annual_data={extractClimateData(
+                        "uv_index",
+                        "annual",
+                        selectedYear
+                      )}
+                      averageKey={"uv_index"}
+                      isLoading={isLoadingYearlyData}
+                      yearPercentDev={YEAR_PERC_DEV_10}
+                    ></Table>
+                  </div>
+                </LazyLoad>
+              </ClimateChartRadio>
+              <LineBreaks />
+
+              {/*WIND*/}
+
               <LazyLoad
                 height={chartConfig.lazyLoadHeight}
                 offset={chartConfig.lazyLoadOffset}
                 once={chartConfig.doLazyLoadOnce}
+                className="compare-chart-shadow-effect"
               >
-                {selectedYear === "Annual" ? (
-                  <ClimateChart
-                    datasetProp={annualTemperatureDataset}
-                    units={"°"}
-                    xAxisRangeState={xAxisRangeState}
-                    onXAxisRangeChange={handleXAxisRangeChange}
-                  />
-                ) : (
-                  <ClimateChartPaginate
-                    locations={locations}
-                    currentIndex={currentIndex}
-                    setCurrentIndex={setCurrentIndex}
-                  >
-                    {(location, index) => (
-                      <ClimateChartRenderer
-                        index={index}
-                        data={paginatedTemperatureDataset}
-                        units={"°"}
-                        title={location.data.location_data.location}
-                        year={parseInt(selectedYear)}
-                        xAxisRangeState={xAxisRangeState}
-                        onXAxisRangeChange={handleXAxisRangeChange}
-                      />
-                    )}
-                  </ClimateChartPaginate>
-                )}
-              </LazyLoad>
-              <p className="compare-page-paragraph">
-                Average high and low temperatures for each location. The
-                expected temperature range is the faint area behind the line,
-                which represents the highest and lowest temperatures likely for
-                a day. The table contains the average high and low temperatures
-                for each month.
-              </p>
-              <div>
-                <Table
-                  locations={locations}
-                  heading={`${selectedYear} Average High (°F)`}
-                  monthly_data={extractClimateData(
-                    "high_temperature",
-                    "monthly",
-                    selectedYear
-                  )}
-                  annual_data={extractClimateData(
-                    "high_temperature",
-                    "annual",
-                    selectedYear
-                  )}
-                  units={"°"}
-                  averageKey={"high_temperature"}
-                  isLoading={isLoadingYearlyData}
-                  colorPercentDev={COLOR_PERC_DEV_10}
-                ></Table>
+                <p className="chart-title">
+                  {selectedYear === "Annual" ? "Annual" : selectedYear} Wind
+                  Speed
+                </p>
 
-                <Table
-                  locations={locations}
-                  heading={`${selectedYear} Average Low (°F)`}
-                  monthly_data={extractClimateData(
-                    "low_temperature",
-                    "monthly",
-                    selectedYear
-                  )}
-                  annual_data={extractClimateData(
-                    "low_temperature",
-                    "annual",
-                    selectedYear
-                  )}
-                  units={"°"}
-                  averageKey={"low_temperature"}
-                  isLoading={isLoadingYearlyData}
-                  colorPercentDev={COLOR_PERC_DEV_10}
-                ></Table>
-              </div>
-              <br />
-              <br />
-              <hr />
-              <br />
-              <br />
-
-              <Typography
-                sx={{ flex: "1 1 100%" }}
-                variant={chartConfig.headingVariant}
-                component="div"
-                textAlign={"center"}
-              >
-                {selectedYear === "Annual" ? "Annual" : selectedYear} Apparent
-                High and Low Temperatures
-              </Typography>
-              <LazyLoad
-                height={chartConfig.lazyLoadHeight}
-                offset={chartConfig.lazyLoadOffset}
-                once={chartConfig.doLazyLoadOnce}
-              >
-                {selectedYear === "Annual" ? (
-                  <ClimateChart
-                    datasetProp={annualApparentTemperatureDataset}
-                    units={"°"}
-                    xAxisRangeState={xAxisRangeState}
-                    onXAxisRangeChange={handleXAxisRangeChange}
-                  />
-                ) : (
-                  <ClimateChartPaginate
-                    locations={locations}
-                    currentIndex={currentIndex}
-                    setCurrentIndex={setCurrentIndex}
-                  >
-                    {(location, index) => (
-                      <ClimateChartRenderer
-                        index={index}
-                        data={paginatedApparentTemperatureDataset}
-                        units={"°"}
-                        title={location.data.location_data.location}
-                        year={parseInt(selectedYear)}
-                        xAxisRangeState={xAxisRangeState}
-                        onXAxisRangeChange={handleXAxisRangeChange}
-                      />
-                    )}
-                  </ClimateChartPaginate>
-                )}
-              </LazyLoad>
-
-              <p className="compare-page-paragraph">
-                Average high and low feels-like temperatures for each location.
-                The expected feels-like temperature range is the faint area
-                behind the line, which represents the highest and lowest
-                apparent temperatures likely for a day.The table contains the
-                average high and low apparent temperatures for each month.
-              </p>
-              <div>
-                <Table
-                  locations={locations}
-                  heading={`${selectedYear} Apparent Average High (°F)`}
-                  monthly_data={extractClimateData(
-                    "apparent_high_temperature",
-                    "monthly",
-                    selectedYear
-                  )}
-                  annual_data={extractClimateData(
-                    "apparent_high_temperature",
-                    "annual",
-                    selectedYear
-                  )}
-                  units={"°"}
-                  averageKey={"apparent_high_temperature"}
-                  isLoading={isLoadingYearlyData}
-                  colorPercentDev={COLOR_PERC_DEV_10}
-                ></Table>
-
-                <Table
-                  locations={locations}
-                  heading={`${selectedYear} Apparent Average Low (°F)`}
-                  monthly_data={extractClimateData(
-                    "apparent_low_temperature",
-                    "monthly",
-                    selectedYear
-                  )}
-                  annual_data={extractClimateData(
-                    "apparent_low_temperature",
-                    "annual",
-                    selectedYear
-                  )}
-                  units={"°"}
-                  averageKey={"apparent_low_temperature"}
-                  isLoading={isLoadingYearlyData}
-                  colorPercentDev={COLOR_PERC_DEV_10}
-                ></Table>
-              </div>
-              <br />
-              <br />
-              <hr />
-              <br />
-              <br />
-
-              <Typography
-                sx={{ flex: "1 1 100%" }}
-                variant={chartConfig.headingVariant}
-                component="div"
-                textAlign={"center"}
-              >
-                {selectedYear === "Annual" ? "Annual" : selectedYear}{" "}
-                Precipitation
-              </Typography>
-              <LazyLoad
-                height={chartConfig.lazyLoadHeight}
-                offset={chartConfig.lazyLoadOffset}
-                once={chartConfig.doLazyLoadOnce}
-              >
-                {selectedYear === "Annual" ? (
-                  <ClimateChart
-                    datasetProp={annualPrecipDataset}
-                    units={"in"}
-                    xAxisRangeState={xAxisRangeState}
-                    onXAxisRangeChange={handleXAxisRangeChange}
-                  />
-                ) : (
-                  <ClimateChartPaginate
-                    locations={locations}
-                    currentIndex={currentIndex}
-                    setCurrentIndex={setCurrentIndex}
-                  >
-                    {(location, index) => (
-                      <ClimateChartRenderer
-                        index={index}
-                        data={paginatedPrecipDataset}
-                        units={"in"}
-                        title={location.data.location_data.location}
-                        year={parseInt(selectedYear)}
-                        xAxisRangeState={xAxisRangeState}
-                        onXAxisRangeChange={handleXAxisRangeChange}
-                      />
-                    )}
-                  </ClimateChartPaginate>
-                )}
-              </LazyLoad>
-
-              <p className="compare-page-paragraph">
-                Average precipitation in inches for each location. Precipitation
-                is the combined total water content of both rain and snow. A
-                rainy day is counted if there is more than 0.01 inches of
-                rainfall accumulation. The total number of rainy days expected
-                for each month, along with the annual precipitation total are
-                displayed in the table.
-              </p>
-              <div>
-                <Table
-                  locations={locations}
-                  heading={`${selectedYear} Average Precipitation`}
-                  monthly_data={extractClimateData(
-                    "precipitation",
-                    "monthly",
-                    selectedYear
-                  )}
-                  annual_data={extractClimateData(
-                    "precipitation",
-                    "annual",
-                    selectedYear
-                  )}
-                  numDec={1}
-                  units={"in"}
-                  averageKey={"precipitation"}
-                  isLoading={isLoadingYearlyData}
-                ></Table>
-
-                <Table
-                  locations={locations}
-                  heading={`${selectedYear} Total Rainy Days`}
-                  monthly_data={extractClimateData(
-                    "precip_days",
-                    "monthly",
-                    selectedYear
-                  )}
-                  annual_data={extractClimateData(
-                    "precip_days",
-                    "annual",
-                    selectedYear
-                  )}
-                  units={"dy"}
-                  averageKey={"precip_days"}
-                  isLoading={isLoadingYearlyData}
-                ></Table>
-              </div>
-              <br />
-              <br />
-              <hr />
-              <br />
-              <br />
-              <Typography
-                sx={{ flex: "1 1 100%" }}
-                variant={chartConfig.headingVariant}
-                component="div"
-                textAlign={"center"}
-              >
-                {selectedYear === "Annual" ? "Annual" : selectedYear} Snowfall
-              </Typography>
-              <LazyLoad
-                height={chartConfig.lazyLoadHeight}
-                offset={chartConfig.lazyLoadOffset}
-                once={chartConfig.doLazyLoadOnce}
-              >
-                {selectedYear === "Annual" ? (
-                  <ClimateChart
-                    datasetProp={annualSnowDataset}
-                    units={"in"}
-                    xAxisRangeState={xAxisRangeState}
-                    onXAxisRangeChange={handleXAxisRangeChange}
-                  />
-                ) : (
-                  <ClimateChartPaginate
-                    locations={locations}
-                    currentIndex={currentIndex}
-                    setCurrentIndex={setCurrentIndex}
-                  >
-                    {(location, index) => (
-                      <ClimateChartRenderer
-                        index={index}
-                        data={paginatedSnowDataset}
-                        units={"in"}
-                        title={location.data.location_data.location}
-                        year={parseInt(selectedYear)}
-                        xAxisRangeState={xAxisRangeState}
-                        onXAxisRangeChange={handleXAxisRangeChange}
-                      />
-                    )}
-                  </ClimateChartPaginate>
-                )}
-              </LazyLoad>
-
-              <p className="compare-page-paragraph">
-                Average snowfall in inches for each location. A snowy day is
-                counted if there is more than 0.1 inches of accumulation. The
-                total number of snowy days expected for each month, along with
-                the annual total are displayed in the table.
-              </p>
-              <div>
-                <Table
-                  locations={locations}
-                  heading={`${selectedYear} Average Snowfall`}
-                  monthly_data={extractClimateData(
-                    "snow",
-                    "monthly",
-                    selectedYear
-                  )}
-                  annual_data={extractClimateData(
-                    "snow",
-                    "annual",
-                    selectedYear
-                  )}
-                  numDec={1}
-                  units={"in"}
-                  averageKey={"snow"}
-                  isLoading={isLoadingYearlyData}
-                ></Table>
-
-                <Table
-                  locations={locations}
-                  heading={`${selectedYear} Total Snowy Days`}
-                  monthly_data={extractClimateData(
-                    "snow_days",
-                    "monthly",
-                    selectedYear
-                  )}
-                  annual_data={extractClimateData(
-                    "snow_days",
-                    "annual",
-                    selectedYear
-                  )}
-                  units={"dy"}
-                  averageKey={"snow_days"}
-                  isLoading={isLoadingYearlyData}
-                ></Table>
-              </div>
-              <br />
-              <br />
-              <hr />
-              <br />
-              <br />
-              <Typography
-                sx={{ flex: "1 1 100%" }}
-                variant={chartConfig.headingVariant}
-                component="div"
-                textAlign={"center"}
-              >
-                {selectedYear === "Annual" ? "Annual" : selectedYear} Afternoon
-                Humidity
-              </Typography>
-              <LazyLoad
-                height={chartConfig.lazyLoadHeight}
-                offset={chartConfig.lazyLoadOffset}
-                once={chartConfig.doLazyLoadOnce}
-              >
-                {selectedYear === "Annual" ? (
-                  <ClimateChart
-                    datasetProp={annualHumidityDataset}
-                    units={"%"}
-                    xAxisRangeState={xAxisRangeState}
-                    onXAxisRangeChange={handleXAxisRangeChange}
-                  />
-                ) : (
-                  <ClimateChartPaginate
-                    locations={locations}
-                    currentIndex={currentIndex}
-                    setCurrentIndex={setCurrentIndex}
-                  >
-                    {(location, index) => (
-                      <ClimateChartRenderer
-                        index={index}
-                        data={paginatedHumidityDataset}
-                        units={"%"}
-                        title={location.data.location_data.location}
-                        year={parseInt(selectedYear)}
-                        xAxisRangeState={xAxisRangeState}
-                        onXAxisRangeChange={handleXAxisRangeChange}
-                      />
-                    )}
-                  </ClimateChartPaginate>
-                )}
-              </LazyLoad>
-
-              <p className="compare-page-paragraph">
-                Average afternoon humidity for each location. In the afternoon
-                when the tempearture is highest, the humidity will be the
-                lowest. The opposite is the case in the morning. A humidity
-                level below 30 percent is considered comfortable, and above 70
-                percent is considered very humid. The table contains the average
-                humidity for each month.
-              </p>
-              <div>
-                <Table
-                  locations={locations}
-                  heading={`${selectedYear} Average Humidity`}
-                  monthly_data={extractClimateData(
-                    "mean_humidity",
-                    "monthly",
-                    selectedYear
-                  )}
-                  annual_data={extractClimateData(
-                    "mean_humidity",
-                    "annual",
-                    selectedYear
-                  )}
-                  units={"%"}
-                  averageKey={"mean_humidity"}
-                  isLoading={isLoadingYearlyData}
-                  colorPercentDev={COLOR_PERC_DEV_10}
-                ></Table>
-                <Table
-                  locations={locations}
-                  heading={`${selectedYear} Average Morning Humidity`}
-                  monthly_data={extractClimateData(
-                    "morning_humidity",
-                    "monthly",
-                    selectedYear
-                  )}
-                  annual_data={extractClimateData(
-                    "morning_humidity",
-                    "annual",
-                    selectedYear
-                  )}
-                  units={"%"}
-                  averageKey={"morning_humidity"}
-                  isLoading={isLoadingYearlyData}
-                  colorPercentDev={COLOR_PERC_DEV_10}
-                ></Table>
-              </div>
-              <br />
-              <br />
-              <hr />
-              <br />
-              <br />
-              <Typography
-                sx={{ flex: "1 1 100%" }}
-                variant={chartConfig.headingVariant}
-                component="div"
-                textAlign={"center"}
-              >
-                {selectedYear === "Annual" ? "Annual" : selectedYear} Dewpoint
-              </Typography>
-
-              <LazyLoad
-                height={chartConfig.lazyLoadHeight}
-                offset={chartConfig.lazyLoadOffset}
-                once={chartConfig.doLazyLoadOnce}
-              >
-                {selectedYear === "Annual" ? (
-                  <ClimateChart
-                    datasetProp={annualDewpointDataset}
-                    units={"°"}
-                    xAxisRangeState={xAxisRangeState}
-                    onXAxisRangeChange={handleXAxisRangeChange}
-                  />
-                ) : (
-                  <ClimateChartPaginate
-                    locations={locations}
-                    currentIndex={currentIndex}
-                    setCurrentIndex={setCurrentIndex}
-                  >
-                    {(location, index) => (
-                      <ClimateChartRenderer
-                        index={index}
-                        data={paginatedDewpointDataset}
-                        units={"°"}
-                        title={location.data.location_data.location}
-                        year={parseInt(selectedYear)}
-                        xAxisRangeState={xAxisRangeState}
-                        onXAxisRangeChange={handleXAxisRangeChange}
-                      />
-                    )}
-                  </ClimateChartPaginate>
-                )}
-              </LazyLoad>
-
-              <p className="compare-page-paragraph">
-                Average dewpoint for each location. The dewpoint is a measure of
-                absolute humidity in the air, rather than the relative humidity
-                percentage which changes with temperature. Dewpoint is generally
-                a better metric for how humid it feels outside. Dewpoint values
-                bellow 50 degrees are plesant, around 60 degrees begins to feel
-                humid, 70 degrees feels muggy, and above 75 feels oppressive.
-              </p>
-              <div>
-                <Table
-                  locations={locations}
-                  heading={`${selectedYear} Average Dewpoint (°F)`}
-                  monthly_data={extractClimateData(
-                    "dewpoint",
-                    "monthly",
-                    selectedYear
-                  )}
-                  annual_data={extractClimateData(
-                    "dewpoint",
-                    "annual",
-                    selectedYear
-                  )}
-                  units={"°"}
-                  averageKey={"dewpoint"}
-                  isLoading={isLoadingYearlyData}
-                  colorPercentDev={COLOR_PERC_DEV_10}
-                ></Table>
-
-                <Table
-                  locations={locations}
-                  heading={`${selectedYear} Total Muggy Days`}
-                  monthly_data={extractClimateData(
-                    "dewpoint_muggy_days",
-                    "monthly",
-                    selectedYear
-                  )}
-                  annual_data={extractClimateData(
-                    "dewpoint_muggy_days",
-                    "annual",
-                    selectedYear
-                  )}
-                  units={"dy"}
-                  averageKey={"dewpoint_muggy_days"}
-                  isLoading={isLoadingYearlyData}
-                ></Table>
-              </div>
-
-              <br />
-              <br />
-              <hr />
-              <br />
-              <br />
-              <Typography
-                sx={{ flex: "1 1 100%" }}
-                variant={chartConfig.headingVariant}
-                component="div"
-                textAlign={"center"}
-              >
-                {selectedYear === "Annual" ? "Annual" : selectedYear} Wind Speed
-              </Typography>
-
-              <LazyLoad
-                height={chartConfig.lazyLoadHeight}
-                offset={chartConfig.lazyLoadOffset}
-                once={chartConfig.doLazyLoadOnce}
-              >
                 {selectedYear === "Annual" ? (
                   <ClimateChart
                     datasetProp={annualWindDataset}
@@ -1111,32 +1364,30 @@ export default function ComparisonPage({ locations }: ComparisonPageProps) {
                     )}
                   </ClimateChartPaginate>
                 )}
-              </LazyLoad>
 
-              <p className="compare-page-paragraph">
-                Average maximum daily wind speed for each location. The average
-                wind values can be seen when viewing historical data.
-              </p>
-              <div>
-                <Table
-                  locations={locations}
-                  heading={`${selectedYear} Average Wind Speed (mph)`}
-                  monthly_data={extractClimateData(
-                    "wind",
-                    "monthly",
-                    selectedYear
-                  )}
-                  annual_data={extractClimateData(
-                    "wind",
-                    "annual",
-                    selectedYear
-                  )}
-                  units={""}
-                  averageKey={"wind"}
-                  isLoading={isLoadingYearlyData}
-                ></Table>
+                <p className="compare-page-paragraph">
+                  Average maximum daily wind speed for each location. The
+                  average wind values can be seen when viewing historical data.
+                </p>
+                <div>
+                  <Table
+                    locations={locations}
+                    heading={`${selectedYear} Average Wind Speed (mph)`}
+                    monthly_data={extractClimateData(
+                      "wind",
+                      "monthly",
+                      selectedYear
+                    )}
+                    annual_data={extractClimateData(
+                      "wind",
+                      "annual",
+                      selectedYear
+                    )}
+                    units={""}
+                    averageKey={"wind"}
+                    isLoading={isLoadingYearlyData}
+                  ></Table>
 
-                {
                   <Table
                     locations={locations}
                     heading={`${selectedYear} Average Wind Gust (mph)`}
@@ -1154,206 +1405,23 @@ export default function ComparisonPage({ locations }: ComparisonPageProps) {
                     averageKey={"wind_gust"}
                     isLoading={isLoadingYearlyData}
                   ></Table>
-                }
-              </div>
-              <br />
-              <br />
-              <hr />
-              <br />
-              <br />
-              <Typography
-                sx={{ flex: "1 1 100%" }}
-                variant={chartConfig.headingVariant}
-                component="div"
-                textAlign={"center"}
-              >
-                {selectedYear === "Annual" ? "Annual" : selectedYear} Sunshine
-                Percentage
-              </Typography>
-
-              <LazyLoad
-                height={chartConfig.lazyLoadHeight}
-                offset={chartConfig.lazyLoadOffset}
-                once={chartConfig.doLazyLoadOnce}
-              >
-                {selectedYear === "Annual" ? (
-                  <ClimateChart
-                    datasetProp={annualSunshineDataset}
-                    units={"%"}
-                    xAxisRangeState={xAxisRangeState}
-                    onXAxisRangeChange={handleXAxisRangeChange}
-                  />
-                ) : (
-                  <ClimateChartPaginate
-                    locations={locations}
-                    currentIndex={currentIndex}
-                    setCurrentIndex={setCurrentIndex}
-                  >
-                    {(location, index) => (
-                      <ClimateChartRenderer
-                        index={index}
-                        data={paginatedSunshineDataset}
-                        units={"%"}
-                        title={location.data.location_data.location}
-                        year={parseInt(selectedYear)}
-                        xAxisRangeState={xAxisRangeState}
-                        onXAxisRangeChange={handleXAxisRangeChange}
-                      />
-                    )}
-                  </ClimateChartPaginate>
-                )}
+                </div>
               </LazyLoad>
+              <LineBreaks />
 
-              <p className="compare-page-paragraph">
-                Percentage of sunshine for each location. A day is considered to
-                be sunny if the sun is out more than 70% of each day, Partly
-                Cloudy if its out for more than 40%, and Cloudy if less.The
-                total number of sunny days expected for each month, along with
-                the annual total are displayed in the table.
-              </p>
-              <div>
-                <Table
-                  locations={locations}
-                  heading={`${selectedYear} Total Sunny Days`}
-                  monthly_data={extractClimateData(
-                    "clear_days",
-                    "monthly",
-                    selectedYear
-                  )}
-                  annual_data={extractClimateData(
-                    "clear_days",
-                    "annual",
-                    selectedYear
-                  )}
-                  units={"dy"}
-                  averageKey={"clear_days"}
-                  isLoading={isLoadingYearlyData}
-                ></Table>
-                <Table
-                  locations={locations}
-                  heading={`${selectedYear} Total Partly Cloudy Days`}
-                  monthly_data={extractClimateData(
-                    "partly_cloudy_days",
-                    "monthly",
-                    selectedYear
-                  )}
-                  annual_data={extractClimateData(
-                    "partly_cloudy_days",
-                    "annual",
-                    selectedYear
-                  )}
-                  units={"dy"}
-                  averageKey={"partly_cloudy_days"}
-                  isLoading={isLoadingYearlyData}
-                ></Table>
-                <Table
-                  locations={locations}
-                  heading={`${selectedYear} Total Cloudy Days`}
-                  monthly_data={extractClimateData(
-                    "cloudy_days",
-                    "monthly",
-                    selectedYear
-                  )}
-                  annual_data={extractClimateData(
-                    "cloudy_days",
-                    "annual",
-                    selectedYear
-                  )}
-                  units={"dy"}
-                  averageKey={"cloudy_days"}
-                  isLoading={isLoadingYearlyData}
-                ></Table>
-              </div>
-              <br />
-              <br />
-              <hr />
-              <br />
-              <br />
-              <Typography
-                sx={{ flex: "1 1 100%" }}
-                variant={chartConfig.headingVariant}
-                component="div"
-                textAlign={"center"}
-              >
-                {selectedYear === "Annual" ? "Annual" : selectedYear} UV Index
-              </Typography>
+              {/*COMFORT RATING*/}
+
               <LazyLoad
                 height={chartConfig.lazyLoadHeight}
                 offset={chartConfig.lazyLoadOffset}
                 once={chartConfig.doLazyLoadOnce}
+                className="compare-chart-shadow-effect"
               >
-                {selectedYear === "Annual" ? (
-                  <ClimateChart
-                    datasetProp={annualUVIndexDataset}
-                    units={""}
-                    xAxisRangeState={xAxisRangeState}
-                    onXAxisRangeChange={handleXAxisRangeChange}
-                  />
-                ) : (
-                  <ClimateChartPaginate
-                    locations={locations}
-                    currentIndex={currentIndex}
-                    setCurrentIndex={setCurrentIndex}
-                  >
-                    {(location, index) => (
-                      <ClimateChartRenderer
-                        index={index}
-                        data={paginatedUVIndexDataset}
-                        year={parseInt(selectedYear)}
-                        title={location.data.location_data.location}
-                        xAxisRangeState={xAxisRangeState}
-                        onXAxisRangeChange={handleXAxisRangeChange}
-                      />
-                    )}
-                  </ClimateChartPaginate>
-                )}
-              </LazyLoad>
+                <p className="chart-title">
+                  {selectedYear === "Annual" ? "Annual" : selectedYear} Comfort
+                  Rating
+                </p>
 
-              <p className="compare-page-paragraph">
-                Average UV Index for each location. The UV index is a measure of
-                the strength of the suns ultraviolet rays. The UV index is
-                highest in the summer and lowest in the winter. Elevation also
-                increases the UV index, so on mountain peaks the sun is often
-                stronger.
-              </p>
-              <div>
-                <Table
-                  locations={locations}
-                  heading={`${selectedYear} Average UV Index`}
-                  monthly_data={extractClimateData(
-                    "uv_index",
-                    "monthly",
-                    selectedYear
-                  )}
-                  annual_data={extractClimateData(
-                    "uv_index",
-                    "annual",
-                    selectedYear
-                  )}
-                  averageKey={"uv_index"}
-                  isLoading={isLoadingYearlyData}
-                  colorPercentDev={COLOR_PERC_DEV_10}
-                ></Table>
-              </div>
-              <br />
-              <br />
-              <hr />
-              <br />
-              <br />
-              <Typography
-                sx={{ flex: "1 1 100%" }}
-                variant={chartConfig.headingVariant}
-                component="div"
-                textAlign={"center"}
-              >
-                {selectedYear === "Annual" ? "Annual" : selectedYear} Comfort
-                Rating
-              </Typography>
-              <LazyLoad
-                height={chartConfig.lazyLoadHeight}
-                offset={chartConfig.lazyLoadOffset}
-                once={chartConfig.doLazyLoadOnce}
-              >
                 {selectedYear === "Annual" ? (
                   <ClimateChart
                     datasetProp={annualComfortDataset}
@@ -1379,134 +1447,168 @@ export default function ComparisonPage({ locations }: ComparisonPageProps) {
                     )}
                   </ClimateChartPaginate>
                 )}
+
+                <p className="compare-page-paragraph">
+                  Average comfort rating for each location. The comfort rating
+                  is a function of temperature, humidity, and amount of sun. The
+                  higher the comfort rating, the more pleasant the weather is.
+                  <br />
+                  <br />A comfort rating lower than 50 is very harsh, and
+                  largely unsuitable for normal life. A rating over 90 is
+                  considered very ideal, usally accompanied with plentiful
+                  sunshine, low humidity and warm temperatures.
+                </p>
+                <div>
+                  <Table
+                    locations={locations}
+                    heading={`${selectedYear} Average Comfort Rating`}
+                    monthly_data={extractClimateData(
+                      "comfort_index",
+                      "monthly",
+                      selectedYear
+                    )}
+                    annual_data={extractClimateData(
+                      "comfort_index",
+                      "annual",
+                      selectedYear
+                    )}
+                    averageKey={"comfort_index"}
+                    isLoading={isLoadingYearlyData}
+                    yearPercentDev={YEAR_PERC_DEV_10}
+                  ></Table>
+                </div>
               </LazyLoad>
+              <LineBreaks />
 
-              <p className="compare-page-paragraph">
-                Average comfort rating for each location. The comfort rating is
-                a function of temperature, humidity, and amount of sun. The
-                higher the comfort rating, the more pleasant the weather is. A
-                comfort rating lower than 50 is very harsh, and largely
-                unsuitable for normal life. A rating over 90 is considered very
-                ideal, usally accompanied with plentiful sunshine, low humidity
-                and warm temperatures.
-              </p>
-              <div>
-                <Table
-                  locations={locations}
-                  heading={`${selectedYear} Average Comfort Rating`}
-                  monthly_data={extractClimateData(
-                    "comfort_index",
-                    "monthly",
-                    selectedYear
-                  )}
-                  annual_data={extractClimateData(
-                    "comfort_index",
-                    "annual",
-                    selectedYear
-                  )}
-                  averageKey={"comfort_index"}
-                  isLoading={isLoadingYearlyData}
-                  colorPercentDev={COLOR_PERC_DEV_10}
-                ></Table>
-              </div>
-              <br />
-              <br />
-              <hr />
-              <br />
-              <br />
+              {/*GROWING SEASON AND FROST CHANCE*/}
 
-              <Typography
-                sx={{ flex: "1 1 100%" }}
-                variant={chartConfig.headingVariant}
-                component="div"
-                textAlign={"center"}
-              >
-                Annual Growing Season
-              </Typography>
-              <LazyLoad
-                height={chartConfig.lazyLoadHeight}
-                offset={chartConfig.lazyLoadOffset}
-                once={chartConfig.doLazyLoadOnce}
-              >
-                <ClimateChart
-                  datasetProp={annualGrowingSeasonDataset}
-                  units={"%"}
-                  year={
-                    selectedYear === "Annual" ? 2023 : parseInt(selectedYear)
-                  }
-                  xAxisRangeState={xAxisRangeState}
-                  onXAxisRangeChange={handleXAxisRangeChange}
-                />
-              </LazyLoad>
+              <ClimateChartRadio labels={["Growing", "Frost"]}>
+                <LazyLoad
+                  height={chartConfig.lazyLoadHeight}
+                  offset={chartConfig.lazyLoadOffset}
+                  once={chartConfig.doLazyLoadOnce}
+                  className="compare-chart-shadow-effect"
+                >
+                  <p className="chart-title">
+                    {selectedYear === "Annual" ? "Annual" : selectedYear}{" "}
+                    Growing Season
+                  </p>
 
-              <p className="compare-page-paragraph">
-                Average span between freezing temperatures, known as the growing
-                season. Frost is likely when the temperature is below 35
-                degrees, with high humidity, which often occurs in the morning.
-                The table contains the monthly Cooling Degree Days (CDD) Heating
-                Degree Days (HDD), and chance of frost in the morning. Cooling
-                degree days are a measure of how much cooling is needed, based
-                on the duration the average temperature is above 65°F. Heating
-                degree days are the opposite. HDD and CDD are a good measure in
-                how severe a season is, and can translate into higher utility
-                bills.
-              </p>
-              <div>
-                <Table
-                  locations={locations}
-                  heading={`${selectedYear} Average Frost Chance`}
-                  monthly_data={extractClimateData(
-                    "morning_frost_chance",
-                    "monthly",
-                    selectedYear
+                  {selectedYear === "Annual" ? (
+                    <ClimateChart
+                      datasetProp={annualGrowingSeasonDataset}
+                      units={"%"}
+                      xAxisRangeState={xAxisRangeState}
+                      onXAxisRangeChange={handleXAxisRangeChange}
+                    />
+                  ) : (
+                    <ClimateChartPaginate
+                      locations={locations}
+                      currentIndex={currentIndex}
+                      setCurrentIndex={setCurrentIndex}
+                    >
+                      {(location, index) => (
+                        <ClimateChartRenderer
+                          index={index}
+                          data={paginatedGrowingSeasonDataset}
+                          year={parseInt(selectedYear)}
+                          title={location.data.location_data.location}
+                          xAxisRangeState={xAxisRangeState}
+                          onXAxisRangeChange={handleXAxisRangeChange}
+                        />
+                      )}
+                    </ClimateChartPaginate>
                   )}
-                  annual_data={extractClimateData(
-                    "morning_frost_chance",
-                    "annual",
-                    selectedYear
-                  )}
-                  units={"%"}
-                  averageKey={"morning_frost_chance"}
-                  isLoading={isLoadingYearlyData}
-                  colorPercentDev={COLOR_PERC_DEV_10}
-                ></Table>
+                  <p className="compare-page-paragraph">
+                    The growing season is the number of days between the last
+                    frost in the spring and the first frost in the fall. The
+                    growing season is the time when plants can grow, and is
+                    generally when the temperature is above 32 degrees.
+                  </p>
+                  <div>
+                    <Table
+                      locations={locations}
+                      heading={`${selectedYear} Growing Days`}
+                      monthly_data={extractClimateData(
+                        "growing_days",
+                        "monthly",
+                        selectedYear
+                      )}
+                      annual_data={extractClimateData(
+                        "growing_days",
+                        "annual",
+                        selectedYear
+                      )}
+                      units="dy"
+                      averageKey={"growing_days"}
+                      isLoading={isLoadingYearlyData}
+                    ></Table>
+                  </div>
+                </LazyLoad>
 
-                <Table
-                  locations={locations}
-                  heading={`${selectedYear} Average Cooling Degree Days`}
-                  monthly_data={extractClimateData(
-                    "cdd",
-                    "monthly",
-                    selectedYear
-                  )}
-                  annual_data={extractClimateData(
-                    "cdd",
-                    "annual",
-                    selectedYear
-                  )}
-                  averageKey={"cdd"}
-                  isLoading={isLoadingYearlyData}
-                ></Table>
+                <LazyLoad
+                  height={chartConfig.lazyLoadHeight}
+                  offset={chartConfig.lazyLoadOffset}
+                  once={chartConfig.doLazyLoadOnce}
+                  className="compare-chart-shadow-effect"
+                >
+                  <p className="chart-title">
+                    {selectedYear === "Annual" ? "Annual" : selectedYear} Frost
+                    Chance
+                  </p>
 
-                <Table
-                  locations={locations}
-                  heading={`${selectedYear} Average Heating Degree Days`}
-                  monthly_data={extractClimateData(
-                    "hdd",
-                    "monthly",
-                    selectedYear
+                  {selectedYear === "Annual" ? (
+                    <ClimateChart
+                      datasetProp={annualFrostChanceDataset}
+                      units={"%"}
+                      xAxisRangeState={xAxisRangeState}
+                      onXAxisRangeChange={handleXAxisRangeChange}
+                    />
+                  ) : (
+                    <ClimateChartPaginate
+                      locations={locations}
+                      currentIndex={currentIndex}
+                      setCurrentIndex={setCurrentIndex}
+                    >
+                      {(location, index) => (
+                        <ClimateChartRenderer
+                          index={index}
+                          data={paginatedFrostChanceDataset}
+                          year={parseInt(selectedYear)}
+                          title={location.data.location_data.location}
+                          xAxisRangeState={xAxisRangeState}
+                          onXAxisRangeChange={handleXAxisRangeChange}
+                        />
+                      )}
+                    </ClimateChartPaginate>
                   )}
-                  annual_data={extractClimateData(
-                    "hdd",
-                    "annual",
-                    selectedYear
-                  )}
-                  averageKey={"hdd"}
-                  isLoading={isLoadingYearlyData}
-                ></Table>
-              </div>
-              <br />
-              <br />
+
+                  <p className="compare-page-paragraph">
+                    Frost is likely when the temperature is below 35 degrees,
+                    with high humidity, which often occurs in the morning.
+                  </p>
+                  <div>
+                    <Table
+                      locations={locations}
+                      heading={`${selectedYear} Frost Days`}
+                      monthly_data={extractClimateData(
+                        "frost_days",
+                        "monthly",
+                        selectedYear
+                      )}
+                      annual_data={extractClimateData(
+                        "frost_days",
+                        "annual",
+                        selectedYear
+                      )}
+                      units={"dy"}
+                      averageKey={"frost_days"}
+                      isLoading={isLoadingYearlyData}
+                    ></Table>
+                  </div>
+                </LazyLoad>
+              </ClimateChartRadio>
+              <LineBreaks />
             </div>
           </div>
         )}
@@ -1518,22 +1620,37 @@ export default function ComparisonPage({ locations }: ComparisonPageProps) {
   );
 }
 
+// This is a wrapper for the Climate Charts when they are being paginated
+// Without this wrapper, there is an error when the last paginated chart is selected
+// And then a location is removed from the comparison list
 const ClimateChartRenderer: React.FC<{
   index: number;
-  data: any[]; // Replace 'any[]' with the appropriate type for your dataset if known.
+  data: any[];
   units?: string;
   title?: string;
   year?: number;
   xAxisRangeState: { minX: number; maxX: number };
   onXAxisRangeChange: (newState: { minX: number; maxX: number }) => void;
+  X_RANGE_MAX?: number;
+  X_RANGE_MIN?: number;
+  MAX_ZOOM?: number;
+  dataType?: "YEARLY" | "MONTHLY" | "DAILY";
+  isStacked?: boolean;
+  updateChartZoom?: boolean;
 }> = ({
   index,
   data,
   units = "",
   title = "",
-  year = 2023,
+  year = 2000,
   xAxisRangeState,
   onXAxisRangeChange,
+  X_RANGE_MAX = DEFAULT_X_RANGE_MAX,
+  X_RANGE_MIN = DEFAULT_X_RANGE_MIN,
+  MAX_ZOOM = 30,
+  dataType = "DAILY",
+  isStacked = false,
+  updateChartZoom = true,
 }) => {
   if (index < 0 || index >= data.length) {
     return null;
@@ -1546,6 +1663,50 @@ const ClimateChartRenderer: React.FC<{
       year={year}
       xAxisRangeState={xAxisRangeState}
       onXAxisRangeChange={onXAxisRangeChange}
+      X_RANGE_MAX={X_RANGE_MAX}
+      X_RANGE_MIN={X_RANGE_MIN}
+      MAX_ZOOM={MAX_ZOOM}
+      dataType={dataType}
+      isStacked={isStacked}
+      updateChartZoom={updateChartZoom}
     />
   );
 };
+
+/*
+{selectedYear === "Annual" ? (
+                      <StackedBarChart
+                        datasetProp={annualStackedSunDataset}
+                        units={"%"}
+                        X_RANGE_MIN={0}
+                        X_RANGE_MAX={11}
+                        dataType="MONTHLY"
+                        isStacked={true}
+                      />
+                    ) : (
+                      <ClimateChartPaginate
+                        locations={locations}
+                        currentIndex={currentIndex}
+                        setCurrentIndex={setCurrentIndex}
+                      >
+                        {(location, index) => (
+                          <ClimateChartRenderer
+                            index={index}
+                            data={paginatedStackedSunDataset}
+                            units={"%"}
+                            title={location.data.location_data.location}
+                            year={parseInt(selectedYear)}
+                            xAxisRangeState={xAxisRangeState}
+                            onXAxisRangeChange={handleXAxisRangeChange}
+                            X_RANGE_MAX={11}
+                            X_RANGE_MIN={0}
+                            MAX_ZOOM={12}
+                            dataType="MONTHLY"
+                            isStacked={true}
+                            updateChartZoom={false}
+                          />
+                        )}
+                      </ClimateChartPaginate>
+                    )}
+
+*/

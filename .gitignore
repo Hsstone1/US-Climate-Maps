@@ -1,3 +1,13 @@
+# Png files
+*.png
+
+# Saved Prediction Models
+*.pkl
+
+
+#GHCN Database Stations
+ghcnd-inventory.txt
+
 # VSCode
 .vscode/*
 .vscode/settings.json

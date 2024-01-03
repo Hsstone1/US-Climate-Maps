@@ -7,9 +7,17 @@ import {
 } from "chart.js";
 import { Chart } from "react-chartjs-2";
 import ChartDataLabels from "chartjs-plugin-datalabels";
-import { ClimateChartDataset, dayOfYearToDate } from "./climate-chart-helpers";
+import {
+  ClimateChartDataset,
+  MonthLabels,
+  datalabelsFormatter,
+  dayOfYearToDate,
+  formatValueWithUnit,
+  tooltipLabelCallback,
+} from "./climate-chart-helpers";
 import zoomPlugin from "chartjs-plugin-zoom";
 import { TitleColor } from "../data-value-colors";
+import { MIN_YEAR } from "../global-utils";
 
 ChartJS.register(...registerables, ChartDataLabels, zoomPlugin);
 
@@ -22,41 +30,14 @@ type ClimateChartProps = {
   year?: number;
   xAxisRangeState: { minX: number; maxX: number };
   onXAxisRangeChange: (newState: { minX: number; maxX: number }) => void;
+  X_RANGE_MIN?: number;
+  X_RANGE_MAX?: number;
+  MAX_ZOOM?: number;
+  dataType?: "YEARLY" | "MONTHLY" | "DAILY";
+  displayLegend?: boolean;
+  isStacked?: boolean;
+  updateChartZoom?: boolean;
 };
-
-function formatValueWithUnit(
-  yValue: number,
-  yAxisID: string,
-  decimalTrunc?: 0
-): string {
-  let unit = "";
-
-  switch (yAxisID) {
-    case "Temperature":
-      unit = "°F";
-      break;
-    case "Dewpoint":
-      unit = "°F";
-      break;
-    case "Precip":
-      unit = "in";
-      break;
-
-    case "Percentage":
-      unit = "%";
-      break;
-    case "Wind":
-      unit = "mph";
-      break;
-
-    // ... add other cases as needed
-    default:
-      unit = "";
-      break;
-  }
-
-  return `${yValue.toFixed(decimalTrunc)}${unit}`;
-}
 
 function debounce(func: () => void, wait: number) {
   let timeout: NodeJS.Timeout;
@@ -78,20 +59,29 @@ function ClimateChart({
   year = 2023,
   xAxisRangeState,
   onXAxisRangeChange,
+  X_RANGE_MIN = 0,
+  X_RANGE_MAX = year % 4 === 0 && (year % 100 !== 0 || year % 400 === 0)
+    ? 365
+    : 364,
+  MAX_ZOOM = 30,
+  dataType = "DAILY",
+  displayLegend = false,
+  isStacked = false,
+  updateChartZoom = true,
 }: ClimateChartProps) {
   const chartRef = useRef<ChartJS | null>(null);
-  const X_RANGE_MIN = 0;
-  const X_RANGE_MAX =
-    year % 4 === 0 && (year % 100 !== 0 || year % 400 === 0) ? 365 : 364;
+
   const DEBOUNCE_TIME_MS = 100;
 
   const updateXAxisRange = () => {
     const chart = chartRef.current;
     if (chart) {
-      onXAxisRangeChange({
-        minX: chart.scales.x.min,
-        maxX: chart.scales.x.max,
-      });
+      if (updateChartZoom) {
+        onXAxisRangeChange({
+          minX: chart.scales.x.min,
+          maxX: chart.scales.x.max,
+        });
+      }
     }
   };
 
@@ -103,12 +93,14 @@ function ClimateChart({
   useEffect(() => {
     const chart = chartRef.current;
     if (chart && chart.options.scales?.x) {
-      chart.options.scales.x.min = xAxisRangeState.minX;
+      if (updateChartZoom) {
+        chart.options.scales.x.min = xAxisRangeState.minX;
 
-      chart.options.scales.x.max = xAxisRangeState.maxX;
-      chart.update();
+        chart.options.scales.x.max = xAxisRangeState.maxX;
+        chart.update();
+      }
     }
-  }, [xAxisRangeState]);
+  }, [xAxisRangeState, updateChartZoom]);
 
   // Transform datasets for line chart
   const transformedLineDatasets = useMemo(() => {
@@ -168,12 +160,21 @@ function ClimateChart({
   const xAxisOptions = {
     type: "linear",
     offset: false,
-    min: xAxisRangeState.minX,
-    max: xAxisRangeState.maxX,
+    min: updateChartZoom ? xAxisRangeState.minX : X_RANGE_MIN,
+    max: updateChartZoom ? xAxisRangeState.maxX : X_RANGE_MAX,
+    stacked: isStacked,
 
     ticks: {
       callback: function (value: number) {
-        return dayOfYearToDate(value, year);
+        // This displays the years as the x axis index, rather than the date
+        // Used in the climate trends component
+        if (dataType === "YEARLY") {
+          return (MIN_YEAR + value).toFixed(0);
+        } else if (dataType === "MONTHLY") {
+          return MonthLabels[value];
+        } else {
+          return dayOfYearToDate(value, year);
+        }
       },
       autoSkip: true,
       maxTicksLimit: 30,
@@ -188,9 +189,9 @@ function ClimateChart({
   const yAxisOptions = (
     axisId: string,
     unit: string,
-    suggested_max: number,
-    suggested_min: number = 0,
-    stepsize: number = 10,
+    suggested_max?: number | undefined,
+    suggested_min?: number | undefined,
+    stepsize: number = 1,
     max?: number
   ) => ({
     type: "linear",
@@ -202,6 +203,7 @@ function ClimateChart({
     suggestedMin: suggested_min,
     suggestedMax: suggested_max,
     max: max,
+    stacked: isStacked,
 
     ticks: {
       callback: function (value: any) {
@@ -214,40 +216,20 @@ function ClimateChart({
       },
     },
   });
-  const datalabelsFormatter = (value: { y: any[] }, context: any) => {
-    const dataset = context.chart.data.datasets[context.datasetIndex];
-    const yAxisID = dataset.yAxisID;
-
-    // Check if value is an array (for floating bars) and take the second value (high value) if it is
-    const yValue = Array.isArray(value.y) ? "" : value.y;
-
-    // Now ensure that yValue is a number before calling the formatting function
-    if (typeof yValue === "number") {
-      return formatValueWithUnit(yValue, yAxisID);
-    } else {
-      //console.error("yValue is not a number: FORMATTER", yValue);
-      return ""; // or some default error representation
-    }
-  };
-
-  const tooltipLabelCallback = (context: any) => {
-    const label = context.dataset.label || "";
-    const yAxisID = context.dataset.yAxisID;
-    const yValue = context.parsed.y;
-
-    if (typeof yValue === "number") {
-      return `${label}: ${formatValueWithUnit(yValue, yAxisID)}`;
-    } else {
-      //console.error("yValue is not a number: TOOLTIP", yValue);
-      return `${label}: N/A`; // or some default error representation
-    }
-  };
 
   const tooltipCallbacks: any = {
     title: function (context: { label: any }[]) {
-      const dayIndex = parseInt(context[0].label);
-      // Convert day index to date string
-      return dayOfYearToDate(dayIndex, year); // Assuming 'year' is available in the scope
+      const xAxisIndex = parseInt(context[0].label);
+
+      if (dataType === "YEARLY") {
+        // Calculate the year based on the index and return it
+        return (MIN_YEAR + xAxisIndex).toFixed(0);
+      } else if (dataType === "MONTHLY") {
+        return MonthLabels[xAxisIndex];
+      } else {
+        // If the datatype is not 'YEARLY', use the original callback
+        return dayOfYearToDate(xAxisIndex, year);
+      }
     },
     label: tooltipLabelCallback,
   };
@@ -260,8 +242,11 @@ function ClimateChart({
 
       plugins: {
         legend: {
-          position: "top",
-          display: false,
+          position: "bottom",
+          //display: displayLegend,
+          display: true,
+          paddingTop: "0",
+          paddingBottom: "0",
         },
         title: {
           display: true,
@@ -306,7 +291,11 @@ function ClimateChart({
             x: {
               min: X_RANGE_MIN,
               max: X_RANGE_MAX,
-              minRange: 30, //number of days
+
+              //This is the minimum number of x values that can be displayed at once
+              // If X_RANGE_MAX is more than 300, then this chart must be displaying days of the year
+              // Rather than individual years, as in the case of the climate trends component
+              minRange: MAX_ZOOM,
               maxRange: X_RANGE_MAX,
             },
           },
@@ -350,6 +339,11 @@ function ClimateChart({
         Wind: yAxisOptions("Wind", "", 20, 0, 1),
         Comfort_Index: yAxisOptions("Comfort_Index", "", 100, 0, 10),
         UV_Index: yAxisOptions("UV_Index", "", 10, 0, 1),
+
+        TemperatureTrend: yAxisOptions("TemperatureTrend", "°"),
+        PrecipTrend: yAxisOptions("PrecipTrend", "in"),
+        DaysTrend: yAxisOptions("DaysTrend", "days"),
+        PercentageTrend: yAxisOptions("PercentageTrend", "%"),
 
         // ... Other Y-axis scales
       },

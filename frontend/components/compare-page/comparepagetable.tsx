@@ -7,22 +7,29 @@ import TableHead from "@mui/material/TableHead";
 import TableRow from "@mui/material/TableRow";
 import Paper from "@mui/material/Paper";
 
-import { MonthLabels } from "./climate-chart-helpers";
+import { MonthLabels } from "../climate-chart/climate-chart-helpers";
 import { ColorScaleBar } from "./ColorScaleBar";
-import { LocationColors, MarkerType } from "../location-props";
+import { LocationColors, MarkerType } from "../global-utils";
 import Typography from "@mui/material/Typography";
-import { ThemeColor } from "../data-value-colors";
+import {
+  ThemeColor,
+  convertKeyToBackgroundID,
+  getBackgroundColor,
+  getTextColor,
+  interpolateColor,
+} from "../data-value-colors";
 
 type ComparisonPageProps = {
   locations: MarkerType[];
   heading: string;
   monthly_data: any;
   annual_data: any;
-  numDec?: number;
-  units?: string;
   averageKey: string;
+  numDec?: number;
+  annualColorAdjustment?: number;
+  units?: string;
   isLoading?: boolean;
-  colorPercentDev?: number;
+  yearPercentDev?: number;
 };
 
 const StyledTableCell = styled(TableCell)(() => ({
@@ -48,32 +55,17 @@ const StyledTableCell = styled(TableCell)(() => ({
   },
 }));
 
-// Helper function for color interpolation
-const interpolateColor = (
-  color1: { r: any; g: any; b: any },
-  color2: { r: any; g: any; b: any },
-  factor: number
-) => {
-  if (factor < 0) factor = 0;
-  if (factor > 1) factor = 1;
-  const result = {
-    r: Math.round(color1.r + factor * (color2.r - color1.r)),
-    g: Math.round(color1.g + factor * (color2.g - color1.g)),
-    b: Math.round(color1.b + factor * (color2.b - color1.b)),
-  };
-  return result;
-};
-
 const ClimateTable = ({
   locations,
   heading,
   monthly_data,
   annual_data,
-  numDec = 0,
-  units = "",
   averageKey,
+  numDec = 0,
+  annualColorAdjustment = 1,
+  units = "",
   isLoading = false,
-  colorPercentDev = 50,
+  yearPercentDev = 50,
 }: ComparisonPageProps) => {
   const selectedYear = heading.split(" ")[0];
 
@@ -81,8 +73,10 @@ const ClimateTable = ({
   // and the percent deviation from the average. The color is interpolated
   // between red, white, and green for negative, neutral, and positive values respectively.
 
-  // The colorPercentDev parameter defines the magnitude of the outer bounds of the red and green range.
-  // So for example, if colorPercentDev is 50, then the red range is 50% to 100%
+  //This function is used only when the selected year is not "Annual"
+
+  // The yearPercentDev parameter defines the magnitude of the outer bounds of the red and green range.
+  // So for example, if yearPercentDev is 50, then the red range is 50% to 100%
   // Then the green range is 100% to 200%
   const getColorForValue = (value: number, average: number) => {
     if (selectedYear === "Annual" && isLoading) {
@@ -91,8 +85,8 @@ const ClimateTable = ({
 
     // Define constants
     const COLOR_ALPHA = 1;
-    const MIN_PERCENTAGE = -colorPercentDev; // 50% threshold
-    const MAX_PERCENTAGE = colorPercentDev; // 200% threshold
+    const MIN_PERCENTAGE = -yearPercentDev; // 50% threshold
+    const MAX_PERCENTAGE = yearPercentDev; // 200% threshold
     const NEUTRAL_PERCENTAGE = 0; // Neutral range (100%)
 
     const RED = { r: 139, g: 0, b: 0 }; // Dark red for lowest percent deviation
@@ -157,7 +151,7 @@ const ClimateTable = ({
                   location.data.climate_data[averageKey]["annual"];
                 const combined_average = [...average_monthly, average_annual];
 
-                const combinedData = [
+                const combinedData: (number | undefined)[] = [
                   ...monthly_data[locIndex],
                   annual_data[locIndex],
                 ];
@@ -186,31 +180,74 @@ const ClimateTable = ({
                       {location.data.location_data.location}
                     </StyledTableCell>
 
-                    {combinedData.map((value, i) => {
+                    {combinedData.map((value: any, i: any) => {
                       const deviation = value - combined_average[i];
                       const deviationText =
                         deviation >= 0
-                          ? `(+${deviation.toFixed(numDec)}${units})`
-                          : `(${deviation.toFixed(numDec)}${units})`;
+                          ? `+${deviation.toFixed(numDec)}${units}`
+                          : `${deviation.toFixed(numDec)}${units}`;
                       const cellColor =
                         !isLoading && selectedYear !== "Annual"
                           ? getColorForValue(value, combined_average[i])
                           : "white";
 
+                      const backgroundID = convertKeyToBackgroundID(averageKey);
+                      let annualAdjustedValue =
+                        i == combinedData.length - 1
+                          ? value / annualColorAdjustment
+                          : value;
+
+                      // This adjust for the days background color so they are not as dark,
+                      // Since they are using the same scale as precipitation
+                      annualAdjustedValue = averageKey.includes("_days")
+                        ? annualAdjustedValue / 2
+                        : annualAdjustedValue;
+
+                      const cellBackgroundColor = getBackgroundColor(
+                        annualAdjustedValue,
+                        backgroundID
+                      );
+
+                      const cellTextColor = getTextColor(
+                        annualAdjustedValue,
+                        backgroundID
+                      );
+
                       return (
                         <StyledTableCell key={i}>
-                          <div>{`${
-                            value === 0
-                              ? value.toFixed(0)
-                              : value.toFixed(numDec)
-                          }${units}`}</div>
-
-                          {selectedYear !== "Annual" && (
+                          {selectedYear === "Annual" && (
                             <div
-                              style={{ color: cellColor, fontSize: "smaller" }}
+                              style={{
+                                backgroundColor: cellBackgroundColor,
+
+                                color: cellTextColor,
+                              }}
                             >
-                              {deviationText}
+                              {`${
+                                value === 0
+                                  ? value.toFixed(0)
+                                  : value.toFixed(numDec)
+                              }${units}`}
                             </div>
+                          )}
+                          {selectedYear !== "Annual" && (
+                            <>
+                              <div>
+                                {`${
+                                  value === 0
+                                    ? value.toFixed(0)
+                                    : value.toFixed(numDec)
+                                }${units}`}
+                              </div>
+                              <div
+                                style={{
+                                  color: cellColor,
+                                  fontSize: "smaller",
+                                }}
+                              >
+                                {deviationText}
+                              </div>
+                            </>
                           )}
                         </StyledTableCell>
                       );
@@ -224,7 +261,7 @@ const ClimateTable = ({
       </div>
 
       {selectedYear !== "Annual" && (
-        <ColorScaleBar colorPercentDev={colorPercentDev} />
+        <ColorScaleBar yearPercentDev={yearPercentDev} />
       )}
 
       <br />
